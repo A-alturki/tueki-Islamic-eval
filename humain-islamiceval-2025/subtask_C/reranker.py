@@ -77,16 +77,14 @@ class ReRanker:
             for i in range(0, len(pairs), batch_size):
                 batch_pairs = pairs[i:i + batch_size]
                 
-                # Tokenize batch
-                batch_inputs = []
-                for query, passage in batch_pairs:
-                    # Format input as expected by the model
-                    input_text = f"{query} [SEP] {passage}"
-                    batch_inputs.append(input_text)
-                
-                # Tokenize
+                # Tokenize batch — pass pairs separately so the tokenizer
+                # inserts the proper segment separator token (</s> for XLM-RoBERTa)
+                queries   = [pair[0] for pair in batch_pairs]
+                passages  = [pair[1] for pair in batch_pairs]
+
                 inputs = self.tokenizer(
-                    batch_inputs,
+                    queries,
+                    passages,
                     padding=True,
                     truncation=True,
                     max_length=512,

@@ -11,9 +11,9 @@ from span_corrector import SpanCorrector
 DEV_TSV  = "datasets/dev_SubtaskC.tsv"
 DEV_XML  = "datasets/dev_SubtaskC.xml"
 
-USE_RERANKER   = False   # set True to use BGE (slower but better)
-QURAN_THRESH   = 0.70
-HADITH_THRESH  = 0.65
+USE_RERANKER   = True   # set True to use BGE (slower but better)
+QURAN_THRESH   = 0.85
+HADITH_THRESH  = 0.75
 # ─────────────────────────────────────────────────────────────────────────────
 
 def normalize_for_compare(text: str) -> str:

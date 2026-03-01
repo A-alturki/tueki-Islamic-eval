@@ -63,8 +63,8 @@ print("=" * 60)
 
 # ── Init matcher ──────────────────────────────────────────────────────────────
 matcher = QuranHadithSpanMatcher(
-    quran_index_dir="quran_index",
-    hadith_index_dir="hadith_index",
+    quran_index_dir="subtask_C/quran_index",
+    hadith_index_dir="subtask_C/hadith_index",
     use_hf_reranker=USE_RERANKER,
     verbose=False
 )

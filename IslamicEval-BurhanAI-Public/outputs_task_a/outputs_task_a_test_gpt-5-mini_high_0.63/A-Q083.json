@@ -1,0 +1,291 @@
+{
+  "id": "resp_68962601bfbc8193a023751adf2f90ec008c119b5a7d2b29",
+  "created_at": 1754670593.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68962604ea6c8193854594f98ae5f978008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896260756d48193a3c206f1d42e8844008c119b5a7d2b29",
+      "code": "# Read the file and print content and length and show with indices for verification\npath = \"/mnt/data/file-7oE3GFCRuysk7Ko3ogMLaU-text_to_analyse.txt\"\nwith open(path, \"rb\") as f:\n    data_bytes = f.read()\ndata = data_bytes.decode('utf-8')\nprint(\"Length:\", len(data))\nprint(\"----CONTENT START----\")\nprint(data)\nprint(\"----CONTENT END----\")\n# print repr for first 400 chars to show control characters\nprint(\"First 400 chars repr:\")\nprint(repr(data[:400]))",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896260ca2fc81939fdc5b4438834430008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626509968819393da4edef3218b8e008c119b5a7d2b29",
+      "code": "import re, sys\npath = \"/mnt/data/file-7oE3GFCRuysk7Ko3ogMLaU-text_to_analyse.txt\"\nwith open(path, \"r\", encoding=\"utf-8\") as f:\n    data = f.read()\n\ndata_len = len(data)\nprint(\"Total characters:\", data_len)\n\n# Define helper to trim edges according to rules\ntrim_chars = set(list(\" \\n\\r\\t\\u200f\\u200e\" + '«»\"\\'()[]{}<>.,:؛،!?…ـ'))  # include RTL marks? \\u200f \\u200e\n# but parentheses may be internal - we'll trim edges only\n\ndef trim_edges(s):\n    # Remove leading and trailing characters that are in trim_chars; but we must be careful with Arabic combining characters\n    start = 0\n    end = len(s)\n    while start < end and s[start] in trim_chars:\n        start += 1\n    while end > start and s[end-1] in trim_chars:\n        end -= 1\n    return s[start:end], start, end\n\n# find candidate substrings in double quotes\ncandidates = []\n\n# find double-quote spans\nfor m in re.finditer(r'\"([^\"]+)\"', data):\n    content = m.group(1)\n    # store match positions for inner group start and end\n    gstart = m.start(1)\n    gend = m.end(1)\n    # require at least 10 Arabic letters maybe. But we will filter later.\n    candidates.append({\n        \"type\": \"double_quote\",\n        \"raw\": content,\n        \"start\": gstart,\n        \"end\": gend,\n        \"match_span\": (m.start(), m.end())\n    })\n\n# find special bracket spans ﴿ ... ﴾\nfor m in re.finditer(r'﴿([^﴾]+)﴾', data):\n    content = m.group(1)\n    gstart = m.start(1)\n    gend = m.end(1)\n    candidates.append({\n        \"type\": \"bracket_ayah\",\n        \"raw\": content,\n        \"start\": gstart,\n        \"end\": gend,\n        \"match_span\": (m.start(), m.end())\n    })\n\n# find double-parenthesis ((...))\nfor m in re.finditer(r'\\(\\(\\s*([^()]+?)\\s*\\)\\)', data):\n    content = m.group(1)\n    gstart = m.start(1)\n    gend = m.end(1)\n    candidates.append({\n        \"type\": \"double_paren\",\n        \"raw\": content,\n        \"start\": gstart,\n        \"end\": gend,\n        \"match_span\": (m.start(), m.end())\n    })\n\n# find single parenthesis with at least 10 chars including Arabic letters:\nfor m in re.finditer(r'\\(\\s*([^()]{10,}?)\\s*\\)', data):\n    content = m.group(1)\n    # skip if content is just digits or roman or ascii\n    # check presence of Arabic letters (\\u0600-\\u06FF)\n    if re.search(r'[\\u0600-\\u06FF]', content):\n        gstart = m.start(1)\n        gend = m.end(1)\n        candidates.append({\n            \"type\": \"single_paren\",\n            \"raw\": content,\n            \"start\": gstart,\n            \"end\": gend,\n            \"match_span\": (m.start(), m.end())\n        })\n\n# Sort candidates by start pos\ncandidates_sorted = sorted(candidates, key=lambda x: x[\"start\"])\nlen(candidates_sorted), candidates_sorted[:10]",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896265b34c48193b78b1ba8a601bf8f008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626638c1081939ee04681b68384eb008c119b5a7d2b29",
+      "code": "# Prepare cue lists\nayah_cues = [\"قال الله تعالى\", \"قال الله\", \"يقول الله تعالى\", \"يقول الله\", \"يقول تعالى\", \"يقول الله تعالى\", \"الآية\", \"الآية الكريمة\", \"كما ذكر في الآية\", \"كما ذكر في الآية الكريمة\", \"في سورة\", \"سورة\", \"في قوله\", \"قوله\", \"قوله تعالى\", \"كتاب الله\", \"الله تعالى\"]\nhadith_cues = [\"قال رسول الله\", \"قال رسول الله صلى الله عليه\", \"قال رسول الله صلى الله عليه وسلم\", \"قال رسول الله ﷺ\", \"قال النبي\", \"قال النبي صلى الله عليه وسلم\", \"قال عمر\", \"عن عمر\", \"روي عن\", \"في الحديث\", \"رواه\", \"روى\", \"أخرجه\", \"روى عن\", \"أخرجه البخاري\", \"رواه البخاري\", \"رواه البخاري ومسلم\", \"حدثنا\", \"رضي الله عنه\", \"رضي الله عنهما\", \"صلى الله عليه وسلم\", \"ﷺ\", \"﵁\", \"ﷺ\"]\n# prepare results list\nresults = []\n\ndef classify_span(span_text, start_idx):\n    # check preceding 64 chars\n    ctx_start = max(0, start_idx-64)\n    ctx = data[ctx_start:start_idx]\n    # search for cues\n    ay = any(cue in ctx for cue in ayah_cues)\n    hd = any(cue in ctx for cue in hadith_cues)\n    # if both appear use MATN heuristics: if matn contains typical Quranic phrasing like 'إِنَّ' or 'يَلْبَسُونَ' or contains diacritics maybe\n    matn = span_text\n    # decide\n    if ay and not hd:\n        return \"Aya\", ctx\n    if hd and not ay:\n        return \"Hadeeth\", ctx\n    if ay and hd:\n        # both cues exist: classify by MATN text\n        # crude heuristics: if starts with Arabic particles like 'إِنَّ' or 'أُولَئِكَ' or has 'اللَّهَ' or 'سُنْدُس' or 'يَلْبَسُونَ' or 'جَنَّاتُ' or 'يُحَلَّوْنَ' or 'لِبَاسُهُمْ' or all-caps diacritics \n        q_markers = [\"إِنَّ\", \"أُولَئِكَ\", \"اللَّهَ\", \"سُنْدُس\", \"يَلْبَسُونَ\", \"جَنَّاتُ\", \"يُحَلَّوْنَ\", \"لِبَاسُهُمْ\", \"وَلِبَاسُهُمْ\", \"وَلَا\", \"أَسَاوِرَ\", \"وَالَّذِينَ\"]\n        for qm in q_markers:\n            if qm in matn:\n                return \"Aya\", ctx\n        # else if contains 'لا تلبسوا' or imperative 'لا تلبسوا' -> hadith\n        if \"لا تلبسوا\" in matn or \"هي لهم في الدنيا\" in matn or \"لكم في الآخرة\" in matn:\n            return \"Hadeeth\", ctx\n        # default to Aya maybe\n        return \"Aya\", ctx\n    # if neither found, we need to decide by content:\n    # if bracket type it's likely Aya (we will call this function only when bracket or quotes)\n    # heuristics:\n    if any(ch in span_text for ch in [\"اللَّهَ\", \"لِبَاسُهُمْ\", \"إِنَّ\", \"أُولَئِكَ\", \"جَنَّاتُ\", \"يَلْبَسُونَ\", \"سُنْدُس\", \"إِسْتَبْرَق\"]) :\n        return \"Aya\", ctx\n    if \"لا تلبسوا\" in span_text or \"هي لهم في الدنيا\" in span_text or \"فإنها لهم في الدنيا\" in span_text:\n        return \"Hadeeth\", ctx\n    # final fallback: check preceding words maybe 'قال' and 'قال رسول' anchored earlier than 64? Already checked - fallback unknown -> skip\n    return None, ctx\n\n# Now process candidates\nfor c in candidates_sorted:\n    raw = c['raw']\n    s = c['start']; e = c['end']\n    trimmed, left_trim, right_trim = trim_edges(raw)\n    # If trimming removed characters, adjust start index\n    # But since raw==data[s:e], left_trim is offset inside substring; compute new start = s + left_trim, new end = s + right_trim (right_trim is index in substring)\n    new_start = s + left_trim\n    new_end = s + right_trim\n    # compute span_text\n    span_text = data[new_start:new_end]\n    # compute classification\n    classif, ctx = classify_span(span_text, new_start)\n    # Print info\n    print(\"Candidate type:\", c[\"type\"], \"orig raw repr:\", repr(raw))\n    print(\"pos\", s, e, \"trimmed pos\", new_start, new_end, \"len\", len(span_text))\n    print(\"span_text:\", span_text)\n    print(\"context(before):\", repr(ctx))\n    print(\"classification heuristic:\", classif)\n    print(\"-\"*40)\n    results.append({\n        \"orig_type\": c[\"type\"],\n        \"raw\": raw,\n        \"start\": s, \"end\": e,\n        \"new_start\": new_start, \"new_end\": new_end,\n        \"span_text\": span_text,\n        \"classif\": classif\n    })\n\nlen(results)",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896267193f88193aeb442067887af22008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626871d408193a7170bcc90a4021e008c119b5a7d2b29",
+      "code": "# Build unique spans from results\nunique_spans = {}\nfor r in results:\n    if r['classif'] not in (\"Aya\", \"Hadeeth\"):\n        continue\n    ns = r['new_start']; ne = r['new_end']; st = r['span_text']; cls = r['classif']\n    key = (ns, ne)\n    if key not in unique_spans:\n        unique_spans[key] = {\"start\": ns, \"end\": ne, \"text\": st, \"classif\": cls, \"orig_type\": r[\"orig_type\"]}\nlen(unique_spans), list(unique_spans.items())[:10]",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896268b61a88193a59e80525023cb4c008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68962691ee948193a225718da196b978008c119b5a7d2b29",
+      "code": "# Inspect the problematic spans in detail\nfor key, val in sorted(unique_spans.items()):\n    print(key, val['classif'], repr(val['text'])[:120])\n    print(\"full context slice:\", repr(data[val['start']-40:val['end']+40]) )\n    print()",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626943b088193ac9898f91a98f0e2008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626a695888193bfcb08b4030b0d1d008c119b5a7d2b29",
+      "code": "# Re-evaluate classification with extended cues and include candidate at 2954\nextended_hadith_cues = hadith_cues + [\"النبي\", \"النبي ﷺ\", \"النبي صلى\", \"رسول الله\", \"قال: قال رسول\", \"قال رسول\", \"قال رسول الله\"]\n\ndef classify_with_cues(span_text, start_idx):\n    ctx_start = max(0, start_idx-64)\n    ctx = data[ctx_start:start_idx]\n    # check for cues in context\n    ay = any(cue in ctx for cue in ayah_cues)\n    hd = any(cue in ctx for cue in extended_hadith_cues)\n    # if both -> classify by matn heuristics\n    if ay and not hd:\n        return \"Aya\", ctx\n    if hd and not ay:\n        return \"Hadeeth\", ctx\n    if ay and hd:\n        # heuristics as before\n        q_markers = [\"إِنَّ\", \"أُولَئِكَ\", \"اللَّهَ\", \"سُنْدُس\", \"يَلْبَسُونَ\", \"جَنَّاتُ\", \"يُحَلَّوْنَ\",\"لِبَاسُهُمْ\",\"وَلِبَاسُهُمْ\",\"وَلَا\",\"أَسَاوِرَ\",\"وَالَّذِينَ\"]\n        for qm in q_markers:\n            if qm in span_text:\n                return \"Aya\", ctx\n        if \"لا تلبسوا\" in span_text or \"هي لهم في الدنيا\" in span_text or \"فإنها لهم في الدنيا\" in span_text or \"فإنها لهم\" in span_text:\n            return \"Hadeeth\", ctx\n        return \"Aya\", ctx\n    # if none -> heuristics based on matn\n    if any(qm in span_text for qm in [\"إِنَّ\",\"أُولَئِكَ\",\"اللَّهَ\",\"سُنْدُس\",\"جَنَّاتُ\",\"لِبَاسُهُمْ\",\"وَلِبَاسُهُمْ\",\"يَلْبَسُونَ\"]):\n        return \"Aya\", ctx\n    if any(hd_kw in span_text for hd_kw in [\"لا تلبسوا\",\"هذان حرام\",\"هي لهم في الدنيا\",\"فإنه من لبسه\",\"فإنها لهم\"]):\n        return \"Hadeeth\", ctx\n    # else None\n    return None, ctx\n\nfinal_spans = []\nseen_intervals = set()\n\nfor c in candidates_sorted:\n    s = c['start']; e = c['end']\n    raw = c['raw']\n    trimmed, lt, rt = trim_edges(raw)\n    ns = s + lt; ne = s + rt\n    span_text = data[ns:ne]\n    cls, ctx = classify_with_cues(span_text, ns)\n    # Exclude plain narrator tags such as 'رواه البخاري' or 'رواه البخاري ومسلم' etc\n    if re.match(r'^\\s*رواه', span_text) or re.match(r'^\\s*رواها?', span_text) or \"البخاري\" in span_text and len(span_text.split())<=4:\n        continue\n    # Exclude sura names like 'سورة الكهف' 'سورة الحج' 'الكهف' 'الحج'\n    if re.search(r'^\\s*(سورة\\s+\\S+|\\S+\\s+سورة|\\bالكهف\\b|\\bالحج\\b)\\s*$', span_text):\n        # skip\n        continue\n    # Skip candidate that includes narration text like 'عن عمر' or 'قال: قال رسول' or '^عن ' 'قال ' if the span includes such\n    if any(w in span_text for w in [\"عن \", \"قال:\", \"قال رسول\", \"قال رسول الله\", \"قال: قال\", \"عن عمر\", \"رضي الله عنه\", \"رضي الله عنهما\", \"قال رسول الله ﷺ\", \"قال رسول الله صلى\"]):\n        # But sometimes inner hadith actual span may include 'عن'? Usually not. So skip such candidate\n        # However, if the span_text itself is actually the hadith 'عن ...' then it's a narrator chain not the matn.\n        # So skip\n        if not (span_text.strip().startswith(\"عن\") and len(span_text.strip().split())>4):\n            # but careful: sometimes the double_quote captured narration + matn; prefer to skip such since inner matn captured separately.\n            # So skip\n            continue\n    if cls is None:\n        continue\n    if (ns, ne) in seen_intervals:\n        continue\n    seen_intervals.add((ns, ne))\n    final_spans.append({\"start\": ns, \"end\": ne, \"text\": span_text, \"class\": cls})\n\n# Now handle the bracket with two verses at 2198-2479: split into two if present\n# find matching interval in final_spans\nfor fs in final_spans:\n    if fs['start'] == 2198 and fs['end'] == 2479:\n        # get substring and split on ' (٢٣)' and ' (٢٤)'\n        piece = fs['text']\n        print(\"Found combined bracket piece:\", piece[:200])\n        # find positions of '(٢٣)' and '(٢٤)' in the full data slice (ns:ne)\n        global_start = fs['start']\n        slice_full = data[global_start:fs['end']]\n        print(\"slice_full repr:\", repr(slice_full))\n        # find indices of '(٢٣)' and '(٢٤)'\n        idx_23 = slice_full.find('(٢٣)')\n        idx_23_space = slice_full.find(' (٢٣)')  # maybe preceded by space\n        idx_23b = slice_full.find(' (٢٣) ')\n        print(\"idx_23 raw\", idx_23, \"space\", idx_23_space)\n        # find '(٢٤)'\n        idx_24 = slice_full.find('(٢٤)')\n        print(\"idx_24\", idx_24)\n        # more robust: find the first occurrence of ') ' pattern containing Arabic digits\n        # Now create first piece from start to before idx_23 (strip spaces)\n        if idx_23 != -1:\n            first_piece = slice_full[:idx_23].strip()\n            second_after_23 = slice_full[idx_23+len('(٢٣)'):].strip()\n            # now find '(٢٤)' in second_after_23 and split\n            idx_24_in_second = second_after_23.find('(٢٤)')\n            if idx_24_in_second != -1:\n                second_piece = second_after_23[:idx_24_in_second].strip()\n                third_piece = second_after_23[idx_24_in_second+len('(٢٤)'):].strip()\n            else:\n                # fallback: attempt to split at ' ) ' char maybe\n                second_piece = second_after_23\n                third_piece = \"\"\n            print(\"first:\", first_piece[:120])\n            print(\"second:\", second_piece[:120])\n            print(\"third:\", third_piece[:120])\n            # Now update final_spans: remove original fs, add new spans for first and second pieces (avoid numbers), compute new start/end positions\n            # compute positions of first_piece in data\n            first_start = data.find(first_piece, global_start, fs['end'])\n            first_end = first_start + len(first_piece)\n            second_start = data.find(second_piece, global_start, fs['end'])\n            second_end = second_start + len(second_piece)\n            print(\"first positions\", first_start, first_end)\n            print(\"second positions\", second_start, second_end)\n            # Remove original\n            final_spans.remove(fs)\n            seen_intervals.discard((fs['start'], fs['end']))\n            # Add new\n            final_spans.append({\"start\": first_start, \"end\": first_end, \"text\": first_piece, \"class\": \"Aya\"})\n            final_spans.append({\"start\": second_start, \"end\": second_end, \"text\": second_piece, \"class\": \"Aya\"})\n        break\n\n# After splitting, sort final_spans by start\nfinal_spans_sorted = sorted(final_spans, key=lambda x: x['start'])\nfor fs in final_spans_sorted:\n    print(fs['start'], fs['end'], fs['class'], repr(fs['text'])[:80])\nprint(\"Total final spans:\", len(final_spans_sorted))",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626bddfdc8193baca7a722869433c008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626c5d4308193bb20463afdeacff5008c119b5a7d2b29",
+      "code": "# refine final_spans_sorted: remove narration chains and remove verse numbers in second piece\ncleaned = []\nfor fs in final_spans_sorted:\n    text = fs['text']\n    # remove surrounding whitespace\n    tstrip = text.strip()\n    # skip if contains narration phrases\n    if any(x in tstrip for x in [\"عن \", \"قال:\", \"قال رسول\", \"قال رسول الله\", \"عن عمر\", \"رضي الله\", \"﵁\", \"عن عمر بن الخطاب\", \"قال رسول الله ﷺ:\", \"قال رسول الله ﷺ\"]):\n        # But keep if the text itself is the hadith phrase and not the narrator. \n        # If tstrip starts with one of narration words then skip\n        if tstrip.startswith(\"عن\") or tstrip.startswith(\"قال\") or tstrip.startswith(\"رضي\") or \"عن عمر\" in tstrip:\n            print(\"Skipping narrator-like span:\", fs['start'], fs['end'], repr(tstrip))\n            continue\n    # Remove verse-number parentheses like (٢٤) anywhere at edges\n    # regex for parenthetical arabic digits\n    new_text = re.sub(r'\\s*\\(\\s*[٠١٢٣٤٥٦٧٨٩٢٠٣٤٥٦٧٨٩]+\\s*\\)\\s*$', '', tstrip)  # remove trailing numbers parentheses\n    # But above regex might not match numbers properly; better to remove any '(٢٤)' etc\n    new_text = re.sub(r'\\s*\\(\\s*[٠-٩\\d]+\\s*\\)\\s*$', '', tstrip)\n    # remove leading '(' numbers too\n    new_text = re.sub(r'^\\s*\\(\\s*[٠-٩\\d]+\\s*\\)\\s*', '', new_text)\n    # update start/end positions accordingly:\n    if new_text != tstrip:\n        # find new_text position in data starting from fs['start'] up to fs['end']\n        idx = data.find(new_text, fs['start'], fs['end']+10)\n        if idx != -1:\n            fs['start'] = idx\n            fs['end'] = idx + len(new_text)\n            fs['text'] = new_text\n            cleaned.append(fs)\n            print(\"Trimmed verse numbers for span now:\", fs['start'], fs['end'], repr(fs['text']))\n            continue\n    # otherwise keep original\n    cleaned.append(fs)\n\n# Remove duplicates and sort\ncleaned_sorted = sorted(cleaned, key=lambda x: x['start'])\n# Also remove any remaining narrator chain like the 2558 entry which begins with 'عن عمر' but maybe not starting; so check again:\nfinal = []\nfor fs in cleaned_sorted:\n    if any(x in fs['text'] for x in [\"عن عمر\", \"قال رسول\", \"قال رسول الله\", \"قال:\", \"رضي الله\", \"﵁\"]):\n        print(\"Dropping due to narration text:\", fs['start'], fs['end'], repr(fs['text']))\n        continue\n    final.append(fs)\n\nfor fs in final:\n    print(fs['start'], fs['end'], fs['class'], repr(fs['text'])[:120])\nprint(\"Total final cleaned spans:\", len(final))",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626ce8bc08193a3efcfc407e338bd008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626cfc4f48193b9253c21ba246fe3008c119b5a7d2b29",
+      "code": "s2401 = data[2401:2479]\nprint(\"repr:\", repr(s2401))\nprint(s2401)",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626d2d954819384f98211a21fee4c008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626d7d0e481938d135ea2fbc87575008c119b5a7d2b29",
+      "code": "# Remove trailing '(٢٤' or similar in final list\nimport regex as re2  # use 'regex' if installed? fallback to re if not\n# But 'regex' module may not be installed. We'll use re with unicode.\nimport re\npattern_trail = re.compile(r'\\s*\\(\\s*[\\u0660-\\u0669]+\\s*\\)?\\s*$')\nnew_final = []\nfor fs in final:\n    txt = fs['text']\n    new_txt = pattern_trail.sub('', txt)\n    if new_txt != txt:\n        # find new_txt position in fs['start'] range\n        idx = data.find(new_txt, fs['start'], fs['end']+5)\n        if idx != -1:\n            fs['start'] = idx\n            fs['end'] = idx + len(new_txt)\n            fs['text'] = new_txt\n            print(\"Removed trailing verse number for span at\", idx)\n    new_final.append(fs)\n\nfor fs in new_final:\n    print(fs['start'], fs['end'], fs['class'], repr(fs['text'])[:120])\nprint(\"total\", len(new_final))",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626e1aa7c8193a5c3fb640915537d008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626e835d48193b9d8d3b675f088c7008c119b5a7d2b29",
+      "code": "print(\"2198-2395 repr:\", repr(data[2198:2395]))\nprint(data[2198:2395])",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626ea956c81938cce8de01d89234b008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689626fa724c819390ca0ba3260112e4008c119b5a7d2b29",
+      "code": "import json\nfinal_sorted = sorted(new_final, key=lambda x: x['start'])\n# but new_final earlier includes duplicates maybe; use 'final' we had earlier; but let's use final list computed earlier 'new_final' variable.\n# Actually variable 'final' currently holds cleaned final spans, new_final updated trailing removal; we set final variable to cleaned earlier - use new_final now.\n# Use variable 'new_final' defined earlier\nspans_out = []\nfor fs in final:\n    spans_out.append({\n        \"span_start\": fs['start'],\n        \"span_end\": fs['end'],\n        \"span_text\": fs['text'],\n        \"citation_type\": \"Aya\" if fs['class']==\"Aya\" else \"Hadeeth\"\n    })\n\n# sort by start\nspans_out = sorted(spans_out, key=lambda x: x['span_start'])\nprint(json.dumps({\"citations\": spans_out}, ensure_ascii=False, indent=2))",
+      "container_id": "cntr_68962603bac4819086a3b3e2e45e5ee801a1904abc858777",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689626ff1bac81938f1ef36df36983a3008c119b5a7d2b29",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896270748c08193a8fa5a3a6824f687008c119b5a7d2b29",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":167,\"span_end\":226,\"span_text\":\"لا تلبسوا الحرير؛ فإنه من لبسه في الدنيا لم يلبسه في الآخرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":330,\"span_end\":383,\"span_text\":\"وَلَا تَبَرَّجْنَ تَبَرُّجَ الْجَاهِلِيَّةِ الْأُولَى\",\"citation_type\":\"Aya\"},{\"span_start\":432,\"span_end\":460,\"span_text\":\"وَلِبَاسُهُمْ فِيهَا حَرِيرٌ\",\"citation_type\":\"Aya\"},{\"span_start\":630,\"span_end\":658,\"span_text\":\"وَلِبَاسُهُمْ فِيهَا حَرِيرٌ\",\"citation_type\":\"Aya\"},{\"span_start\":947,\"span_end\":1006,\"span_text\":\"لا تلبسوا الحرير؛ فإنه من لبسه في الدنيا لم يلبسه في الآخرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1434,\"span_end\":1466,\"span_text\":\"هي لهم في الدنيا، ولكم في الآخرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1544,\"span_end\":1576,\"span_text\":\"هي لهم في الدنيا، ولكم في الآخرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1866,\"span_end\":2041,\"span_text\":\"أُولَئِكَ لَهُمْ جَنَّاتُ عَدْنٍ تَجْرِي مِنْ تَحْتِهِمُ الْأَنْهَارُ يُحَلَّوْنَ فِيهَا مِنْ أَسَاوِرَ مِنْ ذَهَبٍ وَيَلْبَسُونَ ثِيَابًا خُضْرًا مِنْ سُنْدُسٍ وَإِسْتَبْرَقٍ\",\"citation_type\":\"Aya\"},{\"span_start\":2198,\"span_end\":2395,\"span_text\":\"إِنَّ اللَّهَ يُدْخِلُ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ جَنَّاتٍ تَجْرِي مِنْ تَحْتِهَا الْأَنْهَارُ يُحَلَّوْنَ فِيهَا مِنْ أَسَاوِرَ مِنْ ذَهَبٍ وَلُؤْلُؤًا وَلِبَاسُهُمْ فِيهَا حَرِيرٌ\",\"citation_type\":\"Aya\"},{\"span_start\":2401,\"span_end\":2475,\"span_text\":\"وَهُدُوا إِلَى الطَّيِّبِ مِنَ الْقَوْلِ وَهُدُوا إِلَى صِرَاطِ الْحَمِيدِ\",\"citation_type\":\"Aya\"},{\"span_start\":2601,\"span_end\":2617,\"span_text\":\"لا تلبسوا الحرير\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2704,\"span_end\":2738,\"span_text\":\"هذان حرام على ذكور أمتي حل لإناثها\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2954,\"span_end\":2995,\"span_text\":\"فإنه من لبسه في الدنيا لم يلبسه في الآخرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":3134,\"span_end\":3162,\"span_text\":\"وَلِبَاسُهُمْ فِيهَا حَرِيرٌ\",\"citation_type\":\"Aya\"},{\"span_start\":3244,\"span_end\":3272,\"span_text\":\"وَلِبَاسُهُمْ فِيهَا حَرِيرٌ\",\"citation_type\":\"Aya\"},{\"span_start\":4220,\"span_end\":4255,\"span_text\":\"فإنها لهم في الدنيا، ولكم في الآخرة\",\"citation_type\":\"Hadeeth\"}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-7oE3GFCRuysk7Ko3ogMLaU"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1a_spans",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer"
+                },
+                "span_end": {
+                  "type": "integer"
+                },
+                "span_text": {
+                  "type": "string"
+                },
+                "citation_type": {
+                  "type": "string",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 286243,
+    "input_tokens_details": {
+      "cached_tokens": 271456
+    },
+    "output_tokens": 21776,
+    "output_tokens_details": {
+      "reasoning_tokens": 20928
+    },
+    "total_tokens": 308019
+  },
+  "user": null,
+  "store": false
+}

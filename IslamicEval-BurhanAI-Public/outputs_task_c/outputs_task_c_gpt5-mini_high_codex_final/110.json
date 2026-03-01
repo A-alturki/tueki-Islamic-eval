@@ -1,0 +1,264 @@
+{
+  "id": "resp_689708a110608190a0eb2483973184340e3b936eefb5adb8",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5a6ec819092b04ee69327691b0e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a7d4a481909d9862bf64060a800e3b936eefb5adb8",
+      "code": "# Load the JSON files\nimport json, sys, os, re\nquran_path = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\nhadith_path = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    q = json.load(f)\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    h = json.load(f)\n\n# Print info\nlen(q), len(h)\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ad16f081909936b72090912da80e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ad7cdc81908ea3c9eaa756e4ae0e3b936eefb5adb8",
+      "code": "# Show first hadith entries keys and samples\nimport itertools, json\nfor i in range(5):\n    print(i, list(h[i].keys()))\n    # show sample fields\n    for k in ['hadithTxt','Matn','Book','Grade','isHadith']:\n        if k in h[i]:\n            print(k, h[i][k])\n    print('---')\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b0c950819096969b30e33603130e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b637d08190874005d01834da5c0e3b936eefb5adb8",
+      "code": "# Define normalization functions for Arabic\nimport re\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED\\u0670\\u0656\\u0657\\u0658\\u06D4]\"\"\")\ntatweel_re = re.compile(r'ـ')\npunct_re = re.compile(r'[^\\w\\s\\u0621-\\u064A\\u0660-\\u0669\\u06F0-\\u06F9]')  # remove non-Arabic letters/digits/underscore/space\n# But python \\w includes Arabic; use explicit\n# Better to remove punctuation but keep Arabic letters and spaces.\n\ndef normalize_ar(text):\n    if text is None:\n        return \"\"\n    s = str(text)\n    # lowercase-like? Arabic has no case\n    # remove diacritics\n    s = arabic_diacritics.sub('', s)\n    # remove tatweel\n    s = tatweel_re.sub('', s)\n    # unify hamza variants: 'أإآ' -> 'ا', and 'ى' -> 'ي' maybe; 'ؤ'->'و'?? instruction said unify hamza only. We'll map 'أإآ' to 'ا' and 'ء' to 'ء' maybe.\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\n    # unify alifs madda maybe\n    s = s.replace('ٱ','ا')\n    # maybe remove punctuation: keep Arabic letters and spaces and numbers\n    # Replace other punctuation with space\n    s = re.sub(r'[^\\u0621-\\u064A0-9\\s]', ' ', s)\n    # collapse spaces\n    s = re.sub(r'\\s+',' ', s)\n    return s.strip()\n\n# Test normalization\ntest = \"خيركم خيركم لأهله وأنا خيري لأهلي\"\nprint(normalize_ar(test))\n\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bbe2608190884758e490a749080e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bf19448190a5289b59fc4e223b0e3b936eefb5adb8",
+      "code": "# Input span variants\nfull_span = \"خيركم خيركم لأهله وأنا خيري لأهلي\"\nsnippet = \"خيركم خيرك...خيري لأهلي\"\n\nnorm_full = normalize_ar(full_span)\nnorm_snip = normalize_ar(snippet)\nnorm_full, norm_snip\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c1b2b08190848d1a622126e3d30e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c3fd888190b2c36b405e1e78a70e3b936eefb5adb8",
+      "code": "# Search in hadith DB\nfrom collections import defaultdict\nmatches = []\nfor idx, entry in enumerate(h):\n    # choose candidate text: prefer Matn if exists and non-empty, else hadithTxt\n    matn = entry.get('Matn') or entry.get('hadithTxt') or ''\n    if matn is None:\n        continue\n    norm_matn = normalize_ar(matn)\n    # check substring\n    if norm_full in norm_matn or norm_snip in norm_matn:\n        matches.append((idx, entry, matn, norm_matn, 'substring'))\n    else:\n        # token overlap\n        tokens_full = set(norm_full.split())\n        tokens_matn = set(norm_matn.split())\n        overlap = tokens_full & tokens_matn\n        if len(tokens_full)>0:\n            overlap_ratio = len(overlap)/len(tokens_full)\n        else:\n            overlap_ratio = 0\n        if overlap_ratio >= 0.6:\n            matches.append((idx, entry, matn, norm_matn, f'overlap:{overlap_ratio}'))\nlen(matches)\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c99cf081909968e6afd27821000e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c9e21c81908fbb6d46113790c50e3b936eefb5adb8",
+      "code": "for m in matches:\n    idx, entry, matn, norm_matn, tag = m\n    print(\"Index:\", idx, \"BookID:\", entry.get('BookID'), \"title:\", entry.get('title')[:80] if entry.get('title') else None, \"tag:\", tag)\n    print(\"Matn (raw):\", matn)\n    print(\"Normalized:\", norm_matn)\n    print(\"-\"*80)\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cc5b048190837650734b1658930e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cfd6648190af7683131a1e46300e3b936eefb5adb8",
+      "code": "# compute token F1 function\ndef token_f1(a, b):\n    # a and b are normalized strings\n    atoks = a.split()\n    btoks = b.split()\n    import collections\n    ca = collections.Counter(atoks)\n    cb = collections.Counter(btoks)\n    # count overlap\n    overlap = sum((ca & cb).values())\n    if overlap == 0:\n        return 0.0\n    prec = overlap / len(atoks)\n    rec = overlap / len(btoks)\n    if prec + rec == 0:\n        return 0.0\n    f1 = 2*prec*rec/(prec+rec)\n    return f1, prec, rec\n\ncand_idx, cand_entry, cand_matn, cand_norm, tag = matches[1]  # index 32576\nf1, prec, rec = token_f1(cand_norm, norm_full)\ncand_idx, f1, prec, rec, cand_matn\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d42f3c8190bc3d01bc23c118a00e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d5b42c819097ca938220cd45ed0e3b936eefb5adb8",
+      "code": "# Compare candidate with snippet normalized\nf1_snip, prec_snip, rec_snip = token_f1(cand_norm, norm_snip)\nf1_snip, prec_snip, rec_snip\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d7ab848190aebbc344f38cb6fb0e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d81b608190a43ef88fc02968770e3b936eefb5adb8",
+      "code": "cand1 = matches[0]\nidx1, entry1, matn1, norm1, tag1 = cand1\ntoken_f1(norm1, norm_full), matn1\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708da12188190a04012a9f865f07c0e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e0c71c8190a80f55d7f179014a0e3b936eefb5adb8",
+      "code": "# LCS function (characters)\ndef lcs_length(a,b):\n    # returns length of LCS for strings a and b\n    n = len(a)\n    m = len(b)\n    # dynamic programming\n    dp = [[0]*(m+1) for _ in range(n+1)]\n    for i in range(n-1, -1, -1):\n        for j in range(m-1, -1, -1):\n            if a[i]==b[j]:\n                dp[i][j] = 1 + dp[i+1][j+1]\n            else:\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\n    return dp[0][0]\n\na = cand_norm\nb = norm_full\nlcs_len = lcs_length(a,b)\nratio_max = lcs_len / max(len(a), len(b)) if max(len(a),len(b))>0 else 0\nratio_avg = lcs_len / ((len(a)+len(b))/2) if (len(a)+len(b))>0 else 0\nlen(a), len(b), lcs_len, ratio_max, ratio_avg\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e4d2848190b8a87ec18a9718080e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708eb2470819085e3c02dbcde3efc0e3b936eefb5adb8",
+      "code": "# Get exact Matn for index 32576\nidx = 32576\nentry = h[idx]\nmatn_exact = entry.get('Matn') or entry.get('hadithTxt')\nrepr_matn = repr(matn_exact)\nmatn_exact, repr_matn\n",
+      "container_id": "cntr_689708a2d7148190b4837b886289f7180109c4804026fcde",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ed8cd88190897b17e05ae685f00e3b936eefb5adb8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708f11ac08190ad017e350a302f9b0e3b936eefb5adb8",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خَيْرُكُمْ خَيْرُكُمْ لِأَهْلِهِ ، وَأَنَا خَيْرُكُمْ لِأَهْلِي . \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 88518,
+    "input_tokens_details": {
+      "cached_tokens": 82400
+    },
+    "output_tokens": 5242,
+    "output_tokens_details": {
+      "reasoning_tokens": 5184
+    },
+    "total_tokens": 93760
+  },
+  "user": null,
+  "store": false
+}

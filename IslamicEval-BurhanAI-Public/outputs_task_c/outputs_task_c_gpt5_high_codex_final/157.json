@@ -1,0 +1,370 @@
+{
+  "id": "resp_689680a0ca788195a885763c1508dc3a0e7e31a9b296cc39",
+  "created_at": 1754693792.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689680a510048195895234c468befc4f0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680b934508195ab5623c44343ce020e7e31a9b296cc39",
+      "code": "# Load the provided JSON databases and inspect basic structure\r\nimport json, os, re, unicodedata, math\r\n\r\nquran_path = \"/mnt/data/file-MVgj1ZkxaQMvFkdZLobLET-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-Ly1VfrnGpghzcoaXtbANNv-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith = json.load(f)\r\n\r\ntype(quran), len(quran), type(hadith), len(hadith)",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680be80b08195bce844446f41d6020e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680bf2c8081959eb5fe10453800f00e7e31a9b296cc39",
+      "code": "# Peek at example entries to see field names\r\nquran[0], hadith[0]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680c109008195a5e867188c97149c0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680d3677481959c9e285118fdd1840e7e31a9b296cc39",
+      "code": "import re, unicodedata, json\r\nfrom difflib import SequenceMatcher\r\n\r\n# Normalization utilities\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\r\ntatweel = '\\u0640'\r\n\r\ndef normalize(s):\r\n    if s is None:\r\n        return \"\"\r\n    s = str(s)\r\n    s = s.replace(tatweel, '')\r\n    s = arabic_diacritics.sub('', s)\r\n    # unify alef forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n    s = s.replace('ى','ي').replace('ؤ','و').replace('ئ','ي')\r\n    # remove punctuation\r\n    s = re.sub(r'[^\\w\\s\\u0621-\\u063A\\u0641-\\u064A]', ' ', s)\r\n    # collapse whitespace\r\n    s = re.sub(r'\\s+', ' ', s).strip().lower()\r\n    return s\r\n\r\ndef ratio(a,b):\r\n    return SequenceMatcher(None, a, b).ratio()\r\n\r\n# Prepare hadith texts list\r\nhadith_texts = []\r\nfor idx, h in enumerate(hadith):\r\n    for field in ('Matn','hadithTxt'):\r\n        txt = h.get(field)\r\n        if txt:\r\n            hadith_texts.append((idx, field, txt))\r\n\r\nlen(hadith_texts)",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689680d885f481959707cd5becf11a0c0e7e31a9b296cc39",
+      "code": "# Define the target full span and snippet from the prompt\r\nfull_span = \"إن الله تعالى يغفر الذنوب الأكبر من الأصغر، وينقص الجروح الأكبر من الأصغر، وإن الله تعالى يغفر الذنوب كما تُغفَرُ الرَمِيَةُ من الطير\"\r\nsnippet = \"إن الله تع...ُ من الطير\"\r\n\r\nnorm_full = normalize(full_span)\r\nnorm_snip = normalize(snippet)\r\nnorm_full, norm_snip",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689680dbeeb08195aa8fb56afc98b48c0e7e31a9b296cc39",
+      "code": "# Search for rare word stems: \"الرمية\", \"الطير\", \"يغفر الذنوب\"\r\ntargets = [\"الرمية\", \"الطير\", \"يغفر الذنوب\", \"كما تغفر\", \"الرمي\", \"الرمى\", \"يغفر\", \"الجروح\"]\r\n\r\ndef contains_all(s, terms):\r\n    return all(t in s for t in terms)\r\n\r\nhits = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    # Check for combinations likely unique\r\n    cond = (\"الرمية\" in n or \"الرمى\" in n or \"الرمي\" in n) and \"الطير\" in n\r\n    if cond or \"يغفر الذنوب\" in n:\r\n        # compute similarity ratio to norm_full\r\n        r = ratio(n, norm_full)\r\n        # record if any of the target tokens present\r\n        hits.append((r, idx, field, txt[:200]))\r\n\r\n# Sort top matches by ratio\r\ntop = sorted(hits, key=lambda x: -x[0])[:20]\r\ntop[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680e2696481958b4ada5bc9b8507a0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680e33bf8819596bfb8ee6ed6414c0e7e31a9b296cc39",
+      "code": "# Search for exact occurrences of \"الرمية\" and \"الطير\" in hadiths\r\nterms = [\"الرمية\", \"الرميه\", \"الطير\", \"طير\", \"الطيور\"]\r\nocc = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if \"الرمية\" in n or \"الرميه\" in n:\r\n        occ.append((idx, field, txt[:300]))\r\nlen(occ), occ[:5]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680e8840481958a2e336d5b5c848c0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680ea1bd481959dca5713ee0867770e7e31a9b296cc39",
+      "code": "# Find hadiths containing both \"الرمية\" (or variants) and \"طير/الطير\"\r\nhits_ramya_tayr = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if ((\"الرمية\" in n or \"الرميه\" in n or \"الرمي\" in n) and (\"الطير\" in n or \"طيور\" in n or \"طير\" in n)):\r\n        hits_ramya_tayr.append((idx, field, txt[:250]))\r\n\r\nlen(hits_ramya_tayr), hits_ramya_tayr[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680f096ec81958bd353d6ed9881320e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680f1b2e48195b0b9bddb4ca304820e7e31a9b296cc39",
+      "code": "# Search for \"الجروح\" and \"ينقص\" near \"يغفر\"\r\nhits_misc = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if \"الجروح\" in n and (\"يغفر\" in n or \"غفر\" in n):\r\n        hits_misc.append((idx, field, txt[:200]))\r\nlen(hits_misc), hits_misc[:5]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680f6dd7c8195a691522663ce70bb0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680f7d9608195b6ef6b5359a0f7d00e7e31a9b296cc39",
+      "code": "# Search Quran for \"يغفر الذنوب\"\r\nq_hits = []\r\nfor v in quran:\r\n    ayah = v['ayah_text']\r\n    n = normalize(ayah)\r\n    if \"يغفر الذنوب\" in n:\r\n        q_hits.append((v['surah_id'], v['ayah_id'], ayah))\r\nq_hits",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689680fa5afc819591dea6ebeb4c78a30e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689680fce0e4819594fcffab43ca7cd00e7e31a9b296cc39",
+      "code": "# Search hadiths for the phrase \"إن الله يغفر الذنوب\" or close\r\nphrases = [\"ان الله يغفر الذنوب\", \"إن الله يغفر الذنوب\", \"ان الله تعالي يغفر الذنوب\"]\r\ncand = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if \"ان الله يغفر الذنوب\" in n or \"ان الله تعالي يغفر الذنوب\" in n:\r\n        cand.append((idx, field, txt[:250]))\r\nlen(cand), cand[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68968101e6288195affb5f14b70e30930e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896810546288195b5b0948df40e1d290e7e31a9b296cc39",
+      "code": "# Compute similarity ratio between the full erroneous span and the two Qur'anic candidates\r\ncands = q_hits\r\n[(sid, aid, ratio(normalize(ayah), norm_full), ayah) for sid, aid, ayah in cands]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68968108241c8195ac959262616e37fe0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896810aa15081958f32339b6bd7c6dc0e7e31a9b296cc39",
+      "code": "# Compare the snippet to top hadith candidates that had \"يغفر الذنوب\"\r\nsnip_ratios = []\r\nfor idx, field, txt in [(29663,'Matn', hadith[29663]['Matn']), (833,'Matn', hadith[833]['Matn'])]:\r\n    n = normalize(txt)\r\n    snip_ratios.append((idx, field, ratio(n, norm_snip), txt[:200]))\r\nsnip_ratios",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68968110c7c88195b025781e37116f0f0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68968112a35481958966d2264b8b9c990e7e31a9b296cc39",
+      "code": "# Search for \"الجروح\" across hadiths\r\njurooh_hits = []\r\nfor idx, field, txt in hadith_texts:\r\n    if \"الجروح\" in normalize(txt):\r\n        jurooh_hits.append((idx, field, txt[:200]))\r\nlen(jurooh_hits), jurooh_hits[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689681169f7c81958ac06b6fdd4bacab0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689681172964819595eb829a7680b9bf0e7e31a9b296cc39",
+      "code": "# Search for \"ينقص\" or \"يُنقِص\" in hadiths\r\nynqs_hits = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if \"ينقص\" in n or \"ينقُص\" in n or \"ينقُصُ\" in n:\r\n        ynqs_hits.append((idx, field, txt[:200]))\r\nlen(ynqs_hits), ynqs_hits[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896811c13e48195aea311b2732a323c0e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896811d7128819585d0185db004eb7b0e7e31a9b296cc39",
+      "code": "# Search for \"الرمية\" and \"يغفر\" together\r\nocc2 = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if (\"الرمية\" in n or \"الرميه\" in n or \"الرمي\" in n) and \"يغفر\" in n:\r\n        occ2.append((idx, field, txt[:200]))\r\nlen(occ2), occ2[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896812216148195b34af473b792e7020e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896812c0d448195b8fb453394c241020e7e31a9b296cc39",
+      "code": "# Search for entries containing \"الطير\" and \"يغفر\"\r\ntayr_yaghfir = []\r\nfor idx, field, txt in hadith_texts:\r\n    n = normalize(txt)\r\n    if \"الطير\" in n and (\"يغفر\" in n or \"غفر\" in n):\r\n        tayr_yaghfir.append((idx, field, txt[:200]))\r\nlen(tayr_yaghfir), tayr_yaghfir[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896813185e48195864c5b7d346cc5850e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896813225ac8195a844d04374f5a34d0e7e31a9b296cc39",
+      "code": "# Check Quran for \"الطير\" and \"يغفر\"\r\nq_tayr_yaghfir = []\r\nfor v in quran:\r\n    n = normalize(v['ayah_text'])\r\n    if \"الطير\" in n and (\"يغفر\" in n or \"غفر\" in n):\r\n        q_tayr_yaghfir.append((v['surah_id'], v['ayah_id'], v['ayah_text']))\r\nq_tayr_yaghfir[:5], len(q_tayr_yaghfir)",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689681347e7c8195bda92a9cc05f47170e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68968136aaf88195b740142215ed2a770e7e31a9b296cc39",
+      "code": "# Search Quran for \"ويغفر ما دون ذلك\" and compute similarity ratios\r\nq2 = []\r\nfor v in quran:\r\n    if \"يَغْفِرُ مَا دُونَ ذَٰلِكَ\" in v['ayah_text'] or \"يَغْفِرُ مَا دُونَ ذَلِكَ\" in v['ayah_text']:\r\n        q2.append(v)\r\n[(v['surah_id'], v['ayah_id'], ratio(normalize(v['ayah_text']), norm_full), v['ayah_text']) for v in q2]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896813bbde48195b8bcde2510b4cf950e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896813c52248195921936f1d14dd1250e7e31a9b296cc39",
+      "code": "# Search for the phrase \"كما تغفر\" in hadith texts\r\nkama_taghfir_hits = []\r\nfor idx, field, txt in hadith_texts:\r\n    if \"كما تغفر\" in normalize(txt):\r\n        kama_taghfir_hits.append((idx, field, txt[:200]))\r\nlen(kama_taghfir_hits), kama_taghfir_hits[:10]",
+      "container_id": "cntr_689680a23f2c819098deb2507d8cfa700946f8676d139043",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68968140ca00819593d9bbc302beff620e7e31a9b296cc39",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689681432d74819584824373ff2ee9380e7e31a9b296cc39",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-MVgj1ZkxaQMvFkdZLobLET",
+          "file-Ly1VfrnGpghzcoaXtbANNv"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 173636,
+    "input_tokens_details": {
+      "cached_tokens": 148520
+    },
+    "output_tokens": 5875,
+    "output_tokens_details": {
+      "reasoning_tokens": 3456
+    },
+    "total_tokens": 179511
+  },
+  "user": null,
+  "store": false
+}

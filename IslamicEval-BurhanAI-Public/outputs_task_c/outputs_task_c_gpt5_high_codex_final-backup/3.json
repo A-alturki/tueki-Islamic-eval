@@ -1,0 +1,348 @@
+{
+  "id": "resp_689678d266348195b0a3e83d141b79fc0c45e72301b1ce70",
+  "created_at": 1754691794.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d74bc481958e55c8e127b596530c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678db22288195b63bbdd1310880fc0c45e72301b1ce70",
+      "code": "import json, re, unicodedata, difflib, os, textwrap, math, itertools, pandas as pd, numpy as np",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e075348195bafa5c7042b47cce0c45e72301b1ce70",
+      "code": "# Load the JSON files\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran = json.load(f)\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadiths = json.load(f)\n\nlen(quran), len(hadiths)",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e435408195bb960a38dd325c000c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e536748195a96131c6a8e804540c45e72301b1ce70",
+      "code": "# Inspect a sample of hadith entries keys\nhadiths[0].keys()",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e71dd881959d9e37eb6e3d8bb70c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e7b1bc8195921602dcec6586090c45e72301b1ce70",
+      "code": "import regex as re\n\nAR_DIAC = re.compile(r\"[\\p{M}\\u0656-\\u065F\\u06D6-\\u06ED]\")\nTATWEEL = \"\\u0640\"\n\ndef normalize_ar(s):\n    if s is None:\n        return \"\"\n    # unify hamza forms\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ة\",\"ه\")\n    # remove tatweel\n    s = s.replace(TATWEEL, \"\")\n    # remove diacritics\n    s = AR_DIAC.sub(\"\", unicodedata.normalize(\"NFKD\", s))\n    # remove punctuation-like\n    s = re.sub(r\"[^\\p{Arabic}0-9\\s]\", \" \", s)\n    # collapse spaces\n    s = re.sub(r\"\\s+\", \" \", s).strip()\n    return s\n\ndef lcs_ratio(a, b):\n    # normalized lcs ratio: 2*LCS / (len(a)+len(b))\n    n, m = len(a), len(b)\n    if n==0 and m==0:\n        return 1.0\n    dp = [0]*(m+1)\n    for i,ch in enumerate(a,1):\n        prev = 0\n        for j,dh in enumerate(b,1):\n            tmp = dp[j]\n            if ch == dh:\n                dp[j] = prev + 1\n            else:\n                dp[j] = max(dp[j], dp[j-1])\n            prev = tmp\n    lcs = dp[m]\n    return (2*lcs) / (n+m) if (n+m)>0 else 0.0\n\n# For token F1-like\ndef token_f1(a, b):\n    ta = a.split()\n    tb = b.split()\n    set_a = set(ta)\n    set_b = set(tb)\n    inter = len(set_a & set_b)\n    prec = inter / len(set_a) if set_a else 0\n    rec = inter / len(set_b) if set_b else 0\n    return (2*prec*rec)/(prec+rec) if (prec+rec)>0 else 0\n\ndef sim_score(a, b):\n    return 0.6*lcs_ratio(a,b) + 0.4*token_f1(a,b)\n\nquery_full = \"الله يحب العبد التقي الخفي\"\nquery_snippet = \"الله يحب ا...لتقي الخفي\"\n\nnorm_full = normalize_ar(query_full)\nnorm_snippet = normalize_ar(query_snippet)\nnorm_full, norm_snippet",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f0a0708195bc65296dd20c2c070c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f1c21881958283ec4a4d0554810c45e72301b1ce70",
+      "code": "# Search for substring exact and approximate in hadiths\ncands = []\nfor h in hadiths:\n    text = h.get(\"Matn\") or h.get(\"hadithTxt\") or \"\"\n    if not text:\n        continue\n    text_norm = normalize_ar(text)\n    # compute similarity\n    s = sim_score(norm_full, text_norm)\n    # also check if norm_full is substring\n    substr = norm_full in text_norm\n    # Keep top candidates\n    if substr or s > 0.6:\n        cands.append((s, substr, text, h))\n        \nlen(cands)",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792c84348195acc1b101910991a40c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792cf8c88195a25ba0492ef5511a0c45e72301b1ce70",
+      "code": "variants = [\n    \"إن الله يحب العبد التقي الغني الخفي\",\n    \"إن الله يحب المؤمن التقي الغني الخفي\",\n    \"الله يحب العبد التقي الغني الخفي\",\n    \"إن الله يحب المؤمن التقي الخفي\",\n    \"إن الله يحب العبد التقي الخفي\",\n]\n\nfor v in variants:\n    nv = normalize_ar(v)\n    found = []\n    for h in hadiths:\n        text = h.get(\"Matn\") or h.get(\"hadithTxt\") or \"\"\n        if not text:\n            continue\n        text_norm = normalize_ar(text)\n        if nv in text_norm:\n            found.append(h)\n    print(v, \"->\", len(found))",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793ff2588195aeddb819f4a138d30c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967940fd8481959c09d9456fd2cd940c45e72301b1ce70",
+      "code": "# retrieve matched hadith texts\ndef find_hadiths_containing(nv):\n    res = []\n    for h in hadiths:\n        text = h.get(\"Matn\") or h.get(\"hadithTxt\") or \"\"\n        if not text:\n            continue\n        if nv in normalize_ar(text):\n            res.append(h)\n    return res\n\ncand1 = find_hadiths_containing(normalize_ar(\"إن الله يحب العبد التقي الغني الخفي\"))\nlen(cand1), cand1[0].keys()",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967946622881959dd00404f1f1225a0c45e72301b1ce70",
+      "code": "cand1[0]['Matn']",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967949292c8195820e3ef2311e35220c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794f9ae08195b85dade02971d2230c45e72301b1ce70",
+      "code": "# Collect all hadith Matn texts that contain the normalized target phrase\ntarget_norm = normalize_ar(\"إن الله يحب العبد التقي الغني الخفي\")\nmatches = []\nfor h in hadiths:\n    text = h.get(\"Matn\") or h.get(\"hadithTxt\") or \"\"\n    if not text:\n        continue\n    if target_norm in normalize_ar(text):\n        matches.append((len(text), h))\nlen(matches), [m[1]['hadithID'] for m in matches][:10]",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967954e9fc8195a364bd905f42c7150c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967955361081959dfb381fbc8f4f5c0c45e72301b1ce70",
+      "code": "matches[0][1]",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967956ec808195bb635dea5c99107e0c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795ce3b48195b91960acb40de1a50c45e72301b1ce70",
+      "code": "matn = matches[0][1]['Matn']\nphrase = \"إِنَّ اللهَ يُحِبُّ الْعَبْدَ التَّقِيَّ الْغَنِيَّ الْخَفِيَّ\"\nstart = matn.find(phrase)\nstart, matn[start:start+len(phrase)+10]",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795eedd48195a2debf8a7562d7d30c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967961a8a881959d20dcb2dbd1cf4e0c45e72301b1ce70",
+      "code": "cand_phrase = phrase\nsim_score(normalize_ar(cand_phrase), norm_full)",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796377ac8195b84e33178c681b550c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796bfe3481958d40c2d88b7999c50c45e72301b1ce70",
+      "code": "lcs_ratio(normalize_ar(cand_phrase), norm_full), token_f1(normalize_ar(cand_phrase), norm_full)",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796e333c8195a6dccad5086fca2b0c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797705ac8195bd92daee1030d93b0c45e72301b1ce70",
+      "code": "result = cand_phrase  # phrase without dot\n# Show codepoints to ensure exactness\n[(c, hex(ord(c))) for c in result[:20]], result",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797908f481959f849750b70f48070c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967986b0c8819596f2531abea9fade0c45e72301b1ce70",
+      "code": "for c in \"اللهَ\":\n    print(c, hex(ord(c)))",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896798882dc8195a24989a132bba04f0c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896798b6cb48195acaf13fdbc1761720c45e72301b1ce70",
+      "code": "segment = cand_phrase[cand_phrase.find(\"الت\")-1:cand_phrase.find(\"الْغ\")]\ncand_phrase, segment",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896798d719881959b3595ea7fbff1490c45e72301b1ce70",
+      "code": "for c in \"التَّقِيَّ\":\n    print(c, hex(ord(c)))",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967990834c8195b3445b15458e699b0c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967990f41481958cff81a5db631a6d0c45e72301b1ce70",
+      "code": "for word in [\"الْغَنِيَّ\",\"الْخَفِيَّ\"]:\n    print(word, [(c, hex(ord(c))) for c in word])",
+      "container_id": "cntr_689678d4872c8190b786d6335257a60007f0e92b3220d370",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967992da28819584ed1765a8e210180c45e72301b1ce70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896799a04148195b48459064772e5ef0c45e72301b1ce70",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"إِنَّ اللهَ يُحِبُّ الْعَبْدَ التَّقِيَّ الْغَنِيَّ الْخَفِيَّ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 102096,
+    "input_tokens_details": {
+      "cached_tokens": 90872
+    },
+    "output_tokens": 6899,
+    "output_tokens_details": {
+      "reasoning_tokens": 6848
+    },
+    "total_tokens": 108995
+  },
+  "user": null,
+  "store": false
+}

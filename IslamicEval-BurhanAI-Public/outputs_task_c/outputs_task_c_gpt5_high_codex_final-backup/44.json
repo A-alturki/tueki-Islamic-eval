@@ -1,0 +1,219 @@
+{
+  "id": "resp_689678d314408197b9d653cacb9939da00e03128f85026c2",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7ecf48197968381985f1acd9c00e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e33460819799a18a168e3b19c000e03128f85026c2",
+      "code": "import json, os, textwrap, re, unicodedata, math, statistics, difflib\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\nwith open(quran_path, 'r', encoding='utf-8') as f:\r\n    quran_data = json.load(f)\r\n\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    hadith_data = json.load(f)\r\n\r\ntype(quran_data), type(hadith_data), len(quran_data) if isinstance(quran_data, list) else None, len(hadith_data) if isinstance(hadith_data, list) else None",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e5d44c819784828f3802ce0b1c00e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e6b1f48197a6efb7ba91e7af5c00e03128f85026c2",
+      "code": "# Inspect a few entries\r\nquran_data[0], hadith_data[0].keys()",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e8c4cc81979cf00c06323d842f00e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ea627881979efd35e6abab640500e03128f85026c2",
+      "code": "import re\r\nimport unicodedata\r\n\r\nAR_DIACRITICS = ''.join([\r\n    '\\u0610', '\\u0611', '\\u0612', '\\u0613', '\\u0614',\r\n    '\\u0615', '\\u0616', '\\u0617', '\\u0618', '\\u0619',\r\n    '\\u061A', '\\u064B', '\\u064C', '\\u064D', '\\u064E',\r\n    '\\u064F', '\\u0650', '\\u0651', '\\u0652', '\\u0653',\r\n    '\\u0654', '\\u0655', '\\u0656', '\\u0657', '\\u0658',\r\n    '\\u0670', # dagger alif\r\n    '\\u06D6', '\\u06D7', '\\u06D8', '\\u06D9', '\\u06DA',\r\n    '\\u06DB', '\\u06DC', '\\u06DF', '\\u06E0', '\\u06E1',\r\n    '\\u06E2', '\\u06E3', '\\u06E4', '\\u06E7', '\\u06E8',\r\n    '\\u06EA', '\\u06EB', '\\u06EC', '\\u06ED'\r\n])\r\nAR_DIACRITICS_RE = re.compile('[%s]' % re.escape(AR_DIACRITICS))\r\n\r\ndef normalize_arabic(text):\r\n    if text is None:\r\n        return ''\r\n    # remove diacritics\r\n    text = AR_DIACRITICS_RE.sub('', text)\r\n    # remove tatweel\r\n    text = text.replace('ـ', '')\r\n    # unify hamza forms\r\n    text = text.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n    text = text.replace('ؤ','و').replace('ئ','ي').replace('ى','ي')\r\n    # normalize taa marbuta to ha? Typically leave as ta marbuta; keep 'ة' to 'ه'? We'll leave as 'ه' to unify\r\n    # But that may distort. We'll leave 'ة' unchanged; it's distinct.\r\n    # remove punctuation and quotes\r\n    text = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', text)\r\n    # remove underscores/latin numbers etc keep arabic letters and numbers and spaces\r\n    # collapse whitespace\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    # lowercase (not applicable to Arabic but for Latin filler)\r\n    return text\r\n\r\ndef similarity(a, b):\r\n    na, nb = normalize_arabic(a), normalize_arabic(b)\r\n    # Use token-based F1 and SequenceMatcher ratio and LCS ratio\r\n    # token-based overlap\r\n    ta, tb = na.split(), nb.split()\r\n    inter = len(set(ta) & set(tb))\r\n    if len(set(ta)) + len(set(tb)) == 0:\r\n        token_f1 = 0.0\r\n    else:\r\n        precision = inter / len(set(tb)) if set(tb) else 0\r\n        recall = inter / len(set(ta)) if set(ta) else 0\r\n        token_f1 = 2 * precision * recall / (precision + recall) if (precision+recall)>0 else 0.0\r\n    seq_ratio = difflib.SequenceMatcher(None, na, nb).ratio()\r\n    # Weighted average\r\n    return 0.5*token_f1 + 0.5*seq_ratio\r\n\r\noriginal_span = \"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّىٰ يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ\"\r\nnormalize_arabic(original_span), similarity(original_span, original_span)",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f1d10481979462ca4d885847d500e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f2626081978f5406d4e771168600e03128f85026c2",
+      "code": "target = original_span\r\nbest = []\r\nfor i, h in enumerate(hadith_data):\r\n    for field in ['hadithTxt', 'Matn']:\r\n        txt = h.get(field) or \"\"\r\n        if not txt:\r\n            continue\r\n        sim = similarity(target, txt)\r\n        if sim > 0.6:  # keep moderately high; we'll sort later\r\n            best.append((sim, field, i, txt))\r\nbest_sorted = sorted(best, key=lambda x: -x[0])\r\nlen(best_sorted), best_sorted[:10]",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790186d88197b66adc98a37bcd4f00e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967905e8d8819785ecb7cc8ffd807c00e03128f85026c2",
+      "code": "# Search for variants maybe in hadithTxt without trailing space\r\ncands = []\r\nfor i, h in enumerate(hadith_data):\r\n    for field in ['hadithTxt', 'Matn']:\r\n        txt = h.get(field) or \"\"\r\n        if \"لَا يُؤْمِنُ أَحَدُكُمْ\" in txt:\r\n            cands.append((i, field, txt))\r\nlen(cands), cands[:5]",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967909219c8197b1b3ff5f960875e700e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967909937c81979828cd4ff7cec44a00e03128f85026c2",
+      "code": "matches_txt = []\r\nfor i, h in enumerate(hadith_data):\r\n    txt = h.get('hadithTxt') or \"\"\r\n    if txt and (\"لا يؤمن أحدكم\" in normalize_arabic(txt) or \"لَا يُؤْمِنُ أَحَدُكُمْ\" in txt):\r\n        matches_txt.append((i, txt))\r\nlen(matches_txt), matches_txt[:5]",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790c752c8197a7811ca9d1e222b300e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790fd0a881979575fa12c3e7a91f00e03128f85026c2",
+      "code": "unique_texts = {}\r\nfor i, h in enumerate(hadith_data):\r\n    txt = h.get('Matn') or \"\"\r\n    if normalize_arabic(txt).startswith(normalize_arabic(\"لا يؤمن احدكم حتى يحب لاخيه ما يحب لنفسه\")):\r\n        unique_texts[txt] = unique_texts.get(txt, []) + [i]\r\nlen(unique_texts), [(len(v), v[0], repr(k[:70])) for k,v in unique_texts.items()]",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791321b481979a79f17e4e33352300e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791d66008197a6cf62b20785ebca00e03128f85026c2",
+      "code": "# get the text at index 14\r\ntext_candidate = hadith_data[14]['Matn']\r\ntext_candidate, repr(text_candidate), len(text_candidate)",
+      "container_id": "cntr_689678d535f88190b93b35fad012f248014550e2cb123825",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967922c1d48197b51cbe5b6ab91bf600e03128f85026c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679260e188197bcdb275638ac2b7900e03128f85026c2",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 54030,
+    "input_tokens_details": {
+      "cached_tokens": 43240
+    },
+    "output_tokens": 4034,
+    "output_tokens_details": {
+      "reasoning_tokens": 3968
+    },
+    "total_tokens": 58064
+  },
+  "user": null,
+  "store": false
+}

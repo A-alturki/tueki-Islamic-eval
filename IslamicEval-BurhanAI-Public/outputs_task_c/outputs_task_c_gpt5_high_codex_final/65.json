@@ -1,0 +1,347 @@
+{
+  "id": "resp_68967e4835108196bc643a14b17110e60f4d3c4d1c5d85c7",
+  "created_at": 1754693192.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967e4c8d948196af35ca4fc82f42110f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e51713c819689358b6ceee198090f4d3c4d1c5d85c7",
+      "code": "import json, re, os, textwrap, unicodedata, difflib, math, itertools, numpy as np",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967e53a068819681f94b27726010490f4d3c4d1c5d85c7",
+      "code": "# Load the files\nquran_path = \"/mnt/data/file-MVgj1ZkxaQMvFkdZLobLET-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-Ly1VfrnGpghzcoaXtbANNv-six_hadith_books.json\"\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\n\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith = json.load(f)\n\nlen(quran), len(hadith)",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e57cdcc8196b35e267c04bc59f00f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e587f9c8196bd110679ca75d1fa0f4d3c4d1c5d85c7",
+      "code": "# Normalization utilities\ndef strip_tashkeel(s):\n    # Arabic diacritics range, including tanwin etc.\n    diacritics = ''.join(chr(c) for c in range(0x0610, 0x061B+1)) + ''.join(chr(c) for c in range(0x064B, 0x065F+1)) + chr(0x0670) + ''.join(chr(c) for c in range(0x06D6, 0x06ED+1))\n    return ''.join(ch for ch in s if ch not in diacritics)\n\ndef normalize_arabic(s):\n    s = s.replace('\\u0640', '')  # tatweel\n    s = strip_tashkeel(s)\n    # unify various hamza forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    # remove punctuation\n    s = re.sub(r'[^\\w\\s]', ' ', s)\n    s = re.sub(r'\\s+', ' ', s).strip().lower()\n    return s\n\ndef similarity(a, b):\n    # compute token F1 and LCS ratio combined\n    na, nb = normalize_arabic(a), normalize_arabic(b)\n    ta, tb = na.split(), nb.split()\n    # token overlap\n    set_a, set_b = set(ta), set(tb)\n    common = len(set_a & set_b)\n    if len(set_a) == 0 and len(set_b) == 0:\n        token_f1 = 1.0\n    elif len(set_a) == 0 or len(set_b) == 0:\n        token_f1 = 0.0\n    else:\n        precision = common / len(set_a)\n        recall = common / len(set_b)\n        token_f1 = 2*precision*recall/(precision+recall) if (precision+recall)>0 else 0.0\n    # LCS char ratio\n    sm = difflib.SequenceMatcher(None, na, nb)\n    lcs = sum(tr.size for tr in sm.get_matching_blocks())\n    lcs_ratio = lcs / max(1, max(len(na), len(nb)))\n    return 0.5*token_f1 + 0.5*lcs_ratio\n\n# function to search quran for a substring or similar\ndef search_quran(query):\n    results = []\n    nq = normalize_arabic(query)\n    for item in quran:\n        text = item.get('ayah_text','')\n        sim = similarity(query, text)  # compute similarity on original vs text\n        if nq and normalize_arabic(text).find(nq) != -1:\n            results.append((1.0, text, item))\n        else:\n            if sim > 0.7:\n                results.append((sim, text, item))\n    results.sort(key=lambda x: x[0], reverse=True)\n    return results[:20]\n\ndef search_hadith(query):\n    res = []\n    nq = normalize_arabic(query)\n    for item in hadith:\n        # The textual field may be hadithTxt or Matn; gather both if exist\n        txt = ''\n        if 'hadithTxt' in item and item['hadithTxt']:\n            txt = item['hadithTxt']\n        elif 'Matn' in item and item['Matn']:\n            txt = item['Matn']\n        else:\n            continue\n        if nq and normalize_arabic(txt).find(nq) != -1:\n            res.append((1.0, txt, item))\n        else:\n            sim = similarity(query, txt)\n            if sim > 0.7:\n                res.append((sim, txt, item))\n    res.sort(key=lambda x: x[0], reverse=True)\n    return res[:20]\n\nquery = \"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\"\nsearch_quran(query)[:5], search_hadith(query)[:5]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e69528c81969c76574474a5402d0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e6a1fa48196b713f2969fceb37c0f4d3c4d1c5d85c7",
+      "code": "for q in [\"فعل الشكر\", \"الشكر\", \"واعدد لكم\", \"عدد لكم\", \"وعدد لكم\", \"فعل الشكر\", \"افعل\", \"اعملوا شكرا\", \"اعملوا ال داود شكرا\", \"لعلكم تشكرون\", \"ان اشكر لي\", \"لئن شكرتم\"]:\n    q_res = search_quran(q)\n    print(q, len(q_res), [r[1][:80] for r in q_res[:3]])",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e74c96c8196869c7a19499368ca0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e7a4fb881969de76d8babef1ef20f4d3c4d1c5d85c7",
+      "code": "# Search in hadith database for \"الشكر\", \"فعل الشكر\", \"اشكر\", \"شكرا\"\nqueries = [\"فعل الشكر\", \"الشكر\", \"شكرا\", \"ان اشكر\", \"اشكروا\", \"تشكرون\", \"الشاكرين\"]\nfor q in queries:\n    res = search_hadith(q)\n    print(q, len(res))\n    if res:\n        print(res[0][0], res[0][1][:200].replace('\\n',' '))",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967eb8c8ac8196b09b9421678c02960f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ebc58488196ad16459bb63b67ca0f4d3c4d1c5d85c7",
+      "code": "# List ayat that contain the root \"شكر\" sequences in their raw form\ndef contains_shukr(text):\n    return 'شكر' in strip_tashkeel(text)\n\nayat_shukr = [item for item in quran if contains_shukr(item.get('ayah_text',''))]\nlen(ayat_shukr), [a['ayah_text'] for a in ayat_shukr[:10]]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ebeb8a881968b490d8ff50fea650f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ebf3d4c81968a0a3094b2b7c7920f4d3c4d1c5d85c7",
+      "code": "query = \"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\"\nscores = [(similarity(query, item['ayah_text']), item['ayah_text']) for item in ayat_shukr]\nscores_sorted = sorted(scores, key=lambda x: x[0], reverse=True)\nscores_sorted[:10]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ec229d48196ac08d0ff10209a300f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ec5224c8196b4a27d8fed24919d0f4d3c4d1c5d85c7",
+      "code": "candidate = 'مَا يَفْعَلُ اللَّهُ بِعَذَابِكُمْ إِنْ شَكَرْتُمْ وَآمَنْتُمْ ۚ وَكَانَ اللَّهُ شَاكِرًا عَلِيمًا'\nsimilarity(\"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\", candidate)",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ec76c90819683ef820735aa89170f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ec8608c8196aaf6626875e974770f4d3c4d1c5d85c7",
+      "code": "candidate = 'اعْمَلُوا آلَ دَاوُودَ شُكْرًا'\nsimilarity(\"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\", candidate)",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967eca7a088196bcb140caa30132910f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ecbaca88196a83d37860293a7ec0f4d3c4d1c5d85c7",
+      "code": "# Search for exact substring \"وَعَدَدَ\" in both DBs\ndef find_substring_in_quran(sub):\n    res = []\n    for item in quran:\n        text = item.get('ayah_text','')\n        if sub in text:\n            res.append((text, item))\n    return res\n\ndef find_substring_in_hadith(sub, limit=5):\n    res = []\n    for item in hadith:\n        text = item.get('hadithTxt') or item.get('Matn') or ''\n        if sub in text:\n            res.append(text)\n            if len(res) >= limit:\n                break\n    return res\n\nfind_substring_in_quran(\"وَعَدَدَ\")[:5], find_substring_in_hadith(\"وَعَدَدَ\")[:2]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967eced8cc8196bcc4ef0c4f2b692e0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ecf5d908196bf05a73a7af172e40f4d3c4d1c5d85c7",
+      "code": "find_substring_in_quran(\"وعدد\")[:5]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ed3021c8196ad7808f87f5fdf030f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ed329a08196b006bb72e48f4c9d0f4d3c4d1c5d85c7",
+      "code": "find_substring_in_quran(\"عدد\")[:5]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ed4c22c8196aecec5945815eb960f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ed636b88196bee0e3849b78851e0f4d3c4d1c5d85c7",
+      "code": "find_substring_in_quran(\"الشكر\")[:5], find_substring_in_quran(\"الشُّكْر\")[:5], find_substring_in_quran(\"الشُكْرِ\")[:5]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ed864408196a958ba2c70b6b6dc0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967edd4714819683e16fe9ea9b035d0f4d3c4d1c5d85c7",
+      "code": "find_substring_in_quran(\"وَعَدَ لَكُمْ\")[:5], find_substring_in_quran(\"وعد لكم\")[:5], find_substring_in_quran(\"وَعَدَكُم\")[:5]",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967edf39708196b45191ec9908d8da0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ee544f481968d43aafa5c7f20eb0f4d3c4d1c5d85c7",
+      "code": "# find max similarity across all Quranic verses\nquery = \"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\"\nmax_sim = 0\nmax_item = None\nfor item in quran:\n    sim = similarity(query, item['ayah_text'])\n    if sim > max_sim:\n        max_sim = sim\n        max_item = item['ayah_text']\nmax_sim, max_item",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ee725a08196b5fe4f8a5d8f50000f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ee7cfb881969aab43a5e9ed72130f4d3c4d1c5d85c7",
+      "code": "query = \"وَعَدَدَ لَكُمْ فِعْلَ الشُكْرِ\"\nmax_sim = 0\nmax_txt = None\nfor item in hadith:\n    txt = item.get('hadithTxt') or item.get('Matn') or ''\n    sim = similarity(query, txt)\n    if sim > max_sim:\n        max_sim = sim\n        max_txt = txt\nmax_sim, (max_txt[:200] if max_txt else None)",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ef06ae08196be35c6e253b11e180f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967ef2f8c48196b110c56ae333bfd70f4d3c4d1c5d85c7",
+      "code": "find_substring_in_quran(\"وَلَقَدْ مَنَّ عَلَيْكُمْ رَبُّكُمْ\")",
+      "container_id": "cntr_68967e49c5b881908581d1ab35e86a4f03fa7cd147c3ce03",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ef516cc81969cddd0307cfb505f0f4d3c4d1c5d85c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967ef6f3c4819693aa889bafb005a30f4d3c4d1c5d85c7",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-MVgj1ZkxaQMvFkdZLobLET",
+          "file-Ly1VfrnGpghzcoaXtbANNv"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 144437,
+    "input_tokens_details": {
+      "cached_tokens": 120752
+    },
+    "output_tokens": 5141,
+    "output_tokens_details": {
+      "reasoning_tokens": 5120
+    },
+    "total_tokens": 149578
+  },
+  "user": null,
+  "store": false
+}

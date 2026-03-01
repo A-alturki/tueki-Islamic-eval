@@ -1,0 +1,227 @@
+{
+  "id": "resp_6896753402d08190beab196e5ed29252029f29e93a9af9b7",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896753924d88190a9719cdb8d720928029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967546d9e88190ae05cc3ca825c30d029f29e93a9af9b7",
+      "code": "# Let's load the provided JSON files and inspect structure.\nimport json, os, re, unicodedata, math\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_data = json.load(f)\n\ntype(quran_data), len(quran_data), type(hadith_data)",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754aced881909826dd897ee6b2b9029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754b55e08190a5bfb0d345e34a1f029f29e93a9af9b7",
+      "code": "quran_data[0]",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754cd7948190928c54fe33b7a587029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754d148081909d580adb0065154e029f29e93a9af9b7",
+      "code": "len(hadith_data), hadith_data[0].keys()",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754ec5c48190ba09560fd1bfa413029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967555a9708190b2b13fe695f52522029f29e93a9af9b7",
+      "code": "import re\nimport numpy as np\n\n# Normalization functions\narabic_diacritics = re.compile(r'[\\u064b-\\u065f\\u0670\\u06d6-\\u06ed]')\ntatweel = re.compile(r'[\\u0640]')\npunct = re.compile(r'[^\\w\\s\\u0600-\\u06FF]')  # keep Arabic letters and digits?\n# Instead of removing digits, we can remove all punctuation only\npunct2 = re.compile(r'[^\\u0600-\\u06FF\\s]')\n\ndef normalize_ar(s):\n    if not s:\n        return \"\"\n    s = str(s)\n    # Remove diacritics\n    s = arabic_diacritics.sub('', s)\n    # Normalize Arabic letters\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\n    s = s.replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    # Remove tatweel\n    s = tatweel.sub('', s)\n    # Remove punctuation (non-arabic)\n    s = punct2.sub(' ', s)\n    # Collapse spaces\n    s = re.sub(r'\\s+', ' ', s).strip()\n    # Lowercase does not matter for arabic; but we can keep\n    return s\n\ndef tokens(s):\n    return normalize_ar(s).split()\n\ndef token_f1(a, b):\n    ta, tb = tokens(a), tokens(b)\n    if not ta or not tb:\n        return 0.0\n    from collections import Counter\n    ca, cb = Counter(ta), Counter(tb)\n    overlap = sum(min(ca[t], cb[t]) for t in set(ca) | set(cb))\n    prec = overlap / len(ta)\n    rec = overlap / len(tb)\n    if prec + rec == 0:\n        return 0.0\n    return 2*prec*rec/(prec+rec)\n\ndef lcs_length(a, b):\n    # Longest common subsequence length (characters) after normalization\n    na, nb = normalize_ar(a), normalize_ar(b)\n    # We'll compute LCS length using DP in O(n*m) - might be heavy but strings are short.\n    n, m = len(na), len(nb)\n    dp = [0]*(m+1)\n    for i in range(1, n+1):\n        prev = 0\n        for j in range(1, m+1):\n            temp = dp[j]\n            if na[i-1] == nb[j-1]:\n                dp[j] = prev + 1\n            else:\n                dp[j] = max(dp[j], dp[j-1])\n            prev = temp\n    return dp[m], len(na), len(nb)\n\ndef lcs_ratio(a, b):\n    l, na, nb = lcs_length(a, b)\n    if max(na, nb) == 0:\n        return 0.0\n    return l / max(na, nb)\n\ndef longest_common_substring(a, b):\n    na, nb = normalize_ar(a), normalize_ar(b)\n    n, m = len(na), len(nb)\n    dp = [0]*(m+1)\n    longest = 0\n    for i in range(1, n+1):\n        new_dp = [0]*(m+1)\n        for j in range(1, m+1):\n            if na[i-1] == nb[j-1]:\n                new_dp[j] = dp[j-1] + 1\n                if new_dp[j] > longest:\n                    longest = new_dp[j]\n            else:\n                new_dp[j] = 0\n        dp = new_dp\n    return longest, len(na), len(nb)\n\ndef lcsstr_ratio(a, b):\n    l, na, nb = longest_common_substring(a, b)\n    if max(na, nb) == 0:\n        return 0.0\n    return l / max(na, nb)\n\ndef compute_similarity(a, b):\n    # combine metrics\n    f1 = token_f1(a, b)\n    lcsr = lcs_ratio(a, b)\n    lcsstrr = lcsstr_ratio(a, b)\n    return {'token_f1': f1, 'lcs_ratio': lcsr, 'lcsstr_ratio': lcsstrr, 'avg': (f1 + lcsr + lcsstrr)/3}\n\norig_span = \"وَلَقَدْ عَلِمْنَا الْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ إِذَا قَالُوا لِقَوْمِهِمْ إِن تَلِدُنَّ مِن بَعْدِهِنَّ فَرَجاً كَذَبْنَ فَإِذَا مَلَطَّنَهُنَّ بِالْغَضَبِ زَعَمْنَ حَقّاً وَهُمْ لِقَوْلِهِنَّ لَا يَزَالُونَ طَاعِنِينَ\"\nsnippet = \"وَلَقَدْ ع...طَاعِنِينَ\"\ncompute_similarity(orig_span, orig_span)",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967576084881909a730a8a569a42fe029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967577b880819084c23843021d4f17029f29e93a9af9b7",
+      "code": "# Precompute normalized orig tokens\nnorm_orig = normalize_ar(orig_span)\nlen(norm_orig), norm_orig[:100]",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757983dc819091f813bc4477e0cf029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967579f6708190a181141eca257692029f29e93a9af9b7",
+      "code": "# Iterate through quran_data to compute similarities\nbest_q_matches = []\nfor entry in quran_data:\n    text = entry['ayah_text']\n    norm_text = normalize_ar(text)\n    # Compute simplified quick substring overlap ratio\n    # We'll compute the combined score\n    sim = compute_similarity(text, orig_span)\n    # store top few\n    best_q_matches.append((sim['avg'], sim, text, entry['surah_id'], entry['ayah_id'], norm_text))\n    \n# sort\nbest_q_matches_sorted = sorted(best_q_matches, key=lambda x: x[0], reverse=True)\nbest_q_matches_sorted[:10]",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758fc1448190838057c55ed22554029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967592b5bc819083baa3bfa6ab6c94029f29e93a9af9b7",
+      "code": "# Compute similarity vs hadith matn/hadithTxt\nbest_h_matches = []\nfor i, entry in enumerate(hadith_data):\n    text = entry.get('Matn') or entry.get('hadithTxt') or \"\"\n    if not text:\n        continue\n    sim = compute_similarity(text, orig_span)\n    best_h_matches.append((sim['avg'], sim, text, i))\n    \nbest_h_matches_sorted = sorted(best_h_matches, key=lambda x: x[0], reverse=True)\nbest_h_matches_sorted[:10]",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689676a1b81c8190b760bdee70c2800c029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689676a2c4f0819090d15cafd4a96110029f29e93a9af9b7",
+      "code": "len(best_h_matches_sorted)",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689676ccce4c81908d3ea2c4243e7009029f29e93a9af9b7",
+      "code": "best_h_matches_sorted[0]",
+      "container_id": "cntr_68967535bee88190bfc2fbd2acfe742001eacaf3e0decc86",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689676ce7d5c81909a4bb2c195c4d377029f29e93a9af9b7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689676d6d2dc81909247dc3d05955b92029f29e93a9af9b7",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 59319,
+    "input_tokens_details": {
+      "cached_tokens": 46184
+    },
+    "output_tokens": 4245,
+    "output_tokens_details": {
+      "reasoning_tokens": 4224
+    },
+    "total_tokens": 63564
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

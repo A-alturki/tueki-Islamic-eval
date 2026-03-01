@@ -1,0 +1,280 @@
+{
+  "id": "resp_68967e47bf1c8196af34119cd89032cb0dfb642db90620c4",
+  "created_at": 1754693191.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967e4c05748196b71245dae8d1773c0dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e533a1c8196a14d842fc5e14ff00dfb642db90620c4",
+      "code": "import json, re, unicodedata, sys, os, textwrap, math, difflib, itertools\nfrom collections import Counter, defaultdict\n\nquran_path = '/mnt/data/file-MVgj1ZkxaQMvFkdZLobLET-quranic_verses.json'\nhadith_path = '/mnt/data/file-Ly1VfrnGpghzcoaXtbANNv-six_hadith_books.json'\n\ndef load_json(path):\n    with open(path, 'r', encoding='utf-8') as f:\n        return json.load(f)\n    \nquran = load_json(quran_path)\nhadith = load_json(hadith_path)\n\nlen(quran), len(hadith)",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e55010c8196827e44163932a7a70dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e568ef4819693476052abb879f20dfb642db90620c4",
+      "code": "# Inspect sample keys of hadith data\nhadith[:2] if isinstance(hadith, list) else list(hadith.keys())[:10]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e583d048196b5167b26ba283a3a0dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e592fd88196999acb04b9ef96030dfb642db90620c4",
+      "code": "import re\n\ndef strip_diacritics(s):\n    # Remove Arabic diacritics\n    diacritics = ''.join(chr(c) for c in range(0x600,0x700) if unicodedata.category(chr(c))=='Mn')\n    # That's not accurate; better approach: remove combining marks\n    return ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')\n\ndef normalize_arabic(s):\n    if s is None:\n        return None\n    s = s.replace('\\u0640', '')  # tatweel\n    s = s.replace('ـ','')\n    s = strip_diacritics(s)\n    # unify alef variants\n    s = re.sub('[أإآٱ]', 'ا', s)\n    s = re.sub('ؤ', 'و', s)\n    s = re.sub('ئ', 'ي', s)\n    s = s.replace('ة', 'ه')\n    s = s.replace('ى', 'ي')\n    # unify punctuation: remove punctuation and extra spaces\n    s = re.sub(r'[^\\w\\s]', ' ', s, flags=re.UNICODE)\n    s = re.sub(r'\\s+', ' ', s).strip().lower()\n    return s\n\ndef find_entries_containing(snippet, fields=('Matn','hadithTxt')):\n    sn = normalize_arabic(snippet)\n    matches = []\n    for rec in hadith:\n        for field in fields:\n            txt = rec.get(field)\n            if not txt:\n                continue\n            if sn in normalize_arabic(txt):\n                matches.append((rec['hadithID'], field, txt))\n                break\n    return matches\n\nsnippet = \"فأبواه يهودانه أو ينصرانه أو يمجسانه\"\nmatches = find_entries_containing(snippet)\nlen(matches)",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e64eb6881969201753e93f4d3250dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e6510408196b62af8f0228bc5570dfb642db90620c4",
+      "code": "matches[:3]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e668bb08196b46bb199ef7d28f90dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e6d2ce4819681a8e76869598b690dfb642db90620c4",
+      "code": "original_full = \"الطفل على الفطرة، فأبواها يهودانه أو ينصرانه أو يمجسانه\"\nsnippet = \"الطفل على ...أو يمجسانه\"\n\ncandidates = [matches[1][2], matches[2][2]]  # matn for hadith 2261 and 7245\ncandidates",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967e6fbd448196b06b0464d2c0eabf0dfb642db90620c4",
+      "code": "def similarity(a,b):\n    na = normalize_arabic(a)\n    nb = normalize_arabic(b)\n    # Use token F1 and ratio\n    tokens_a = na.split()\n    tokens_b = nb.split()\n    inter = Counter(tokens_a) & Counter(tokens_b)\n    inter_count = sum(inter.values())\n    precision = inter_count / max(1,len(tokens_b))\n    recall = inter_count / max(1,len(tokens_a))\n    f1 = 2*precision*recall/(precision+recall) if (precision+recall)>0 else 0.0\n    sm = difflib.SequenceMatcher(None, na, nb).ratio()\n    return {'f1': f1, 'seq': sm, 'len_a': len(na), 'len_b': len(nb), 'na': na, 'nb': nb}\n\nfor cand in candidates:\n    print(similarity(original_full, cand))",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e730e048196b7a0e2032d96a1300dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e7dbfd481968591a9fec7994aed0dfb642db90620c4",
+      "code": "def search_hadith_by_phrase(phrase):\n    results=[]\n    nphrase = normalize_arabic(phrase)\n    for rec in hadith:\n        for field in ('Matn','hadithTxt'):\n            txt = rec.get(field)\n            if not txt:\n                continue\n            n = normalize_arabic(txt)\n            if nphrase in n:\n                results.append((rec['hadithID'], field, txt))\n                break\n    return results\n\nres = search_hadith_by_phrase('كل مولود يولد على الفطرة')\nlen(res)",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967e8747f88196932d5d8a7ec1e8940dfb642db90620c4",
+      "code": "res[:5]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e88c8248196a15d97a167f2dfed0dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e8a14588196bd5df63e7e7bfe960dfb642db90620c4",
+      "code": "search_hadith_by_phrase('ما من مولود إلا يولد على الفطرة')[:5]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967e92b04481968e4e18eb563297880dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967e97ec9c81969504950db73785230dfb642db90620c4",
+      "code": "def search_containing_word(word):\n    nword = normalize_arabic(word)\n    results=[]\n    for rec in hadith:\n        for field in ('Matn','hadithTxt'):\n            txt = rec.get(field)\n            if not txt:\n                continue\n            if nword in normalize_arabic(txt):\n                results.append((rec['hadithID'], field, txt[:200]))\n                break\n    return results\n\nlen(search_containing_word('الطفل')), search_containing_word('الطفل')[:10]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ea86b8881968b806726b65592600dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967eb213e08196b6e85d08b1775c1a0dfb642db90620c4",
+      "code": "# find exact text of hadith id 2261\nsel = [rec for rec in hadith if rec['hadithID']==2261][0]\nsel['Matn']",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967eb3d6b88196ba4e5892527e6ba70dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967eb57034819691b910831105eadf0dfb642db90620c4",
+      "code": "search_hadith_by_phrase('على الفطرة')[:10]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967ebec61881969a5ebd6477668fb60dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967f0003f88196ba7f7170c38b2e850dfb642db90620c4",
+      "code": "def search_exact_phrase_end(phrase):\n    nphrase = normalize_arabic(phrase)\n    res=[]\n    for rec in hadith:\n        for field in ('Matn','hadithTxt'):\n            txt = rec.get(field)\n            if not txt:\n                continue\n            n = normalize_arabic(txt)\n            if nphrase in n:\n                # check if after occurrence the text continues with more\n                idx = n.find(nphrase)\n                after = n[idx+len(nphrase):].strip()\n                res.append((rec['hadithID'], field, txt, after[:50]))\n                break\n    return res\n\nres2 = search_exact_phrase_end('كُلُّ مَوْلُودٍ يُولَدُ عَلَى الْفِطْرَةِ ، فَأَبَوَاهُ يُهَوِّدَانِهِ ، أَوْ يُنَصِّرَانِهِ ، أَوْ يُمَجِّسَانِهِ')\nlen(res2), res2[:2]",
+      "container_id": "cntr_68967e4937188190902221bae586a7920d67a566aa256be4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967f1021408196bde75640915e75730dfb642db90620c4",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967f1f5ac08196b2dc8f4a7f6106730dfb642db90620c4",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"كُلُّ مَوْلُودٍ يُولَدُ عَلَى الْفِطْرَةِ ، فَأَبَوَاهُ يُهَوِّدَانِهِ ، أَوْ يُنَصِّرَانِهِ ، أَوْ يُمَجِّسَانِهِ ، كَمَثَلِ الْبَهِيمَةِ تُنْتَجُ الْبَهِيمَةَ ، هَلْ تَرَى فِيهَا جَدْعَاءَ . \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-MVgj1ZkxaQMvFkdZLobLET",
+          "file-Ly1VfrnGpghzcoaXtbANNv"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 110566,
+    "input_tokens_details": {
+      "cached_tokens": 78344
+    },
+    "output_tokens": 8459,
+    "output_tokens_details": {
+      "reasoning_tokens": 8320
+    },
+    "total_tokens": 119025
+  },
+  "user": null,
+  "store": false
+}

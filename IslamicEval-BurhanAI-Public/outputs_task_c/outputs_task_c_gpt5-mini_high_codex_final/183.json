@@ -1,0 +1,204 @@
+{
+  "id": "resp_689708a154ec8196beebda9de3c37d2d0a5007e6ddf758e1",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5b2fc8196979848c21fef40d80a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a89fc481968a1c011b3d6e04a00a5007e6ddf758e1",
+      "code": "# Load the quranic_verses.json and six_hadith_books.json files to search for the verse.\r\nimport json, sys, re, unicodedata, math, os\r\npath_q = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\npath_h = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\nwith open(path_q, 'r', encoding='utf-8') as f:\r\n    quran = json.load(f)\r\nlen(quran)\r\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ab3d0c8196b6b82dbf053c974e0a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ab89fc8196a56ee129f820e94e0a5007e6ddf758e1",
+      "code": "# Inspect a couple entries\r\nquran[:3]\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ad00108196a324e75b336c9d060a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b01cec8196a1d61bc07f627a0c0a5007e6ddf758e1",
+      "code": "context = ' قال الله تعالى \"يا أيها الذين آمنوا استعينوا بالصبر والصلاة إن كنتم صادقين\" سورة البقرة الآية 153. كما ورد في الحديث الشريف \"أفضل الجهاد كلمة حق أمام سلطان جائر\".'\r\nsubstring = context[17:75]\r\ncontext, substring\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b20fe88196bedce1e9398d6ec80a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b74b4c819680ef9257f51805bb0a5007e6ddf758e1",
+      "code": "# Define normalization functions and similarity metrics\r\nimport re, unicodedata\r\nfrom functools import lru_cache\r\n\r\n# Arabic diacritics ranges\r\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\"\"\")\r\ntatweel = '\\u0640'\r\n# punctuation to remove\r\npunctuation = r'[\\u060C\\u061B\\u061F\\.\\,\\!\\?\\:\\;\\-\\—\\\"\\'\\(\\)\\[\\]«»…]'\r\n# hamza variants mapping\r\nhamza_variants = {\r\n    'أ':'ا', 'إ':'ا', 'آ':'ا', 'ؤ':'و', 'ئ':'ي', 'ء':'ء' # mapping to basic char (we choose to map to base letter)\r\n}\r\n\r\ndef remove_diacritics(text):\r\n    # remove combining diacritics by unicode category\r\n    return ''.join(ch for ch in unicodedata.normalize('NFKD', text) if unicodedata.category(ch) != 'Mn')\r\n\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return ''\r\n    text = str(text)\r\n    text = text.strip()\r\n    # remove tatweel\r\n    text = text.replace(tatweel, '')\r\n    # remove punctuation\r\n    text = re.sub(punctuation, ' ', text)\r\n    # remove extra arabic diacritics using ranges\r\n    text = re.sub(arabic_diacritics, '', text)\r\n    # unicode decomposition remove combining marks too\r\n    text = remove_diacritics(text)\r\n    # unify hamza variants\r\n    for k,v in hamza_variants.items():\r\n        text = text.replace(k,v)\r\n    # normalize alef maqsura to ي? We'll leave as ي\r\n    text = text.replace('ى','ي')\r\n    # lowercase - not necessary but remove uppercase letters etc (Arabic has no case)\r\n    # collapse spaces\r\n    text = re.sub(r'\\s+',' ', text)\r\n    text = text.strip()\r\n    return text\r\n\r\n# similarity functions\r\ndef lcs_len(a,b):\r\n    # compute longest common subsequence length (not substring). But maybe longest common substring is better.\r\n    # We'll compute longest common substring using dynamic programming\r\n    la, lb = len(a), len(b)\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    best = 0\r\n    for i in range(la-1,-1,-1):\r\n        for j in range(lb-1,-1,-1):\r\n            if a[i]==b[j]:\r\n                dp[i][j] = 1 + dp[i+1][j+1]\r\n                if dp[i][j] > best:\r\n                    best = dp[i][j]\r\n            else:\r\n                dp[i][j] = 0\r\n    return best\r\n\r\ndef token_f1(a,b):\r\n    # tokens are split on spaces\r\n    ta = a.split()\r\n    tb = b.split()\r\n    set_a = ta\r\n    set_b = tb\r\n    if len(set_a)==0 and len(set_b)==0:\r\n        return 1.0\r\n    # compute token overlap counts\r\n    from collections import Counter\r\n    ca = Counter(set_a)\r\n    cb = Counter(set_b)\r\n    common = sum((ca & cb).values())\r\n    if common==0:\r\n        return 0.0\r\n    prec = common / sum(ca.values())\r\n    rec = common / sum(cb.values())\r\n    if prec+rec==0:\r\n        return 0.0\r\n    return 2*prec*rec/(prec+rec)\r\n\r\ndef similarity(a,b):\r\n    # compute normalized LCS substring ratio and token_f1, return weighted average\r\n    if not a or not b:\r\n        return 0.0\r\n    a_ = normalize_ar(a)\r\n    b_ = normalize_ar(b)\r\n    # use longest common substring length ratio relative to max len\r\n    lcs = lcs_len(a_, b_)\r\n    lcs_ratio = lcs / max(len(a_), len(b_))\r\n    tf1 = token_f1(a_, b_)\r\n    # also compute normalized Levenshtein ratio maybe using simple diff? But heavy.\r\n    # We'll combine lcs_ratio and token f1 with weights\r\n    score = 0.6 * lcs_ratio + 0.4 * tf1\r\n    return score, {'a_norm':a_, 'b_norm':b_, 'lcs':lcs, 'lcs_ratio':lcs_ratio, 'tf1':tf1}\r\n\r\n# test on substring and known correct ayah\r\nquery = substring\r\n# find best matching ayah in quranic_verses.json\r\nbest = None\r\nbest_score = -1\r\nbest_info = None\r\nfor entry in quran:\r\n    ay = entry.get('ayah_text','')\r\n    sc, info = similarity(query, ay)\r\n    if sc > best_score:\r\n        best_score = sc\r\n        best = entry\r\n        best_info = (sc, info)\r\n\r\nbest_score, best['ayah_text'], best['surah_name'], best['surah_id'], best['ayah_id'], best_info[:2]\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c48b2881969873b484f73ef0340a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cae9e88196921ad5eff1826ef30a5007e6ddf758e1",
+      "code": "# compute longest common subsequence (not substring)\r\ndef lcs_subseq_len(a,b):\r\n    la, lb = len(a), len(b)\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    for i in range(1, la+1):\r\n        for j in range(1, lb+1):\r\n            if a[i-1] == b[j-1]:\r\n                dp[i][j] = dp[i-1][j-1] + 1\r\n            else:\r\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\r\n    return dp[la][lb]\r\n\r\na_norm = normalize_ar(substring)\r\nb_norm = normalize_ar(best['ayah_text'])\r\nlcs_sub_len = lcs_subseq_len(a_norm, b_norm)\r\nlcs_sub_len, len(a_norm), len(b_norm), lcs_sub_len / max(len(a_norm), len(b_norm))\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cdfc048196a9f494e85bc3d7c50a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d2d96c8196a0c8b7219e1f28010a5007e6ddf758e1",
+      "code": "# compute token overlap recall and precision\r\ndef token_overlap(a,b):\r\n    ta = normalize_ar(a).split()\r\n    tb = normalize_ar(b).split()\r\n    from collections import Counter\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    common = sum((ca & cb).values())\r\n    prec = common / sum(ca.values()) if sum(ca.values())>0 else 0.0\r\n    rec = common / sum(cb.values()) if sum(cb.values())>0 else 0.0\r\n    return prec, rec, common, ca, cb\r\n\r\nprec, rec, common, ca, cb = token_overlap(best['ayah_text'], substring)\r\nprec, rec, common, len(ca), len(cb), ca, cb\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d5cb748196bc9d8b6346c232f60a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708da5b748196a8994b0479806e400a5007e6ddf758e1",
+      "code": "# compute Levenshtein distance\r\ndef levenshtein(a,b):\r\n    a = a\r\n    b = b\r\n    la = len(a)\r\n    lb = len(b)\r\n    if la==0:\r\n        return lb\r\n    if lb==0:\r\n        return la\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    for i in range(la+1):\r\n        dp[i][0] = i\r\n    for j in range(lb+1):\r\n        dp[0][j] = j\r\n    for i in range(1, la+1):\r\n        for j in range(1, lb+1):\r\n            cost = 0 if a[i-1]==b[j-1] else 1\r\n            dp[i][j] = min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)\r\n    return dp[la][lb]\r\n\r\na_norm = normalize_ar(substring)\r\nb_norm = normalize_ar(best['ayah_text'])\r\nlev = levenshtein(a_norm, b_norm)\r\nlev, len(a_norm), len(b_norm), 1 - lev/ max(len(a_norm),len(b_norm))\n",
+      "container_id": "cntr_689708a34e0c8190adc972e6b53f007e02d50cf14c0af714",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708de19a48196ae1f4765c8f43ea40a5007e6ddf758e1",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708f0454081969cd180c3bafe409b0a5007e6ddf758e1",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"يَا أَيُّهَا الَّذِينَ آمَنُوا اسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ ۚ إِنَّ اللَّهَ مَعَ الصَّابِرِينَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 31772,
+    "input_tokens_details": {
+      "cached_tokens": 28480
+    },
+    "output_tokens": 6789,
+    "output_tokens_details": {
+      "reasoning_tokens": 6720
+    },
+    "total_tokens": 38561
+  },
+  "user": null,
+  "store": false
+}

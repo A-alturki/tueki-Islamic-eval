@@ -1,0 +1,219 @@
+{
+  "id": "resp_689708a15ac881979864fbd3ad3f707d0429162883d1aead",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a66a208197b7e1b5b35f0efb900429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aabd788197a463186686e209280429162883d1aead",
+      "code": "# Load the quranic_verses.json and inspect entries containing likely text.\r\nimport json, re\r\npath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nwith open(path, \"r\", encoding=\"utf-8\") as f:\r\n    q = json.load(f)\r\nlen(q)\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ad7e7081979258f5dbe5fd48c00429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aebb648197b7228a59a55ed37f0429162883d1aead",
+      "code": "# Define normalization\r\nimport unicodedata\r\n\r\narabic_diacritics = ''.join([\r\n    '\\u0610','\\u0611','\\u0612','\\u0613','\\u0614','\\u0615','\\u0616','\\u0617','\\u0618','\\u0619','\\u061A',\r\n    '\\u064B','\\u064C','\\u064D','\\u064E','\\u064F','\\u0650','\\u0651','\\u0652','\\u0653','\\u0654','\\u0655','\\u0656','\\u0657','\\u0658','\\u0659','\\u065A','\\u065B','\\u065C','\\u065D','\\u065E','\\u065F','\\u0670','\\u06D6','\\u06D7','\\u06D8','\\u06D9','\\u06DA','\\u06DB','\\u06DC','\\u06DF','\\u06E0','\\u06E1','\\u06E2','\\u06E3','\\u06E4','\\u06E7','\\u06E8','\\u06EA','\\u06EB','\\u06EC','\\u06ED'\r\n])\r\n\r\ndef normalize_ar(text):\r\n    # Remove tatweel\r\n    text = text.replace('\\u0640','')\r\n    # Normalize hamza variants to bare hamza? Let's map: ء أ إ آ -> ا maybe unify to ا? But instructions say unify hamza; better map to bare hamza 'ء' or 'ا'? They likely mean unify forms; choose replace أإآ to ا and ء to ا? Hmm typical normalization maps hamza to 'ء' but many corpora unify to 'ا'.\r\n    # We'll replace different hamza forms with plain hamza 'ء' might break matching. Better to replace الهمزات with 'ا' since most texts use 'ا'? But canonical quranic has 'أ' etc.\r\n    # However for robust search, we can replace all hamza-like chars with 'ء' then remove diacritics.\r\n    for ch in ['أ','إ','آ','ٱ']:\r\n        text = text.replace(ch, 'ا')\r\n    # remove diacritics\r\n    for d in arabic_diacritics:\r\n        text = text.replace(d, '')\r\n    # remove punctuation and non-letter characters except Arabic letters and space and numbers\r\n    # But keep Arabic letters and spaces\r\n    # replace punctuation with space\r\n    text = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', text)\r\n    # collapse spaces and lowercase (Arabic has no case)\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    return text\r\n\r\nfull_span = \"وَلا تَزِرْ وَزِيراً وَزَرًَا\"\r\nsnippet = \"وَلا تَزِر...ً وَزَرًَا\"\r\nprint(normalize_ar(full_span))\r\nprint(normalize_ar(snippet) )\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b6d97881979d0c5342e9a4ed7f0429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b7c0bc819781ca26d31a0abaa90429162883d1aead",
+      "code": "# show first few entries\r\nfor i in range(3):\r\n    print(i, q[i].keys())\r\n    print(q[i]['ayah_text'])\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b9c23c8197860b87b9f8b0ba3c0429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ba81c081979fa0d8e78cb824ee0429162883d1aead",
+      "code": "# Build normalized mapping\r\nnorms = []\r\nfor entry in q:\r\n    txt = entry['ayah_text']\r\n    norms.append(normalize_ar(txt))\r\n# search for substring matches\r\ncandidates = []\r\nquery1 = normalize_ar(full_span)\r\nquery2 = normalize_ar(snippet)\r\nfor i, n in enumerate(norms):\r\n    if query1 in n or query2 in n:\r\n        candidates.append((i, n, q[i]['ayah_text']))\r\ncandidates[:20], len(candidates)\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bd21d48197a322d9d0340d5fc50429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c03e808197813bb3510aa5b5d00429162883d1aead",
+      "code": "# Define LCS function\r\ndef lcs_len(a, b):\r\n    # compute length of longest common subsequence (not substring)\r\n    # But LCS is O(len(a)*len(b)) DP. Acceptable.\r\n    la, lb = len(a), len(b)\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    for i in range(la):\r\n        for j in range(lb):\r\n            if a[i] == b[j]:\r\n                dp[i+1][j+1] = dp[i][j] + 1\r\n            else:\r\n                dp[i+1][j+1] = max(dp[i][j+1], dp[i+1][j])\r\n    return dp[la][lb]\r\n\r\ndef token_f1(a, b):\r\n    ta = a.split()\r\n    tb = b.split()\r\n    set_a = ta\r\n    set_b = tb\r\n    # Count overlap as multiset intersection? We'll treat as multiset but simpler: counts\r\n    from collections import Counter\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    inter = sum((ca & cb).values())\r\n    if inter == 0:\r\n        return 0.0\r\n    prec = inter / sum(ca.values())\r\n    rec = inter / sum(cb.values())\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\n# search for top candidates by token overlap first\r\nquery_norm = normalize_ar(full_span)\r\nscores = []\r\nfor i, n in enumerate(norms):\r\n    # compute token overlap score\r\n    tf1 = token_f1(n, query_norm)\r\n    lcs = lcs_len(n, query_norm)\r\n    lcs_ratio = lcs / max(len(n), len(query_norm))\r\n    scores.append((i, tf1, lcs_ratio, n, q[i]['ayah_text']))\r\n\r\n# sort by highest tf1 then lcs_ratio\r\nscores_sorted = sorted(scores, key=lambda x: (x[1], x[2]), reverse=True)\r\nscores_sorted[:20]\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c9a7f48197a1ba1a06c9642d2f0429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d1462881978e02f8bd4805d5e20429162883d1aead",
+      "code": "# compute edit distance ratio (Levenshtein)\r\ndef levenshtein(s, t):\r\n    # returns edit distance\r\n    n, m = len(s), len(t)\r\n    if n == 0:\r\n        return m\r\n    if m == 0:\r\n        return n\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    for i in range(n+1):\r\n        dp[i][0] = i\r\n    for j in range(m+1):\r\n        dp[0][j] = j\r\n    for i in range(1, n+1):\r\n        for j in range(1, m+1):\r\n            cost = 0 if s[i-1] == t[j-1] else 1\r\n            dp[i][j] = min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost)\r\n    return dp[n][m]\r\n\r\ncandidate_idx = 4821\r\ncandidate_text = q[candidate_idx]['ayah_text']\r\ncandidate_norm = normalize_ar(candidate_text)\r\nquery_norm = normalize_ar(full_span)\r\nlev = levenshtein(candidate_norm, query_norm)\r\nratio = 1 - lev / max(len(candidate_norm), len(query_norm))\r\ncandidate_norm, query_norm, lev, ratio\r\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d9b3548197bfbd785136486da00429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ea8e688197881166c4f4b5d4870429162883d1aead",
+      "code": "entry = q[4821]\r\nentry\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ec5a8c819796ae18fe8abc318d0429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ef2f688197afa86c0d8026d9f50429162883d1aead",
+      "code": "# find all entries with same normalized text\r\ntarget = 'أَلَّا تَزِرُ وَازِرَةٌ وِزْرَ أُخْرَىٰ'\r\nmatches = []\r\nfor i, entry in enumerate(q):\r\n    if entry['ayah_text'] == target:\r\n        matches.append((i, entry))\r\nlen(matches), matches[:10]\n",
+      "container_id": "cntr_689708a366e88190b69d3684f56260480182909fb511c5cf",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f19e888197b47d06ea10cc03a80429162883d1aead",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708f9f4cc81978221095e41e9e16c0429162883d1aead",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"أَلَّا تَزِرُ وَازِرَةٌ وِزْرَ أُخْرَىٰ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 48218,
+    "input_tokens_details": {
+      "cached_tokens": 45288
+    },
+    "output_tokens": 6449,
+    "output_tokens_details": {
+      "reasoning_tokens": 6400
+    },
+    "total_tokens": 54667
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,197 @@
+{
+  "id": "resp_689708a14f3c819588973aa3f5937e8b06459f6eb5e5861a",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a514f4819591f302486dd5964606459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b188588195b31021c1c318213506459f6eb5e5861a",
+      "code": "# Load the quranic_verses.json and search for verses containing the exact substring or normalized variants.\r\nimport json, re, unicodedata, sys, os\r\n\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    verses = json.load(f)\r\n\r\nlen(verses)\r\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b3ea7c81959e5af9c0fa4c6a3906459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b426fc8195a7f66c75518eca5d06459f6eb5e5861a",
+      "code": "# Inspect structure\r\nverses[0]\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b5a5908195bf10a5d1fde1dc3d06459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b928188195a9e8245e6edaabd606459f6eb5e5861a",
+      "code": "# Define normalization\r\nimport re\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\ntatweel = '\\u0640'\r\n\r\ndef normalize_ar(text):\r\n    # Normalize: remove diacritics, tatweel, punctuation; unify hamza forms: ء أ إ ئ etc to ا or maybe to ء? Instruction: unify hamza\r\n    # We'll map أإآ to ا, ة to ه? No instruction about ta marbuta. But unify hamza forms by replacing variants with ء? The instruction said \"unify hamza\" ambiguous.\r\n    # We'll replace different hamza with bare hamza 'ء' maybe. But letters expected in DB include proper orthography, but we need consistency.\r\n    t = text\r\n    # Remove tatweel\r\n    t = t.replace(tatweel, '')\r\n    # Remove diacritics\r\n    t = arabic_diacritics.sub('', t)\r\n    # Normalize hamza: replace أ إ آ with ا, and ؤ ئ with ؤ? Let's replace أ إ آ with ا, and ئ ؤ remain as is? Simpler: map all to ا where they occur.\r\n    t = t.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n    # Remove punctuation and latin etc\r\n    t = re.sub(r'[^\\u0600-\\u06FF\\s]', '', t)\r\n    # Normalize whitespace\r\n    t = re.sub(r'\\s+', ' ', t).strip()\r\n    # Lowercase not relevant for arabic\r\n    return t\r\n\r\n# Test normalization on substring\r\nfull_sub = \"يَا أَيُّهَا الَّذِينَ آمَنُوا إِن\"\r\nprint(full_sub, '->', normalize_ar(full_sub))\r\n\r\n# Search for verses containing normalized tokens in order\r\nnorm_sub = normalize_ar(full_sub)\r\ncandidates = []\r\nfor v in verses:\r\n    text = v.get('ayah_text','')\r\n    ntext = normalize_ar(text)\r\n    if norm_sub in ntext:\r\n        candidates.append((v, text, ntext))\r\nlen(candidates)\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708beb70881959d4dd207ef8f1d8d06459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bf1a008195848aad5d824bdd8906459f6eb5e5861a",
+      "code": "# Show candidates: surah, ayah id, ayah_text\r\nfor v in candidates[:20]:\r\n    vv = v[0]\r\n    print(vv['surah_id'], vv['ayah_id'], vv['ayah_text'])\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c1c85481958266ad45ab43608206459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c3a7b481959f2c666c715ccdcc06459f6eb5e5861a",
+      "code": "# search for verses containing 'رِب' root\r\nsearch_results = []\r\nfor v in verses:\r\n    if 'رِب' in v.get('ayah_text','') or 'رِبَ' in v.get('ayah_text','') or 'رِبَا' in v.get('ayah_text','') or 'رِبًا' in v.get('ayah_text','') or 'الرِّبَا' in v.get('ayah_text',''):\r\n        search_results.append(v)\r\nlen(search_results)\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c623308195b8053fb21c0ff4d506459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c674b48195bcfa0fd105e6b23c06459f6eb5e5861a",
+      "code": "phrase = \"ذَرُوا مَا بَقِيَ مِنَ الرِّبَا\"\r\nnorm_phrase = normalize_ar(phrase)\r\ncandidates = []\r\nfor v in verses:\r\n    if norm_phrase in normalize_ar(v.get('ayah_text','')):\r\n        candidates.append(v)\r\nlen(candidates)\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689708c862d48195ab2db2fa82d9a48e06459f6eb5e5861a",
+      "code": "candidates[0]\n",
+      "container_id": "cntr_689708a2e3cc8190a24801da7a81a25f0ceda4bb4038073c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c9e04881959896e2e62b84b94206459f6eb5e5861a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708efbff4819589c73206702b2e1206459f6eb5e5861a",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"يَا أَيُّهَا الَّذِينَ آمَنُوا اتَّقُوا اللَّهَ وَذَرُوا مَا بَقِيَ مِنَ الرِّبَا إِنْ كُنْتُمْ مُؤْمِنِينَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 35912,
+    "input_tokens_details": {
+      "cached_tokens": 33600
+    },
+    "output_tokens": 6724,
+    "output_tokens_details": {
+      "reasoning_tokens": 6656
+    },
+    "total_tokens": 42636
+  },
+  "user": null,
+  "store": false
+}

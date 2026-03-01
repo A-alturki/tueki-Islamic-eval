@@ -1,0 +1,200 @@
+{
+  "id": "resp_6896726d9c348197a70a2c47c68556bb03ee8e580af06f5f",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896727198cc8197940fb42ad6de091b03ee8e580af06f5f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672730ec08197b52375f7c5a8cd6603ee8e580af06f5f",
+      "code": "# Load the provided databases and search for candidates for the snippet \"لا تَزَوَّجَنَّ أُمَّكَ\"\r\nimport json, re, unicodedata, itertools\r\n\r\n# Paths from system message\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(quran_path, 'r', encoding='utf-8') as f:\r\n    quran = json.load(f)\r\n\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    hadith = json.load(f)\r\n\r\nlen(quran), len(hadith)",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967275c7f08197a1e7890c31e02f5e03ee8e580af06f5f",
+      "code": "# Helpers: strip diacritics, normalize hamza forms, remove punctuation/tatweel\r\nimport re, unicodedata\r\n\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\ntatweel = '\\u0640'\r\npunc_pattern = re.compile(r'[^\\w\\s\\u0600-\\u06FF]')\r\n\r\ndef normalize_ar(s):\r\n    if s is None:\r\n        return \"\"\r\n    # unify hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ء','').replace('ة','ه')\r\n    s = s.replace('ى','ي')\r\n    s = s.replace(tatweel, '')\r\n    s = arabic_diacritics.sub('', s)\r\n    s = punc_pattern.sub(' ', s)\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\nsnippet = \"لا تَزَوَّجَنَّ أُمَّكَ\"\r\nnorm_snippet = normalize_ar(snippet)\r\nnorm_snippet",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727ad8c081979f4c25d664f8aae203ee8e580af06f5f",
+      "code": "# Build searchable lists\r\nq_texts = [x.get('ayah_text','') for x in quran]\r\nh_texts = []\r\nfor x in hadith:\r\n    if 'hadithTxt' in x and x['hadithTxt']:\r\n        h_texts.append(x['hadithTxt'])\r\n    if 'Matn' in x and x['Matn'] and (not x.get('hadithTxt')):\r\n        h_texts.append(x['Matn'])\r\n\r\nlen(q_texts), len(h_texts)",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727d33248197947c308b6fa815b003ee8e580af06f5f",
+      "code": "# Search for exact or near substring matches in hadith\r\nmatches = []\r\nfor i, t in enumerate(h_texts):\r\n    nt = normalize_ar(t)\r\n    if norm_snippet in nt:\r\n        matches.append((i, t))\r\nlen(matches)",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728000b08197b7ebfcd525bc256403ee8e580af06f5f",
+      "code": "# Let's search for occurrences of the root \"تزوج\" with \"امك\" near it to find plausible lines.\r\ncandidates = []\r\nfor i, t in enumerate(h_texts):\r\n    nt = normalize_ar(t)\r\n    if 'تزوج' in nt and 'امك' in nt:\r\n        # measure distance\r\n        idx1 = nt.find('تزوج')\r\n        idx2 = nt.find('امك')\r\n        dist = abs(idx1-idx2)\r\n        candidates.append((dist, i, t[:200]))\r\nlen(candidates), sorted(candidates)[:5]",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967283b6248197858e3ec7f60b952603ee8e580af06f5f",
+      "code": "# Let's inspect these two candidate hadith texts fully to see if any relevant phrase appears.\r\nfor dist, idx, _ in sorted(candidates)[:10]:\r\n    print(\"INDEX:\", idx, \"DIST:\", dist)\r\n    print(h_texts[idx])\r\n    print(\"------\")",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728601b8819794f0b2a5307c53d203ee8e580af06f5f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728714d881978962ae3c6c61ab1c03ee8e580af06f5f",
+      "code": "# Fuzzy/approximate search: compute simple token overlap and substring windows\r\nfrom difflib import SequenceMatcher\r\n\r\ndef score(text, snippet_norm):\r\n    nt = normalize_ar(text)\r\n    return SequenceMatcher(None, nt, snippet_norm).ratio()\r\n\r\ntop = []\r\nfor i, t in enumerate(h_texts):\r\n    s = score(t, norm_snippet)\r\n    if s > 0.3:  # low threshold to gather potential\r\n        if 'ام' in normalize_ar(t):  # include mother mention broadly\r\n            top.append((s, i, t))\r\ntop_sorted = sorted(top, reverse=True)[:20]\r\n[(round(s,3), i) for s,i,_ in top_sorted], len(top_sorted)",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729615848197857ca0102ce12bc303ee8e580af06f5f",
+      "code": "# Try searching for any hadith containing \"لا ... أمك\" general pattern\r\npattern = re.compile(r'لا[^\\.،\\n]{0,40}أمك')\r\n\r\nhits = []\r\nfor i, t in enumerate(h_texts):\r\n    if pattern.search(t):\r\n        hits.append((i, t))\r\nlen(hits)",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672985d5c8197969bf6665b4e663f03ee8e580af06f5f",
+      "code": "# Show hits with the context lines\r\nfor idx, t in hits[:15]:\r\n    m = re.search(r'(.{0,50}لا.{0,40}أمك.{0,50})', t)\r\n    print(\"INDEX:\", idx)\r\n    print(m.group(1) if m else t[:120])\r\n    print(\"-----\")",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729b07f88197931cfa1bdbb7062303ee8e580af06f5f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a0d3648197aaf7de3082e5b0f203ee8e580af06f5f",
+      "code": "# Search the Quran DB for the ayah prohibiting marrying mothers\r\ntargets = []\r\nfor i, a in enumerate(quran):\r\n    t = a.get('ayah_text', '')\r\n    if 'حُرِّمَتْ عَلَيْكُمْ' in t and 'أُمَّهَاتُكُمْ' in t:\r\n        targets.append((i, t))\r\nlen(targets), targets[:2]",
+      "container_id": "cntr_6896726f546c8190aeafcc31255d6aec07f6494090268aa9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a3108c8197a4d1b00aca64359803ee8e580af06f5f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672a4d6588197ada6b0411790849f03ee8e580af06f5f",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"حُرِّمَتْ عَلَيْكُمْ أُمَّهَاتُكُمْ وَبَنَاتُكُمْ وَأَخَوَاتُكُمْ وَعَمَّاتُكُمْ وَخَالَاتُكُمْ وَبَنَاتُ الْأَخِ وَبَنَاتُ الْأُخْتِ وَأُمَّهَاتُكُمُ اللَّاتِي أَرْضَعْنَكُمْ وَأَخَوَاتُكُمْ مِنَ الرَّضَاعَةِ وَأُمَّهَاتُ نِسَائِكُمْ وَرَبَائِبُكُمُ اللَّاتِي فِي حُجُورِكُمْ مِنْ نِسَائِكُمُ اللَّاتِي دَخَلْتُمْ بِهِنَّ فَإِنْ لَمْ تَكُونُوا دَخَلْتُمْ بِهِنَّ فَلَا جُنَاحَ عَلَيْكُمْ وَحَلَائِلُ أَبْنَائِكُمُ الَّذِينَ مِنْ أَصْلَابِكُمْ وَأَنْ تَجْمَعُوا بَيْنَ الْأُخْتَيْنِ إِلَّا مَا قَدْ سَلَفَ ۗ إِنَّ اللَّهَ كَانَ غَفُورًا رَحِيمًا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 62717,
+    "input_tokens_details": {
+      "cached_tokens": 52408
+    },
+    "output_tokens": 2106,
+    "output_tokens_details": {
+      "reasoning_tokens": 512
+    },
+    "total_tokens": 64823
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

@@ -1,0 +1,264 @@
+{
+  "id": "resp_689708a16e9c81958312f4a8ec7f856703e6c4bd4ce678de",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a62a748195ab21892b91df57eb03e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aefa4c8195a318aea5b30893b103e6c4bd4ce678de",
+      "code": "import json, os, re, sys, math, textwrap\np = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\nprint(\"exists?\", os.path.exists(p))\nwith open(p, 'r', encoding='utf-8') as f:\n    q = json.load(f)\nlen(q), list(q.keys())[:10] if isinstance(q, dict) else None\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b1fd988195a897e27d56036bdf03e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b249dc8195a7af1b7c6ab7169d03e6c4bd4ce678de",
+      "code": "q[0]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b3d91c81958b0f3dda0d5684d803e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708baa7f4819594e9e6197895471f03e6c4bd4ce678de",
+      "code": "import re, math, heapq\n# load q previously\ndef normalize_arabic(s):\n    # s: input text\n    s = s.strip()\n    # Remove tashkeel and diacritics\n    # Arabic diacritics range\n    s = re.sub(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]', '', s)\n    # remove tatweel\n    s = s.replace('ـ','')\n    # Normalize Alef\n    s = re.sub('[إأآٱ]', 'ا', s)\n    # normalize hamza above/below to ء\n    s = re.sub('[ؤئ]', 'ء', s)\n    # remove punctuation and symbols (keep Arabic letters and numbers)\n    s = re.sub(r'[^\\u0621-\\u063A\\u0641-\\u064A\\u0660-\\u0669\\u06F0-\\u06F9\\u0620-\\u064A ]+', '', s)\n    # remove extra spaces\n    s = re.sub(r'\\s+', ' ', s)\n    s = s.strip()\n    # lower-case not needed for Arabic\n    return s\n\ndef lcs_length(a,b):\n    # compute LCS length (character-level) but for simplicity use dynamic programming\n    # but length can be large; use optimized algorithm for strings with len ~ upto 100 maybe fine.\n    n, m = len(a), len(b)\n    dp = [[0]*(m+1) for _ in range(n+1)]\n    for i in range(n-1,-1,-1):\n        for j in range(m-1,-1,-1):\n            if a[i]==b[j]:\n                dp[i][j] = dp[i+1][j+1] + 1\n            else:\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\n    return dp[0][0]\n\ndef token_f1(a,b):\n    # tokens split by space\n    ta = a.split()\n    tb = b.split()\n    setb = {}\n    for t in tb:\n        setb[t] = setb.get(t,0)+1\n    common = 0\n    for t in ta:\n        if setb.get(t,0)>0:\n            common += 1\n            setb[t] -= 1\n    if common==0:\n        return 0.0\n    prec = common/len(ta)\n    rec = common/len(tb)\n    return 2*prec*rec/(prec+rec)\n\ndef sim_scores(candidate, query):\n    can_n = normalize_arabic(candidate)\n    q_n = normalize_arabic(query)\n    # exact substring normalized\n    substr = q_n in can_n\n    # LCS ratio\n    lcs = lcs_length(can_n, q_n)\n    lcs_ratio = lcs / max(1, max(len(can_n), len(q_n)))\n    # token f1\n    f1 = token_f1(can_n, q_n)\n    # return dict\n    return {'substr': substr, 'lcs_ratio': lcs_ratio, 'token_f1': f1, 'can_n': can_n, 'q_n': q_n}\n\nquery_full = \"وَإِن تَشْكُرُوا يَفْزَعْنَ إِلَيْكُمْ بِالْغَنِيَّاتِ\"\nquery_snip = \"وَإِن تَشْ...غَنِيَّاتِ\"  # snippet, the ... is placeholder, need to normalize maybe remove dots\n# Normalize snippet: replace ... with nothing or wildcard; but we'll search both queries: with dots removed\nquery_snip2 = query_snip.replace('...','')\nquery_snip2 = re.sub(r'\\.+','', query_snip2)\nprint(\"queries normalized:\", normalize_arabic(query_full), normalize_arabic(query_snip2) )\n\n# Search across q\ncandidates = []\nfor i, item in enumerate(q):\n    ayah = item.get('ayah_text','')\n    scores = sim_scores(ayah, query_full)\n    # compute combined score maybe avg of f1 and lcs_ratio\n    combined = (scores['lcs_ratio'] + scores['token_f1'])/2\n    candidates.append((combined, scores['lcs_ratio'], scores['token_f1'], scores['substr'], i, item))\n# get top 10 by combined\ntop = sorted(candidates, key=lambda x: x[0], reverse=True)[:30]\ntop[:10]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cc4fe88195af030f7d93e13a0a03e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d162b88195925ce357eefe8f8f03e6c4bd4ce678de",
+      "code": "# Find ayat that contain token with 'شكر' root\nqnorms = [normalize_arabic(item['ayah_text']) for item in q]\ntargets = []\nfor i, item in enumerate(q):\n    if 'شكر' in qnorms[i] or 'شك' in qnorms[i] or 'شَكَرَ' in item['ayah_text'] or 'شَكَر' in item['ayah_text'] or 'شَكَرْتُمْ' in item['ayah_text']:\n        targets.append((i, item['surah_id'], item['surah_name'], item['ayah_id'], item['ayah_text'], qnorms[i]))\nlen(targets), targets[:20]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d4b7e88195b33e223993cdef4803e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708da4a1c8195825449b3d6fc0a3f03e6c4bd4ce678de",
+      "code": "p2 = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\nprint(\"exists?\", os.path.exists(p2))\nwith open(p2, 'r', encoding='utf-8') as f:\n    had = json.load(f)\nlen(had), type(had[0]), list(had[0].keys())[:30]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dd1f608195bc1b6a584573b24803e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708de64148195ab99069ac593dd4d03e6c4bd4ce678de",
+      "code": "# Search hadith DB for similar strings\ncands_h = []\nfor i, item in enumerate(had):\n    text = item.get('hadithTxt') or item.get('Matn') or ''\n    scores = sim_scores(text, query_full)\n    combined = (scores['lcs_ratio'] + scores['token_f1'])/2\n    cands_h.append((combined, scores['lcs_ratio'], scores['token_f1'], scores['substr'], i, item))\ntop_h = sorted(cands_h, key=lambda x: x[0], reverse=True)[:30]\ntop_h[:10]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897097c48fc8195a65fcd3098f37c2003e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897098021ac8195bc5b06ecbaffa77603e6c4bd4ce678de",
+      "code": "response_context = \"\"\"نعم، للصدقة علاقة وثيقة بنمو المال، وفقًا للقرآن الكريم والأحاديث النبوية. يُعتبر توزيع المال على المحتاجين والصدقة من الأفعال التي تُثري صاحبها في الدنيا والآخرة، وتشجع على نمو ثروته من خلال رضا الله وبركاته. إليك بعض الآيات والأحاديث التي تدعم هذا الطرح:\n### **آيات قرآنية:**\n1. **سورة البقرة (2:261):** \n > \"وَمَن يَتَّقِ اللهَ يَجْعَل لَّهُ مَخْرَجًا وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ\". \n - تُفسر هذه الآية بأن من يتقى الله (من خلال الصدقة والعمل الصالح) يُفرج له في الأزمات ويُرزق من مصادر غير متوقعة، مما يدل على أن الصدقة تُسهم في نمو المال من خلال البركات.\n2. **سورة الإسراء (17:26-27):** \n > \"وَلَوْ أَنَّهُمْ أَنفَقُوا مَا لَهُمْ وَلَا يَسْتَطِيعُونَ\". \n - تُظهر أن الصدقة تُنمي الثروة، حيث إن من ينفق في سبيل الله يُعطى المزيد، حتى لو كان لا يملك شيئًا.\n3. **سورة المائدة (5:117):** \n > \"وَإِن تَشْكُرُوا يَفْزَعْنَ إِلَيْكُمْ بِالْغَنِيَّاتِ\". \n - يُشير هذا إلى أن الشكر على النعم (من خلال الصدقة والعمل الصالح) يُجلب المزيد من النعم، بما في ذلك الغنى.\n---\n### **أحاديث نبوية:**\n1. **حديث عن الصدقة كاستثمار:** \n - قال النبي ﷺ: \"إِنَّمَا الْأَمْوَالُ تَزْدَادُ بِالْعَطَاءِ، وَتَخْفُضُ بِالْحُمْلِ\" (رواه أبو داود). \n - يُفسر هذا الحديث بأن الصدقة تُزيد المال، بينما تُقلل الاحتفاظ بالمال دون استخدامه.\n2. **\"\"\"\nsub = response_context[806:860]\nsub, len(response_context)\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897098672508195afa36f0abf2055e003e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970987ba40819584b16df7b541d40603e6c4bd4ce678de",
+      "code": "sub = sub.strip()\nsub\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709896a988195baa4af1d9d1037b503e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970989f1ac8195807aef975c91e4af03e6c4bd4ce678de",
+      "code": "q1 = sub.replace('\"','').strip()\nq1, normalize_arabic(q1)\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897098bc33481959232adc5375efa2403e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897098bf56c8195a046c9eae58dcbe903e6c4bd4ce678de",
+      "code": "candidates = []\nfor i, item in enumerate(q):\n    ayah = item.get('ayah_text','')\n    scores = sim_scores(ayah, q1)\n    combined = (scores['lcs_ratio'] + scores['token_f1'])/2\n    candidates.append((combined, scores['lcs_ratio'], scores['token_f1'], scores['substr'], i, item))\ntop = sorted(candidates, key=lambda x: x[0], reverse=True)[:30]\ntop[:10]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897099390f48195880c018b546e4e2303e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970994621c819589fcb7da22326a9a03e6c4bd4ce678de",
+      "code": "# Find ayat containing 'غني' root\nmatches = []\nfor i,item in enumerate(q):\n    norm = qnorms[i]\n    if 'غنى' in norm or 'غني' in norm or 'الغني' in item.get('ayah_text',''):\n        matches.append((i, item['surah_id'], item['surah_name'], item['ayah_id'], item['ayah_text'], norm))\nlen(matches), matches[:30]\n",
+      "container_id": "cntr_689708a34388819093dcb0df3d7d75540a9485910a7ff9f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709975d688195803114b33ce37dba03e6c4bd4ce678de",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6897099b0bb08195a159495832226b3603e6c4bd4ce678de",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 122240,
+    "input_tokens_details": {
+      "cached_tokens": 107616
+    },
+    "output_tokens": 5333,
+    "output_tokens_details": {
+      "reasoning_tokens": 5312
+    },
+    "total_tokens": 127573
+  },
+  "user": null,
+  "store": false
+}

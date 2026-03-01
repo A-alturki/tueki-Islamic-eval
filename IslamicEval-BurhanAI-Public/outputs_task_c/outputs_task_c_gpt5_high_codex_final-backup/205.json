@@ -1,0 +1,621 @@
+{
+  "id": "resp_689678d306148190a829fbcd655674580a2b41cdeb1f839d",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d78d5c8190ab75b877f12eb27b0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678dd86008190b515ffb9c03815100a2b41cdeb1f839d",
+      "code": "# Let's open the provided files and inspect their structure.\r\nimport json, re, unicodedata, os, textwrap\r\nquran_path = '/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json'\r\nhadith_path = '/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json'\r\nwith open(quran_path,'r',encoding='utf-8') as f:\r\n    quran = json.load(f)\r\nwith open(hadith_path,'r',encoding='utf-8') as f:\r\n    hadith = json.load(f)\r\n\r\ntype(quran), type(hadith), len(quran), len(hadith)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e07a088190a152dde714dfbdd40a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e75f4c81908583a23d9b24f0ba0a2b41cdeb1f839d",
+      "code": "# Inspect hadith item keys and sample entries\r\nhadith[0].keys(), hadith[0]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e914488190b62b05e8b4fa40460a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f943708190b86b07045a3d20d90a2b41cdeb1f839d",
+      "code": "import re, unicodedata\r\n\r\n# Normalization helpers\r\nAR_TASHKEEL = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\nTATWEEL = '\\u0640'\r\nPUNCT = re.compile(r'[^\\w\\s\\u0600-\\u06FF]')  # keep Arabic letters and underscore/digits\r\nSPACES = re.compile(r'\\s+')\r\n\r\ndef normalize_ar(s):\r\n    if s is None:\r\n        return ''\r\n    s = str(s)\r\n    # remove tatweel\r\n    s = s.replace(TATWEEL, '')\r\n    # remove tashkeel\r\n    s = AR_TASHKEEL.sub('', s)\r\n    # unify hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n    s = s.replace('ؤ','و').replace('ئ','ي')\r\n    s = s.replace('ى','ي')\r\n    # Optionally map ta marbuta to ha? We'll keep it as is.\r\n    # remove punctuation\r\n    s = PUNCT.sub(' ', s)\r\n    # collapse spaces\r\n    s = SPACES.sub(' ', s).strip()\r\n    return s\r\n\r\ndef token_set_ratio(a, b):\r\n    # compute token-level F1 or Jaccard-like\r\n    ta = set(normalize_ar(a).split())\r\n    tb = set(normalize_ar(b).split())\r\n    if not ta or not tb:\r\n        return 0.0\r\n    inter = ta & tb\r\n    precision = len(inter)/len(ta)\r\n    recall = len(inter)/len(tb)\r\n    if precision + recall == 0:\r\n        f1 = 0.0\r\n    else:\r\n        f1 = 2*precision*recall/(precision+recall)\r\n    return f1\r\n\r\ndef lcs_length(a, b):\r\n    # compute LCS length on normalized strings\r\n    na = normalize_ar(a)\r\n    nb = normalize_ar(b)\r\n    # map to tokens or characters? We'll use characters for robust similarity\r\n    # dynamic programming with optimization for memory may be heavy; strings are small.\r\n    la, lb = len(na), len(nb)\r\n    # Use DP O(n*m) okay for small strings. But b may be long (hadith), so maybe use smaller: compute longest common substring? Not LCS.\r\n    # We'll compute length of longest common subsequence (LCS) ratio of min length.\r\n    # But hadith texts are long; LCS may be too big to compute for all. We'll compute a simpler: longest common substring length using suffix? We'll implement simple O(n*m) DP for substring to keep quick.\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    best = 0\r\n    for i in range(1, la+1):\r\n        ai = na[i-1]\r\n        for j in range(1, lb+1):\r\n            if ai == nb[j-1]:\r\n                dp[i][j] = dp[i-1][j-1] + 1\r\n                if dp[i][j] > best:\r\n                    best = dp[i][j]\r\n            else:\r\n                dp[i][j] = 0\r\n    return best, na, nb\r\n\r\ndef longest_common_substring_ratio(a, b):\r\n    best, na, nb = lcs_length(a, b)\r\n    denom = max(len(na), len(nb)) or 1\r\n    return best/denom\r\n\r\ndef contains_substring(a, b):\r\n    # check if normalized a is substring of normalized b\r\n    na = normalize_ar(a)\r\n    nb = normalize_ar(b)\r\n    return na in nb\r\n\r\n# Prepare hadith texts list\r\ndef get_hadith_text(item):\r\n    return item.get('Matn') if item.get('Matn') else item.get('hadithTxt') or ''\r\n\r\nlen([h for h in hadith if get_hadith_text(h)])",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790528b88190a1aec5a30427ee260a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967905549c81909bd87da4f7cb41130a2b41cdeb1f839d",
+      "code": "original = \"التوكل على الله تعالى هو القناعة بالله تعالى وبالوعد الذي وعد به\"\r\nsnippet = \"التوكل على...لذي وعد به\"\r\n\r\n# Search occurrences where normalized original span is substring of hadith text\r\nhits_exact = []\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h)\r\n    if not text:\r\n        continue\r\n    if contains_substring(original, text):\r\n        hits_exact.append((i, h, text))\r\n\r\nlen(hits_exact)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967908bc90819089a14d8fa44d65410a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790907348190bc8ee23733b566430a2b41cdeb1f839d",
+      "code": "# Search for hadith containing key phrases\r\ndef search_for_phrase(phrase):\r\n    results = []\r\n    na = normalize_ar(phrase)\r\n    for i,h in enumerate(hadith):\r\n        text = get_hadith_text(h)\r\n        nb = normalize_ar(text)\r\n        if na in nb:\r\n            results.append((i, h, text))\r\n    return results\r\n\r\nres_tawakkul = search_for_phrase(\"التوكل على الله\")\r\nlen(res_tawakkul)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790c6ce48190b9905301956b69200a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790cf9ac819097c6c252573b45ce0a2b41cdeb1f839d",
+      "code": "res_yatawakkal = search_for_phrase(\"يتوكل\")\r\nlen(res_yatawakkal)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790fdc088190869da2ee7843dbc80a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790ff4f481908298de341f75cb310a2b41cdeb1f839d",
+      "code": "for idx,(i,h,text) in enumerate(res_yatawakkal[:10]):\r\n    print(i, h.get('title')[:80] if h.get('title') else '', '\\n', text[:300], '\\n---\\n')",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967911dd448190bc8298f9714d42230a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791220fc8190859e21a5a930f69d0a2b41cdeb1f839d",
+      "code": "res_qanaa = search_for_phrase(\"القناعة\")\r\nlen(res_qanaa)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967914b4c48190ba780f5a9d1f62630a2b41cdeb1f839d",
+      "code": "res_qanaa[0][1]['title'], res_qanaa[0][2][:400]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679166d988190a2dddc61b448a8920a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967916fdec819085a3f737165ee20e0a2b41cdeb1f839d",
+      "code": "res_waad = search_for_phrase(\"الوعد\")\r\nlen(res_waad)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967919f5a08190989506b1e05ffdb30a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791a1f088190a7d346d9dbaf86d40a2b41cdeb1f839d",
+      "code": "search_for_phrase(\"وعد به\")[:1]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791cf1bc8190aabb6ac61c3015d40a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791d15848190a1d9ecd6fe2b816e0a2b41cdeb1f839d",
+      "code": "len(search_for_phrase(\"وعد\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791fc26081909162bf6f4642ddb20a2b41cdeb1f839d",
+      "code": "# print some samples where \"وعد\" occurs\r\ncount = 0\r\nfor i,h,text in search_for_phrase(\"وعد\"):\r\n    if count>=10: break\r\n    print(h.get('title')[:100] if h.get('title') else '', '\\n', text[:300], '\\n---\\n')\r\n    count+=1",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792312088190918762ecb4b931120a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967924d2e88190902d8c8a341aee090a2b41cdeb1f839d",
+      "code": "search_for_phrase(\"القناعة كنز لا يفنى\")",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967927a23c81909381e9dad9ae1ff10a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927d97c8190b9118e37a7cf0d0e0a2b41cdeb1f839d",
+      "code": "res_tawakkul2 = search_for_phrase(\"تتوكل\")\r\nlen(res_tawakkul2), [h[1]['title'][:80] for h in res_tawakkul2[:5]]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792b56a481909971f814b8fdffdc0a2b41cdeb1f839d",
+      "code": "len(search_for_phrase(\"توكل\")), len(search_for_phrase(\"توكَل\")), len(search_for_phrase(\"توكلوا\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967930ce088190961c79f7e2e7be520a2b41cdeb1f839d",
+      "code": "# Inspect some with \"توكل\"\r\nfor i,(idx,h,text) in enumerate(search_for_phrase(\"توكل\")[:20]):\r\n    print(h.get('title')[:90] if h.get('title') else '', '\\n', text[:200], '\\n---\\n')",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967933ff508190a78a3346b4b065e30a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793489d4819093f945b7023481a30a2b41cdeb1f839d",
+      "code": "len(search_for_phrase(\"القناعة بالله\")), len(search_for_phrase(\"بالوعد الذي وعد به\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793922d481908a613dc72c3b333b0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793a58748190a672758a258d816b0a2b41cdeb1f839d",
+      "code": "# Prepare quran search\r\ndef get_ayah_text(item):\r\n    return item.get('ayah_text') or ''\r\n\r\n# Search for 'التوكل على الله'\r\nq_res = []\r\nfor i, a in enumerate(quran):\r\n    text = get_ayah_text(a)\r\n    if contains_substring(\"التوكل على الله\", text):\r\n        q_res.append((i, a, text))\r\nlen(q_res)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896793cd8e481909b1f59533612fb8f0a2b41cdeb1f839d",
+      "code": "# search for 'توكل' and 'يتوكل'\r\nlen([a for a in quran if contains_substring(\"توكل\", get_ayah_text(a))]), len([a for a in quran if contains_substring(\"يتوكل\", get_ayah_text(a))])",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896793f09388190a457cb4112829e500a2b41cdeb1f839d",
+      "code": "# List some ayat with 'يتوكل'\r\ncnt=0\r\nfor a in quran:\r\n    t = get_ayah_text(a)\r\n    if contains_substring(\"ومن يتوكل\", t) or contains_substring(\"يتوكل على الله\", t):\r\n        print(t)\r\n        cnt+=1\r\n        if cnt>10: break",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794171bc819091bff3bb07e0c5710a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679435be48190ac21e3037035141c0a2b41cdeb1f839d",
+      "code": "original = \"التوكل على الله تعالى هو القناعة بالله تعالى وبالوعد الذي وعد به\"\r\ncandidate_verse = \"وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ ۚ وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ ۚ إِنَّ اللَّهَ بَالِغُ أَمْرِهِ ۚ قَدْ جَعَلَ اللَّهُ لِكُلِّ شَيْءٍ قَدْرًا\"\r\ntoken_set_ratio(original, candidate_verse), longest_common_substring_ratio(original, candidate_verse)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967945d2c481908687131cb49f08fd0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794dc5908190b31e9f750638b9ec0a2b41cdeb1f839d",
+      "code": "cand = []\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h) or ''\r\n    if contains_substring(\"لو أنكم تتوكلون على الله حق توكله\", text) or contains_substring(\"لرزقكم كما يرزق الطير\", text):\r\n        cand.append((i,h,text[:400]))\r\nlen(cand)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679527acc8190bae20065dbaa0c150a2b41cdeb1f839d",
+      "code": "cand[0][1]['title'], cand[0][2]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795431108190a19c6b309306c2f10a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795497dc8190885eded3a70ed3330a2b41cdeb1f839d",
+      "code": "cand2 = []\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h) or ''\r\n    if contains_substring(\"استعن بالله\", text) and contains_substring(\"ولا تعجز\", text):\r\n        cand2.append((i,h,text[:400]))\r\nlen(cand2), [(x[1]['title'], x[2]) for x in cand2[:3]]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967957c9608190aedd9ffa677ce2830a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795a59dc8190b6980da1820225f20a2b41cdeb1f839d",
+      "code": "cand3 = []\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h) or ''\r\n    if contains_substring(\"ارض بما قسم\", text):\r\n        cand3.append((i,h,text[:400]))\r\nlen(cand3), [(x[1]['title'], x[2]) for x in cand3[:3]]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795ddd08819092341d55ad3ae9200a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967960881c819094a9271507425bc70a2b41cdeb1f839d",
+      "code": "candidate = \"يَدْخُلُ الْجَنَّةَ مِنْ أُمَّتِي سَبْعُونَ أَلْفًا بِغَيْرِ حِسَابٍ : هُمُ الَّذِينَ لَا يَسْتَرْقُونَ ، وَلَا يَتَطَيَّرُونَ ، وَعَلَى رَبِّهِمْ يَتَوَكَّلُونَ .  \"\r\noriginal = \"التوكل على الله تعالى هو القناعة بالله تعالى وبالوعد الذي وعد به\"\r\ntoken_set_ratio(original, candidate), longest_common_substring_ratio(original, candidate)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967963ab2c8190a7e377eb3902ec8f0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967965bf348190becf98ef4c6158640a2b41cdeb1f839d",
+      "code": "candidate2 = \"لَوْ أَنَّكُمْ تَوَكَّلْتُمْ عَلَى اللهِ حَقَّ تَوَكُّلِهِ لَرَزَقَكُمْ كَمَا يَرْزُقُ الطَّيْرَ ، تَغْدُو خِمَاصًا ، وَتَرُوحُ بِطَانًا . \"\r\ntoken_set_ratio(original, candidate2), longest_common_substring_ratio(original, candidate2)",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797193f88190bd3a80552a63092d0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967972a5948190a440d891de72191f0a2b41cdeb1f839d",
+      "code": "def search_normalized_phrase_in_hadith(phrase):\r\n    na = normalize_ar(phrase)\r\n    results = []\r\n    for i,h in enumerate(hadith):\r\n        text = get_hadith_text(h) or ''\r\n        nb = normalize_ar(text)\r\n        if na in nb:\r\n            results.append((i,h,text))\r\n    return results\r\n\r\nsearch_normalized_phrase_in_hadith(\"الوعد الذي وعد به\")[:3]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967975f8008190a869740dd461d6310a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967976231c819083ba0f3edea3b8380a2b41cdeb1f839d",
+      "code": "search_normalized_phrase_in_hadith(\"الذي وعد به\")[:3]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797940788190b040f7e89ffdb5ac0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679796200819084bbd2a086f5bea40a2b41cdeb1f839d",
+      "code": "len(search_normalized_phrase_in_hadith(\"وعد به\")), len(search_normalized_phrase_in_hadith(\"بالوعد الذي وعد به\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797de79881909b568745d7c9071f0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797e2b888190af3d2dbebd9416920a2b41cdeb1f839d",
+      "code": "def search_normalized_phrase_in_quran(phrase):\r\n    na = normalize_ar(phrase)\r\n    results = []\r\n    for i,a in enumerate(quran):\r\n        text = get_ayah_text(a) or ''\r\n        nb = normalize_ar(text)\r\n        if na in nb:\r\n            results.append((i,a,text))\r\n    return results\r\n\r\nlen(search_normalized_phrase_in_quran(\"الذي وعد به\")), len(search_normalized_phrase_in_quran(\"الوعد الذي وعد به\")), len(search_normalized_phrase_in_quran(\"وعد به\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967980984881908fbca476bbd4297c0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967981047881909e541974eb43900e0a2b41cdeb1f839d",
+      "code": "len(search_normalized_phrase_in_quran(\"القناعة\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967983217081909b5263244ee081130a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679859dd08190b0c5e8812d211cb90a2b41cdeb1f839d",
+      "code": "len(search_normalized_phrase_in_hadith(\"القناعة\")), len(search_normalized_phrase_in_hadith(\"القنوع\")), len(search_normalized_phrase_in_hadith(\"اقنع\")), len(search_normalized_phrase_in_hadith(\"قنع\")), len(search_normalized_phrase_in_hadith(\"قناعة\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896798e28048190937be51d07298b460a2b41cdeb1f839d",
+      "code": "# Show contexts where \"قنع\" occurs\r\nmatches_qn = search_normalized_phrase_in_hadith(\"قنع\")\r\nfor i,(idx,h,text) in enumerate(matches_qn[:10]):\r\n    print(h.get('title')[:80], '\\n', text[:300], '\\n---\\n')",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967991da3881908d5e1cc1f6ad59af0a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679941f18819090cb01f796923a770a2b41cdeb1f839d",
+      "code": "# search for hadith that include both tokens 'توكل' (any morphological) and 'قناع' root\r\ndef contains_any(text, terms):\r\n    nt = normalize_ar(text)\r\n    return all(normalize_ar(term) in nt for term in terms)\r\n\r\ncandidates = []\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h) or ''\r\n    nt = normalize_ar(text)\r\n    if 'توكل' in nt or 'يتوكل' in nt or 'توك' in nt:\r\n        if 'قنع' in nt or 'قناعة' in nt or 'قنوع' in nt:\r\n            candidates.append((i,h,text[:400]))\r\nlen(candidates), candidates[:3]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967998cb408190b0cdb98f373b22b90a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896799aeb808190aebb978a59207ad40a2b41cdeb1f839d",
+      "code": "# Find best similarity to the original among all hadith texts\r\norig = original\r\nbest = None\r\nfor i,h in enumerate(hadith):\r\n    text = get_hadith_text(h) or ''\r\n    # Quick filter: contain a word related to tawakkul or promise or contentment\r\n    nt = normalize_ar(text)\r\n    if all(word not in nt for word in ['توكل','يتوكل','توكلوا','توكله','قناعة','قنع','وعد']):\r\n        continue\r\n    f1 = token_set_ratio(orig, text)\r\n    lcsr = longest_common_substring_ratio(orig, text)\r\n    score = max(f1, lcsr)  # choose maximum of metrics\r\n    if (best is None) or (score > best[0]):\r\n        best = (score, i, h, text)\r\nbest[0], best[2].get('title') if best else None",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679a50e14819099828d37b5fb54cd0a2b41cdeb1f839d",
+      "code": "best[3][:500]",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a6f46481908b748ba8279b96d20a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679acf9a48190937789b9e0fb480d0a2b41cdeb1f839d",
+      "code": "len(search_normalized_phrase_in_hadith(\"هو القناعة\")), len(search_normalized_phrase_in_hadith(\"القناعة هي\"))",
+      "container_id": "cntr_689678d4da188190ba80e6b4b49bc4e708f8b98b92638f3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b15c0c8190bc5087b5ce2391860a2b41cdeb1f839d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679b2617c8190b50eeaa1c6abfed40a2b41cdeb1f839d",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 489381,
+    "input_tokens_details": {
+      "cached_tokens": 438208
+    },
+    "output_tokens": 7509,
+    "output_tokens_details": {
+      "reasoning_tokens": 7488
+    },
+    "total_tokens": 496890
+  },
+  "user": null,
+  "store": false
+}

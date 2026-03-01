@@ -1,0 +1,174 @@
+{
+  "id": "resp_689708a1dfdc819798b4676772d6da2401e54b73893a12d9",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a632bc819781fa80b792aae43701e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a99dd481978b894b0eb520f80901e54b73893a12d9",
+      "code": "# Load the quranic_verses.json and six_hadith_books.json and inspect structure\r\nimport json, os, sys, textwrap\r\n\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\nwith open(hpath, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\n\r\nprint(\"Quran entries:\", len(qdata))\r\nprint(\"Sample Quran record keys:\")\r\nif len(qdata)>0:\r\n    import itertools\r\n    first = qdata[0]\r\n    print(list(first.keys()))\r\n    print(\"Sample ayah_text:\", first.get(\"ayah_text\")[:120])\r\nelse:\r\n    print(\"No data\")\r\n\r\nprint(\"\\nHadith entries:\", len(hdata))\r\nprint(\"Sample hadith record keys:\")\r\nif len(hdata)>0:\r\n    firsth = hdata[0]\r\n    print(list(firsth.keys()))\r\n    # print a snippet\r\n    if 'hadithTxt' in firsth:\r\n        print(\"hadithTxt sample:\", firsth.get('hadithTxt')[:120])\r\n    elif 'Matn' in firsth:\r\n        print(\"Matn sample:\", firsth.get('Matn')[:120])\r\nelse:\r\n    print(\"No data\")",
+      "container_id": "cntr_689708a3a2f081909bc316c2671412d20e94536cd04ede4b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ae85d481978dd62c0315034d6701e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b6c6fc8197beb846af7024188201e54b73893a12d9",
+      "code": "# Let's implement normalization and search\r\nimport re\r\nfrom collections import Counter\r\n\r\ndef normalize_ar(text):\r\n    # remove tashkeel diacritics\r\n    # Arabic diacritics unicode range \\u0610-\\u061A, \\u064B-\\u065F, \\u06D6-\\u06ED maybe.\r\n    # We'll explicitly remove common tashkeel chars.\r\n    diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED\\u0670\\u0656\\u0657\\u0658\\u0659\\u065A\\u065B\\u065C\\u0670]\"\"\")\r\n    text = diacritics.sub('', text)\r\n    # remove tatweel\r\n    text = text.replace('\\u0640','')\r\n    # normalize hamza forms: replace آ أ إ with ا, ى with ي, ة with ه? But we want to unify common\r\n    # Map common hamza/aleph variations to bare alef for matching\r\n    mapping = {\r\n        'آ':'ا','أ':'ا','إ':'ا','ٱ':'ا',\r\n        'ى':'ي','ئ':'ي','ؤ':'و',\r\n        'ة':'ه' # sometimes map taa marbuta to haa, but risky. Maybe keep as is. But we'll keep mapping.\r\n    }\r\n    for k,v in mapping.items():\r\n        text = text.replace(k,v)\r\n    # remove punctuation and symbols\r\n    punct = r\"\"\"[!\\\"#\\$%&'\\(\\)\\*\\+,\\-./:;<=>\\?@\\[\\]\\^_`{\\|}~،؛؟ـ«»“”٪]\"\"\"\r\n    text = re.sub(punct,' ', text)\r\n    # collapse multiple spaces and trim\r\n    text = re.sub(r'\\s+',' ', text).strip()\r\n    # lowercasing - not necessary\r\n    return text\r\n\r\n# define LCS (longest common subsequence) length\r\ndef lcs_length(a,b):\r\n    # dynamic programming\r\n    la, lb = len(a), len(b)\r\n    # Use DP over characters - heavy for large strings but fine here\r\n    dp = [[0]*(lb+1) for _ in range(la+1)]\r\n    for i in range(la-1,-1,-1):\r\n        for j in range(lb-1,-1,-1):\r\n            if a[i]==b[j]:\r\n                dp[i][j] = 1 + dp[i+1][j+1]\r\n            else:\r\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\r\n    return dp[0][0]\r\n\r\ndef token_f1(a,b):\r\n    # tokens on spaces\r\n    ta = a.split()\r\n    tb = b.split()\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    overlap = sum(min(ca[w], cb[w]) for w in ca.keys() & cb.keys())\r\n    if overlap==0:\r\n        return 0.0\r\n    prec = overlap / len(ta)\r\n    rec = overlap / len(tb)\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\n# search candidates containing normalized pattern as substring, otherwise compute top-n matches by token overlap\r\nquery_full = \"قلنا يا نار كوني بردا وسلاما على ابراهيم\"\r\nquery_snippet = \"قلنا يا نا...لى ابراهيم\"  # contains ellipsis, but normalize will remove punctuation\r\n\r\nq_norm = normalize_ar(query_full)\r\ns_norm = normalize_ar(query_snippet.replace('...',' '))\r\nq_norm, s_norm[:50]",
+      "container_id": "cntr_689708a3a2f081909bc316c2671412d20e94536cd04ede4b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bf21d881979491f39e0fb02cf301e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bfcda4819780b92a57286806a801e54b73893a12d9",
+      "code": "# Build normalized mapping for Quran entries\r\nq_candidates = []\r\nfor rec in qdata:\r\n    ayah_text = rec.get('ayah_text','')\r\n    norm = normalize_ar(ayah_text)\r\n    if q_norm in norm:\r\n        q_candidates.append((rec, norm))\r\n\r\nlen(q_candidates)",
+      "container_id": "cntr_689708a3a2f081909bc316c2671412d20e94536cd04ede4b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c1fbb08197b967aa717433a75701e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c226f08197893ca3dcdda84d0501e54b73893a12d9",
+      "code": "q_candidates[:1]",
+      "container_id": "cntr_689708a3a2f081909bc316c2671412d20e94536cd04ede4b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c41dec81978d481e78262dcf2e01e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c68f7481979dc36bca07de1a8c01e54b73893a12d9",
+      "code": "candidate_text = q_candidates[0][0]['ayah_text']\r\ncandidate_norm = normalize_ar(candidate_text)\r\ninput_norm = q_norm\r\nprint(\"Candidate:\", candidate_text)\r\nprint(\"Candidate norm:\", candidate_norm)\r\nprint(\"Input norm:\", input_norm)\r\n# compute metrics\r\ntokf1 = token_f1(candidate_norm, input_norm)\r\nlcs_len = lcs_length(candidate_norm, input_norm)\r\nlcs_ratio_input = lcs_len / max(len(input_norm), 1)\r\nlcs_ratio_candidate = lcs_len / max(len(candidate_norm), 1)\r\nprint(\"Token F1:\", tokf1)\r\nprint(\"LCS length:\", lcs_len)\r\nprint(\"LCS ratio over input:\", lcs_ratio_input)\r\nprint(\"LCS ratio over candidate:\", lcs_ratio_candidate)",
+      "container_id": "cntr_689708a3a2f081909bc316c2671412d20e94536cd04ede4b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c9bde881978f468bfcb317733b01e54b73893a12d9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708d7249081979afa5c121b32a9d801e54b73893a12d9",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"قُلْنَا يَا نَارُ كُونِي بَرْدًا وَسَلَامًا عَلَىٰ إِبْرَاهِيمَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 21504,
+    "input_tokens_details": {
+      "cached_tokens": 20592
+    },
+    "output_tokens": 4217,
+    "output_tokens_details": {
+      "reasoning_tokens": 4160
+    },
+    "total_tokens": 25721
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,431 @@
+{
+  "id": "resp_689678d3020081979813d88db30d53200257cda6f04e4125",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d8add48197ba5295a723a43d9f0257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678de6d9481978459e9ddd3bc39130257cda6f04e4125",
+      "code": "# Let's load the provided JSON files and explore.\r\nimport json, re, unicodedata, os, sys, math, statistics\r\nfrom difflib import SequenceMatcher\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith = json.load(f)\r\n\r\nlen(quran), len(hadith)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e2fa688197948ff5e1d75e85270257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e79408819798837eb5fbb3174e0257cda6f04e4125",
+      "code": "# Inspect one entry to see keys\r\nhadith[0].keys(), hadith[0]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ea756481979631fc1ad733f54b0257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678eba298819785b2a7bcf66169850257cda6f04e4125",
+      "code": "import re\r\nimport unicodedata\r\nfrom collections import defaultdict\r\n\r\nARABIC_DIACRITICS = re.compile(r\"[\\u064b-\\u065f\\u0670\\u06d6-\\u06ed]\")\r\nTATWEEL = '\\u0640'\r\n\r\ndef normalize_arabic(text):\r\n    if text is None:\r\n        return \"\"\r\n    # unify hamza forms\r\n    text = text.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\r\n    text = text.replace(\"ى\", \"ي\").replace(\"ؤ\", \"و\").replace(\"ئ\", \"ي\").replace(\"ة\", \"ه\")\r\n    # remove tatweel\r\n    text = text.replace(TATWEEL, \"\")\r\n    # remove diacritics\r\n    text = ARABIC_DIACRITICS.sub(\"\", text)\r\n    # remove punctuation and non letters/numbers/spaces\r\n    text = re.sub(r\"[^\\w\\s]\", \" \", text, flags=re.UNICODE)\r\n    # collapse whitespace\r\n    text = re.sub(r\"\\s+\", \" \", text).strip().lower()\r\n    return text\r\n\r\ndef sim_ratio(a, b):\r\n    return SequenceMatcher(None, a, b).ratio()\r\n\r\ndef token_f1(a, b):\r\n    ta = a.split()\r\n    tb = b.split()\r\n    if not ta or not tb:\r\n        return 0.0\r\n    sa, sb = set(ta), set(tb)\r\n    inter = len(sa & sb)\r\n    prec = inter / len(sa) if sa else 0\r\n    rec = inter / len(sb) if sb else 0\r\n    if prec + rec == 0:\r\n        return 0.0\r\n    return 2 * prec * rec / (prec + rec)\r\n\r\ndef get_text(entry):\r\n    return entry.get(\"Matn\") or entry.get(\"hadithTxt\") or \"\"\r\n\r\n# Build normalized corpus for hadith and quran\r\nhadith_texts = [get_text(h) for h in hadith]\r\nhadith_norm = [normalize_arabic(t) for t in hadith_texts]\r\n\r\nquran_texts = [v.get(\"ayah_text\",\"\") for v in quran]\r\nquran_norm = [normalize_arabic(t) for t in quran_texts]\r\n\r\nlen(hadith_texts), len(quran_texts), hadith_texts[:2]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f521ec8197aee7097d4de820310257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f59534819788797267afc513ff0257cda6f04e4125",
+      "code": "query_full = \"لا يَرْجُو عَبْدٌ إِلَّا اللَّهَ\"\r\nquery_snippet = \"لا يَرْجُو...َا اللَّهَ\"  # not useful for matching, but we'll use the full\r\nnorm_query = normalize_arabic(query_full)\r\nnorm_query",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f8d3088197b8cef5642e2540820257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f9386c81979a16cfc58cdaee620257cda6f04e4125",
+      "code": "matches = []\r\nfor i, t in enumerate(hadith_norm):\r\n    if norm_query in t:\r\n        matches.append(i)\r\nlen(matches), matches[:10]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679009f3481978d1d8cc96cad7ef50257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790149408197aef8f43e4c9b0cd40257cda6f04e4125",
+      "code": "def search_terms(terms, corpus, topn=20):\r\n    scores = []\r\n    for i,t in enumerate(corpus):\r\n        score = sum(1 for term in terms if term in t)\r\n        if score>0:\r\n            scores.append((score, i, t))\r\n    scores.sort(reverse=True)\r\n    return scores[:topn]\r\n\r\nsearch_terms([\"لا\",\"يرجو\",\"عبد\",\"الله\"], hadith_norm, topn=20)[:5]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790451148197a0e0b954423d46040257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790744508197b2b21f858bbf90a90257cda6f04e4125",
+      "code": "terms = normalize_arabic(\"لا يرجو الا الله\")\r\ncands = []\r\nfor i,t in enumerate(hadith_norm):\r\n    if all(term in t for term in terms.split()):\r\n        cands.append((i, hadith_texts[i]))\r\nlen(cands)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679096a4c81978dc75a2b047922700257cda6f04e4125",
+      "code": "cands[:3]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790bb44881978f61b6b0eb7a800c0257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790c6e4c8197ac1432149dc7387b0257cda6f04e4125",
+      "code": "targets = []\r\nseq = \"لا يرجو الا الله\"\r\nfor i,t in enumerate(hadith_norm):\r\n    if seq in t:\r\n        targets.append((i, hadith_texts[i]))\r\nlen(targets)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790f13948197a57c7b1e54c5ecf40257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791055ac81979be0585ea2a8acc40257cda6f04e4125",
+      "code": "seqs = [\"لا يرجو عبد الا ربه\", \"لا يرجو عبد الا ربه\", \"لا يرجو عبد الا الله\", \"لا يرجون الا الله\", \"لا يرجو الا ربه\"]\r\nfound = []\r\nfor seq in seqs:\r\n    s = seq\r\n    for i,t in enumerate(hadith_norm):\r\n        if s in t:\r\n            found.append((seq, i, hadith_texts[i]))\r\nlen(found), found[:3]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679171e6481978d92e015907d2e260257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967918072481978cc8a848377bd78e0257cda6f04e4125",
+      "code": "def find_contains(pattern):\r\n    res = []\r\n    for i, t in enumerate(hadith_texts):\r\n        if not t:\r\n            continue\r\n        if pattern in t:\r\n            res.append((i, t))\r\n    return res\r\n\r\n# Try raw unnormalized for \"لا يرجو\" and \"إلا\"\r\ncandidates = []\r\nfor i,t in enumerate(hadith_texts):\r\n    if \"لا يَرْجُو\" in (t or \"\") or \"لا يرجو\" in (t or \"\"):\r\n        candidates.append((i,t))\r\nlen(candidates)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791af3448197a9b96062b6fbec430257cda6f04e4125",
+      "code": "candidates",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791d677081979a96a0b722cc7d170257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967928e73c8197a0430a5046fa432f0257cda6f04e4125",
+      "code": "# Search for hadiths containing both \"يرجو\" and \"يخاف\" or both concepts\r\nres = []\r\nfor i, t in enumerate(hadith_norm):\r\n    if \"يرجو\" in t and \"يخاف\" in t:\r\n        res.append((i, hadith_texts[i]))\r\nlen(res)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792e20208197af0d091d150d2b2a0257cda6f04e4125",
+      "code": "res",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793072a48197b0e0f6d3edfd9de10257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679318a80819793553fd27b641e570257cda6f04e4125",
+      "code": "# Find any string containing \"لا يرجون\" or \"لا يرجو\" followed by \"إلا\"\r\ncand2 = []\r\nfor i,t in enumerate(hadith_texts):\r\n    s = t or \"\"\r\n    if (\"لا يرجو\" in s or \"لَا يَرْجُو\" in s or \"لا يرجون\" in s or \"لَا يَرْجُونَ\" in s) and (\"إِلَّا\" in s or \"الا\" in s):\r\n        cand2.append((i, s))\r\nlen(cand2)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967934f7108197a860192bad2aeb600257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793d66a4819790ef97c03f0e59a30257cda6f04e4125",
+      "code": "# search hadith norm for the bigram \"يرجو عبد\"\r\nbigram = \"يرجو عبد\"\r\ncands = []\r\nfor i,t in enumerate(hadith_norm):\r\n    if bigram in t:\r\n        cands.append((i, hadith_texts[i]))\r\nlen(cands), cands[:5]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679427f6c8197abf5fb94820336400257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967942c3288197b25db2fdcf208e7a0257cda6f04e4125",
+      "code": "seq = \"يرجو الله\"\r\ncand3 = []\r\nfor i,t in enumerate(hadith_norm):\r\n    if seq in t:\r\n        cand3.append((i, hadith_texts[i]))\r\nlen(cand3)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794531408197b4c46cceae5057010257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967945d8208197a14cbbe12ec696f80257cda6f04e4125",
+      "code": "seq = \"ارجو الله\"\r\ncand4 = []\r\nfor i,t in enumerate(hadith_norm):\r\n    if seq in t:\r\n        cand4.append((i, hadith_texts[i]))\r\nlen(cand4), cand4[:3]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679485ff48197b5faa7897e7e449d0257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794d67708197975af6a1a9a37bfd0257cda6f04e4125",
+      "code": "# search for \"لا ... إلا ربه\" patterns in hadith\r\nfound = []\r\nfor i,t in enumerate(hadith_texts):\r\n    s = t or \"\"\r\n    if \"إِلَّا رَبَّهُ\" in s or \"إلا ربه\" in s:\r\n        if \"لا \" in s or \"لَا \" in s:\r\n            # rough check - simply record these\r\n            found.append((i,s))\r\nlen(found)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795103008197aa729df33f32d0150257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679516cfc819790902657a248ba5d0257cda6f04e4125",
+      "code": "# search for phrases \"لا تخافوا إلا الله\" or \"لا تخاف الا الله\"\r\nphrases = [\"لا تخافوا إلا الله\", \"لا تخافوا الا الله\", \"لا تخف إلا الله\", \"لا تخف الا الله\", \"لا يخاف إلا\", \"لا يخاف الا\", \"ولا يخاف إلا\"]\r\ncand = []\r\nfor p in phrases:\r\n    for i,t in enumerate(hadith_texts):\r\n        if t and p in t:\r\n            cand.append((p,i,t))\r\nlen(cand)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679589808819786b6aefff1fabaae0257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795b0b248197b453367f8b0f70380257cda6f04e4125",
+      "code": "q_matches = []\r\nfor i, t in enumerate(quran_texts):\r\n    s = t\r\n    if s and (\"لا يَرْجُو\" in s or \"لا يرجو\" in s):\r\n        q_matches.append((i, s))\r\nlen(q_matches), q_matches[:5]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795de5ec8197a3aa5ff31e3dac010257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796e73e081978e3c5fde2d84186f0257cda6f04e4125",
+      "code": "def best_match_info(query, corpus_texts, corpus_norm, topn=5):\r\n    nq = normalize_arabic(query)\r\n    scores = []\r\n    for i,t in enumerate(corpus_norm):\r\n        # Use SequenceMatcher ratio and token F1; for small query maybe ratio small\r\n        r = sim_ratio(nq, t)\r\n        tf1 = token_f1(nq, t)\r\n        # Score combine\r\n        score = (r + tf1) / 2\r\n        scores.append((score, r, tf1, i, corpus_texts[i]))\r\n    scores.sort(reverse=True, key=lambda x: x[0])\r\n    return scores[:topn]\r\n\r\nbest_hadith = best_match_info(query_full, hadith_texts, hadith_norm, topn=10)\r\nbest_quran = best_match_info(query_full, quran_texts, quran_norm, topn=10)\r\n\r\nbest_hadith[:3], best_quran[:3]",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797691708197813f6f9c6efa01660257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967980cad08197892a265a80e06aca0257cda6f04e4125",
+      "code": "cand = []\r\nfor i,t in enumerate(hadith_norm):\r\n    if \"لا \" in t and \" الا \" in t and \" الله\" in t:\r\n        # check if 'عبد' is present and 'يرجو' present or their lemma forms maybe 'رجا' not used\r\n        if \"عبد\" in t or \" عبد\" in t:\r\n            if \"يرجو\" in t or \"رجا\" in t:  # 'رجا' root seldom used\r\n                cand.append((i, hadith_texts[i], t))\r\nlen(cand)",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896798bf7088197a846465ca71818bf0257cda6f04e4125",
+      "code": "# Show a few to see if any are relevant\r\nfor i,(idx,txt,n) in enumerate(cand[:20]):\r\n    print(\"----\", idx)\r\n    print(txt[:300].replace(\"\\n\",\" \"))\r\n",
+      "container_id": "cntr_689678d4c6908190a99d473ba5818c1306df4c4c93e02fcb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896798ec54881978872d9f782eb89d00257cda6f04e4125",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679925fec8197b52b6ec05c46caed0257cda6f04e4125",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 224927,
+    "input_tokens_details": {
+      "cached_tokens": 190184
+    },
+    "output_tokens": 6101,
+    "output_tokens_details": {
+      "reasoning_tokens": 6080
+    },
+    "total_tokens": 231028
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,216 @@
+{
+  "id": "resp_68952653156c8193ba5048405d12d5320795517beb9dc9e2",
+  "created_at": 1754605139.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6895265737b48193ab8a0185af3c2a140795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6895266ffba881939c5d7a67c09d2c090795517beb9dc9e2",
+      "code": "# Let's try to open the text file in the expected path.\r\npaths = [\r\n    \"/mnt/data/text_to_analyse.txt\",\r\n    \"/mnt/data/file-14qxJb9hksVuhneP1HgUrz-text_to_analyse.txt\",\r\n    \"text_to_analyse.txt\"\r\n]\r\ncontent = None\r\nfor p in paths:\r\n    try:\r\n        with open(p, \"r\", encoding=\"utf-8\") as f:\r\n            content = f.read()\r\n            path_used = p\r\n            break\r\n    except FileNotFoundError:\r\n        continue\r\n\r\npath_used, content[:2000] if content else None, len(content) if content else None",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6895267291b08193a3ffe478edf487e40795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68952673d86c8193bebcbdd83e4deb270795517beb9dc9e2",
+      "code": "print(content)",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68952675b7bc81938828baaa8a4b1d350795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689526852c288193b025c9599eeb59640795517beb9dc9e2",
+      "code": "import re\r\n\r\nraw = content\r\n\r\n# Find indexes of all double quotes\r\nquote_positions = [m.start() for m in re.finditer(r'\"', raw)]\r\npairs = []\r\n# Pair them sequentially (assuming they come in pairs)\r\nfor i in range(0, len(quote_positions), 2):\r\n    if i+1 < len(quote_positions):\r\n        start_quote = quote_positions[i]\r\n        end_quote = quote_positions[i+1]\r\n        inner_start = start_quote + 1\r\n        inner_end = end_quote  # exclusive\r\n        span = raw[inner_start:inner_end]\r\n        pairs.append((inner_start, inner_end, span))\r\nlen(pairs), pairs[:2]",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68952687b4cc8193966ef9c0be1ec81d0795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68952687eb348193becbae7e49a05a2e0795517beb9dc9e2",
+      "code": "# Define cue patterns\r\nayah_cues = [\r\n    \"قال الله\", \"قال تعالى\", \"يقول الله\", \"كما قال تعالى\", \"الآية\", \"سورة\", \"في سورة\", \"القرآن الكريم\", \"سورة \", \"في القرآن\"\r\n]\r\nhadith_cues = [\r\n    \"قال رسول الله\", \"النبي ﷺ\", \"في الحديث\", \"حديث النبي\", \"في حديث النبي\", \"رواه\", \"أخرجه\", \"عن النبي\", \"عن رسول الله\", \"في الأحاديث الشريفة\", \"في حديث\"\r\n]\r\n\r\ndef has_ayah_cue(left, right):\r\n    # If there is a parenthetical citation like (something: number) within 80 chars right\r\n    parenth_citation = bool(re.search(r'\\([^)]+:\\s*\\d+\\)', right[:80]))\r\n    cue_in_left_or_right = any(cue in left[-80:] or cue in right[:80] for cue in ayah_cues)\r\n    return parenth_citation or cue_in_left_or_right\r\n\r\ndef has_hadith_cue(left, right):\r\n    return any(cue in left[-80:] or cue in right[:80] for cue in hadith_cues)\r\n\r\nclassified = []\r\n\r\nfor (s,e,span) in pairs:\r\n    left_ctx = raw[max(0, s-120):s]\r\n    right_ctx = raw[e:min(len(raw), e+120)]\r\n    a = has_ayah_cue(left_ctx, right_ctx)\r\n    h = has_hadith_cue(left_ctx, right_ctx)\r\n    typ = None\r\n    if a and not h:\r\n        typ = \"Aya\"\r\n    elif h and not a:\r\n        typ = \"Hadeeth\"\r\n    elif a and h:\r\n        # tie-breaker: choose Aya? or based on matn? We'll default to Aya if parenthetical is present.\r\n        # Let's check for parenthetical: if has parenthetical, choose Aya, else Hadeeth.\r\n        typ = \"Aya\" if re.search(r'\\([^)]+:\\s*\\d+\\)', right_ctx[:80]) else \"Hadeeth\"\r\n    else:\r\n        # fallback. If appears in a \"حديث\" context, choose Hadeeth else Aya if \"القرآن\" around.\r\n        if \"حديث\" in left_ctx:\r\n            typ = \"Hadeeth\"\r\n        elif \"قرآن\" in left_ctx or \"القرآن\" in left_ctx:\r\n            typ = \"Aya\"\r\n        else:\r\n            typ = \"Hadeeth\"  # default\r\n    classified.append((s,e,span,typ,left_ctx,right_ctx,a,h))\r\n\r\nlen(classified), [(span, typ) for s,e,span,typ,_,_,_,_ in classified]",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689526919a3481938913f4e02547de4b0795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6895269586dc81938348adc1d2cd64140795517beb9dc9e2",
+      "code": "for i, (s,e,span,typ,left_ctx,right_ctx,a,h) in enumerate(classified, 1):\r\n    print(f\"{i}. [{s},{e}), type={typ}\")\r\n    print(\"Left context:\", left_ctx[-80:].replace(\"\\n\",\"\\\\n\"))\r\n    print(\"Span:\", span[:80], \"...\")\r\n    print(\"Right context:\", right_ctx[:80].replace(\"\\n\",\"\\\\n\"))\r\n    print(\"-\"*80)",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689526978f1c81939ede97637f7453830795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6895269dbe0c8193843f75e6d3abab030795517beb9dc9e2",
+      "code": "# Build the final JSON structure\r\ncitations = []\r\nfor s,e,span,typ,_,_,_,_ in classified:\r\n    citations.append({\r\n        \"span_start\": s,\r\n        \"span_end\": e,\r\n        \"span_text\": span,\r\n        \"citation_type\": \"Aya\" if typ==\"Aya\" else \"Hadeeth\"\r\n    })\r\nimport json, textwrap, pprint\r\njson.dumps({\"citations\": citations}, ensure_ascii=False)[:500]",
+      "container_id": "cntr_6895265524bc81908d657510f6cf53fc001916872818679b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689526a18b348193a1c740468162b49d0795517beb9dc9e2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689526a470308193b1ac4ab54f2676cd0795517beb9dc9e2",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":161,\"span_end\":231,\"span_text\":\"وَمَن يُشَاقِقِ اللَّهَ وَرَسُولَهُ فَإِنَّ اللَّهَ شَدِيدُ الْعِقَابِ\",\"citation_type\":\"Aya\"},{\"span_start\":361,\"span_end\":454,\"span_text\":\"وَلَقَدْ أَرْسَلْنَا رُسُلًا مِن قَبْلِكَ مِنْهُمْ مَنْ كَفَرَ وَجَاءَ بِالْحَقِ وَجَاءَ بِهِ\",\"citation_type\":\"Aya\"},{\"span_start\":606,\"span_end\":679,\"span_text\":\"لا يُحِبُّ المُؤْمِنُ لِأَخِيهِ الْمُؤْمِنِ فِعلَ مُحَمَدٍ وَلا خِلَافَهُ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":821,\"span_end\":964,\"span_text\":\"لا تُؤَمِّلوا الْمُؤَمِّلَاتِ وَلا تُحِبُّوا الْمُحِبَّاتِ وَلا تَكُفُّوا الْمُكَفِّفَاتِ فَإِنَّ اللَّهَ يُحِبُّ الَّذينَ يُحِبُّونَ مُحَمَدًا\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1103,\"span_end\":1151,\"span_text\":\"لا يُضُرُّكُمُ شَيءٌ حَتّى تُضَرُّوا أَنفُسَكُمْ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1293,\"span_end\":1413,\"span_text\":\"وَالَّذِينَ جَاؤُوا مِن بَعْدِهِمْ يَقُولُونَ رَبَّنَا اغْفِرْ لَنَا ذُنُوبَنَا وَزَيِّنَ وَجْهَنَا لِلْيَوْمِ الْأَخِرِ\",\"citation_type\":\"Aya\"},{\"span_start\":1554,\"span_end\":1607,\"span_text\":\"وَإِنَّ اللَّهَ يُحِبُّ الَّذينَ يُحِبُّونَ مُحَمَدًا\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1746,\"span_end\":1799,\"span_text\":\"وَإِنَّ اللَّهَ يُحِبُّ الَّذينَ يُحِبُّونَ مُحَمَدًا\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1938,\"span_end\":1991,\"span_text\":\"وَإِنَّ اللَّهَ يُحِبُّ الَّذينَ يُحِبُّونَ مُحَمَدًا\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2130,\"span_end\":2183,\"span_text\":\"وَإِنَّ اللَّهَ يُحِبُّ الَّذينَ يُحِبُّونَ مُحَمَدًا\",\"citation_type\":\"Hadeeth\"}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-14qxJb9hksVuhneP1HgUrz"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1a_spans",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer"
+                },
+                "span_end": {
+                  "type": "integer"
+                },
+                "span_text": {
+                  "type": "string"
+                },
+                "citation_type": {
+                  "type": "string",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 59405,
+    "input_tokens_details": {
+      "cached_tokens": 54168
+    },
+    "output_tokens": 7262,
+    "output_tokens_details": {
+      "reasoning_tokens": 6592
+    },
+    "total_tokens": 66667
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

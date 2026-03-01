@@ -1,0 +1,657 @@
+{
+  "id": "resp_689678d3067481959db89d1e792fca900560f1b929958c09",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d6a9fc8195adf68d709f78ce040560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678eff8f88195b526d3d794c8d1640560f1b929958c09",
+      "code": "import json, re, unicodedata, math, os, sys, textwrap, itertools, statistics",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f1cc308195967b8d4aef4439bf0560f1b929958c09",
+      "code": "import json, os, sys, re, unicodedata, math, statistics, itertools, textwrap",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f35d108195a3ec8809a5296c4b0560f1b929958c09",
+      "code": "# Load the provided files\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\n\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f561f48195aaea5ccea04d773f0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f8ad7c8195bfc18a964430fde90560f1b929958c09",
+      "code": "import re, unicodedata, math, itertools, statistics, json\r\n\r\n# Arabic diacritics pattern\r\narabic_diacritics = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\ntatweel = \"\\u0640\"\r\n\r\ndef normalize_arabic(s):\r\n    if not isinstance(s, str):\r\n        s = \"\" if s is None else str(s)\r\n    s = s.strip()\r\n    # Remove diacritics and tatweel\r\n    s = arabic_diacritics.sub(\"\", s)\r\n    s = s.replace(tatweel, \"\")\r\n    # Normalize hamza variants to alif\r\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\")\r\n    # Replace taa marbuta with ha? maybe unify to ة->ه or to simple 'ه'? We'll keep it as 'ه' or 'ة'? Many texts contain it; keep 'ة'\r\n    # Normalize alef maqsurah\r\n    s = s.replace(\"ى\",\"ي\")\r\n    # Normalize ya no dots? not needed\r\n    # Replace hamza chairs with bare hamza? We'll convert ؤ, ئ -> و, ي maybe not; keep hamza removed? We'll remove hamza chars 'ء' entirely\r\n    s = s.replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ء\",\"\")\r\n    # Remove punctuation and non-letters/digits spaces\r\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)  # keep Arabic letters and underscores/digits\r\n    # Collapse spaces\r\n    s = re.sub(r\"\\s+\", \" \", s).strip()\r\n    return s\r\n\r\ndef tokens(s):\r\n    return normalize_arabic(s).split()\r\n\r\ndef lcs_length(a, b):\r\n    # normalized strings for LCS computation\r\n    a = normalize_arabic(a)\r\n    b = normalize_arabic(b)\r\n    # DP optimized? We'll implement simple dynamic programming for manageable lengths\r\n    n, m = len(a), len(b)\r\n    # Early return if empty\r\n    if n == 0 or m == 0:\r\n        return 0\r\n    # Use dynamic programming with O(min(n,m)) space\r\n    # We'll use numeric arrays\r\n    prev = [0]*(m+1)\r\n    for i in range(1, n+1):\r\n        curr = [0]*(m+1)\r\n        ai = a[i-1]\r\n        # We'll speed fairness ignoring spaces by removing spaces earlier? Already collapsed but includes spaces; we can keep them.\r\n        for j in range(1, m+1):\r\n            if ai == b[j-1]:\r\n                curr[j] = prev[j-1] + 1\r\n            else:\r\n                curr[j] = max(prev[j], curr[j-1])\r\n        prev = curr\r\n    return prev[m]\r\n\r\ndef similarity_lcs(a, b):\r\n    if not a or not b: \r\n        return 0.0\r\n    l = lcs_length(a, b)\r\n    denom = max(len(normalize_arabic(a)), len(normalize_arabic(b)))\r\n    if denom == 0:\r\n        return 0.0\r\n    return l / denom\r\n\r\ndef token_f1(a, b):\r\n    ta = tokens(a); tb = tokens(b)\r\n    if not ta or not tb:\r\n        return 0.0\r\n    from collections import Counter\r\n    ca, cb = Counter(ta), Counter(tb)\r\n    overlap = sum(min(ca[t], cb[t]) for t in ca)\r\n    prec = overlap / (sum(ca.values()) or 1)\r\n    rec = overlap / (sum(cb.values()) or 1)\r\n    if prec+rec == 0:\r\n        return 0.0\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\ndef combined_similarity(a, b):\r\n    # Weighted combination of token F1 and LCS\r\n    return 0.6*token_f1(a,b) + 0.4*similarity_lcs(a,b)\r\n\r\ndef strip_isnad(text):\r\n    # Not needed; but ensure we only use Matn/hadithTxt fields containing matn\r\n    return text\r\n\r\nfull_span = \"لا يُكَفَّرُ مِنَ البخيلِ حَتّى يُؤَدِّ أُجُورَهُ\"\r\nsnippet = \"لا يُكَفَّ... أُجُورَهُ\"\r\nprint(normalize_arabic(full_span))",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790277648195b8e32aa3ed9789730560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790e5c608195b8ac83682dc820a00560f1b929958c09",
+      "code": "# Extract field names\r\nsample = hadith_data[0]\r\nsample.keys()",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967910174c819583ad38dab8d4b1bf0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967911b0ec8195adbd4727dd442e410560f1b929958c09",
+      "code": "def search_hadith_by_substring(sub):\r\n    norm_sub = normalize_arabic(sub)\r\n    results = []\r\n    for h in hadith_data:\r\n        text = h.get('hadithTxt') or h.get('Matn') or \"\"\r\n        norm_text = normalize_arabic(text)\r\n        if norm_sub in norm_text:\r\n            results.append(h)\r\n    return results\r\n\r\n# Search for \"الأجير\"\r\nresults_ajir = search_hadith_by_substring(\"الأجير\")\r\nlen(results_ajir)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967915bb148195bed3a41e1c3e8a670560f1b929958c09",
+      "code": "# Show some snippets\r\n[(r['hadithID'], r.get('hadithTxt') or r.get('Matn'))[:200] for r in results_ajir[:5]]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967917643c8195a06da5c4c5a61be70560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791820a081958b17f47298b5defb0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"أجره\")[:3]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791ad1c481959d3934e0189084110560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791b7d3881959946338b30a581260560f1b929958c09",
+      "code": "ajir_award = search_hadith_by_substring(\"أَعْطُوا الأَجِيرَ أَجْرَهُ\")\r\nlen(ajir_award), ajir_award[:1]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791ec64c8195b9077392e8a116d80560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791f7fb08195a66913f34a5b6a440560f1b929958c09",
+      "code": "candidate_text = ajir_award[0]['Matn']\r\nfull_span = \"لا يُكَفَّرُ مِنَ البخيلِ حَتّى يُؤَدِّ أُجُورَهُ\"\r\nsim_lcs = similarity_lcs(candidate_text, full_span)\r\nsim_f1 = token_f1(candidate_text, full_span)\r\nsim_comb = combined_similarity(candidate_text, full_span)\r\nsim_lcs, sim_f1, sim_comb, candidate_text",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967921769081958de5e8f6b454830f0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927da8c8195bf2b8bdd592202890560f1b929958c09",
+      "code": "candidates = results_ajir  # earlier results with \"الأجير\" substring; pick the one with \"إثم من منع أجر الأجير\"\r\ncand2 = [h for h in candidates if \"لم يعطه أجره\" in (h.get('hadithTxt') or \"\") or \"أَجِيرًا\" in (h.get('Matn') or \"\")]\r\ncand2, len(cand2)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792aae44819592ad3e5c06d40f630560f1b929958c09",
+      "code": "cand2_text = cand2[0]['Matn']\r\nsim_lcs2 = similarity_lcs(cand2_text, full_span)\r\nsim_f1_2 = token_f1(cand2_text, full_span)\r\ncombined_similarity(cand2_text, full_span), sim_lcs2, sim_f1_2, cand2_text",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792c8b1881959aeeafe1fbfba7770560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793025788195b3057fbf4a5b3c4f0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"على اليد ما أخذت حتى تؤديه\")[:3]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967932aa64819583b04ea1dca2e62c0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793608fc819592a628b050d834160560f1b929958c09",
+      "code": "candidate3_text = search_hadith_by_substring(\"على اليد ما أخذت حتى تؤديه\")[0]['Matn']\r\ncombined_similarity(candidate3_text, full_span), similarity_lcs(candidate3_text, full_span), token_f1(candidate3_text, full_span), candidate3_text",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967938dba481959d18fbc0ec44f0550560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793b971c8195951f92ceb121b7f80560f1b929958c09",
+      "code": "results_bakhil = search_hadith_by_substring(\"البخيل من ذكرت\")\r\nlen(results_bakhil), (results_bakhil[0]['Matn'] if results_bakhil else None)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793e44788195b887b3224c3b38cf0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793eaeb4819585f2ac251355b7870560f1b929958c09",
+      "code": "search_hadith_by_substring(\"البخيل من ذكرت عنده\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967941a8e4819582fbdc5621c3bd1d0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967941bd388195ba512aac0e0fb3150560f1b929958c09",
+      "code": "search_hadith_by_substring(\"البخيل من ذُكِرْتُ عنده\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794428a4819599f515cf0d8008c60560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794486b88195b93ef581655e75640560f1b929958c09",
+      "code": "search_hadith_by_substring(\"البخيل\")[:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794748188195a84b86e363bc11240560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967947d9548195aed97d24be0e1a370560f1b929958c09",
+      "code": "search_hadith_by_substring(\"ذكرت عنده فلم يصل\")[:3]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794a4a788195b13413aea905ec570560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794ac23881958e0d0632179e2a290560f1b929958c09",
+      "code": "search_hadith_by_substring(\"البخيل من ذكرت\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794d7ea08195aa09fb9d8b5a11480560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794e0fc081958090fcff8fd380cf0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"البخيل من ذُكِرت\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967950aebc8195a220ecd3e4f894720560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967950e61c81958b7948d42855b9720560f1b929958c09",
+      "code": "search_hadith_by_substring(\"من ذكرت عنده فلم يصل علي\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967953617c8195b651dd655aa06f300560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967953955081959057e086d1c1a9160560f1b929958c09",
+      "code": "search_hadith_by_substring(\"ذكرت عنده فلم\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795620088195b9fe2f684c65166d0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795753b08195b3c7d6cd1793b6ce0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"أبخل الناس\")",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967959d0cc8195a06c07df1a19a66f0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795d0ec48195b2b5003f01c454ae0560f1b929958c09",
+      "code": "def search_quran_by_substring(sub):\r\n    norm_sub = normalize_arabic(sub)\r\n    results = []\r\n    for a in quran_data:\r\n        ay = a.get('ayah_text', '')\r\n        if not isinstance(ay, str):\r\n            continue\r\n        if norm_sub in normalize_arabic(ay):\r\n            results.append(a)\r\n    return results\r\n\r\nlen(search_quran_by_substring(\"أجور\")), len(search_quran_by_substring(\"يؤد\")), len(search_quran_by_substring(\"البخيل\")), len(search_quran_by_substring(\"البخل\"))",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896795ff4b48195888e15d02c8a3eae0560f1b929958c09",
+      "code": "[ r['ayah_text'] for r in search_quran_by_substring(\"أجور\")[:5] ]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967961cb0c8195951a4307bf2493020560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967962c5048195949bc67a5618d9a10560f1b929958c09",
+      "code": "targets = search_hadith_by_substring(\"البخيل\")\r\nscores = []\r\nfor h in targets:\r\n    text = h.get('Matn') or h.get('hadithTxt') or \"\"\r\n    score = combined_similarity(text, full_span)\r\n    scores.append((score, text, h['hadithID']))\r\nsorted(scores, reverse=True)[:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967965eee08195877665582d3a444b0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967966c3388195989506a859dadd480560f1b929958c09",
+      "code": "[h for h in hadith_data if h['hadithID']==102283][:1]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679688c508195872882d6147c25ad0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796aa8cc8195bf5ba7478bd9d6930560f1b929958c09",
+      "code": "search_hadith_by_substring(\"يؤد\")[:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796d73cc819580facfe35d33ef1f0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796e645c81959f8f14e531846a2b0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"لا يكفر\")[:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967971c7f48195a15168343dc15ac30560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679747bc48195b4a53f3d1a191fe50560f1b929958c09",
+      "code": "# Let's search over all hadith Matn/hadithTxt for best approximate similarity to the full span\r\nfull_span = \"لا يُكَفَّرُ مِنَ البخيلِ حَتّى يُؤَدِّ أُجُورَهُ\"\r\ndef best_matches_in_hadith(query, topn=10):\r\n    scores = []\r\n    for h in hadith_data:\r\n        text = (h.get('Matn') or h.get('hadithTxt') or \"\").strip()\r\n        if not text:\r\n            continue\r\n        score = combined_similarity(text, query)\r\n        if score>0: \r\n            scores.append((score, h['hadithID'], text))\r\n    scores.sort(reverse=True, key=lambda x: x[0])\r\n    return scores[:topn]\r\n\r\nbest_hadith_matches = best_matches_in_hadith(full_span, topn=10)\r\nbest_hadith_matches[:5], len(best_hadith_matches)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a8a28481959c3ae71a02807c100560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679a91844819583c7f77da56ec55d0560f1b929958c09",
+      "code": "def best_matches_in_quran(query, topn=10):\r\n    scores=[]\r\n    for a in quran_data:\r\n        text = a.get('ayah_text', '')\r\n        if not text:\r\n            continue\r\n        score = combined_similarity(text, query)\r\n        if score>0:\r\n            scores.append((score, a, text))\r\n    scores.sort(reverse=True, key=lambda x:x[0])\r\n    return scores[:topn]\r\nbest_q = best_matches_in_quran(full_span, 5)\r\n[(s, a['ayah_text']) for s,a,t in best_q]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679aea260819599613e95fdd217150560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b05a5c8195bfd61db24f645b110560f1b929958c09",
+      "code": "search_hadith_by_substring(\"تؤدي\")[:5], len(search_hadith_by_substring(\"تؤدي\"))",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b4820c81958875eddedccbc4410560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b4d6fc81959b3f005aaf1c53ac0560f1b929958c09",
+      "code": "search_hadith_by_substring(\"حَتَّى تُؤَدّ\")[:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b7d5a8819599d2279c2c3444220560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b830fc81958de7f3493de7dda50560f1b929958c09",
+      "code": "candidate4_text = [h for h in hadith_data if h.get('hadithID')==110466][0]['Matn']\r\ncombined_similarity(candidate4_text, full_span), candidate4_text",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679ba59948195a4151508fb68d2180560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679bdb10081958ae0941dbabaa6730560f1b929958c09",
+      "code": "search_hadith_by_substring(\"أجوره\")[:5], len(search_hadith_by_substring(\"أجوره\"))",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679c1f824819587cd75311f7915820560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679c849f881959e4fc46168d610e90560f1b929958c09",
+      "code": "# find hadith containing both normalized tokens 'البخيل' and 'يؤدي'\r\ndef contains_all(text, tokens_list):\r\n    ntext = normalize_arabic(text)\r\n    return all(normalize_arabic(tok) in ntext for tok in tokens_list)\r\n\r\ncands = []\r\nfor h in hadith_data:\r\n    text = (h.get('Matn') or h.get('hadithTxt') or '')\r\n    if contains_all(text, ['البخيل','يؤد']):\r\n        cands.append(h)\r\nlen(cands), cands[:3]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679cd92d4819583eeb1154d2e62c30560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679cd9d5881959a724f4d56b3276b0560f1b929958c09",
+      "code": "cands = []\r\nfor h in hadith_data:\r\n    text = (h.get('Matn') or h.get('hadithTxt') or '')\r\n    if contains_all(text, ['البخيل','أجور']):\r\n        cands.append(h)\r\nlen(cands)",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679d15a488195b033e2bb7b9e92ca0560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679d1a0f48195839f7a0dcd3927520560f1b929958c09",
+      "code": "def contains_any(text, toks):\r\n    ntext = normalize_arabic(text)\r\n    return any(normalize_arabic(tok) in ntext for tok in toks)\r\n\r\nsum(1 for h in hadith_data if contains_all((h.get('Matn') or h.get('hadithTxt') or ''), ['يكفر']))",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679d51b1c819586c10f114cddb8ea0560f1b929958c09",
+      "code": "# Which hadith also contain 'البخيل'? (maybe none)\r\n[x['hadithID'] for x in hadith_data if contains_all((x.get('Matn') or x.get('hadithTxt') or ''), ['يكفر', 'البخيل'])][:5]",
+      "container_id": "cntr_689678d46aac8190a1c29342e6e3f69b0753b7d31740bece",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679d8e99c8195a9963be4c4c555b10560f1b929958c09",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679e069fc8195baf461ff0a959f760560f1b929958c09",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 682316,
+    "input_tokens_details": {
+      "cached_tokens": 595648
+    },
+    "output_tokens": 7573,
+    "output_tokens_details": {
+      "reasoning_tokens": 7552
+    },
+    "total_tokens": 689889
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,260 @@
+{
+  "id": "resp_6896726dbdb8819490040181a5363ec50782b042fb8a4458",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896727295508194ba152f45b77179460782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967276232c8194988fee05787c47210782b042fb8a4458",
+      "code": "# Load the provided JSON files and search for hadith texts matching or related to the snippet.\nimport json, re, unicodedata, itertools, os, textwrap\n\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\n\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran_data = json.load(f)\n\ndef normalize_ar(s):\n    if not isinstance(s, str):\n        return \"\"\n    # remove diacritics\n    s = ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')\n    # unify hamza forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    # remove tatweel and punctuation\n    s = s.replace('ـ','')\n    s = re.sub(r'[^\\w\\s]', ' ', s)\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\nsnippet = \"لا زواجَ لِأُمَّةٍ\"\nnorm_snippet = normalize_ar(snippet)\nnorm_snippet",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727d91b48194ab0a57606c56289b0782b042fb8a4458",
+      "code": "# Search hadiths for the normalized snippet tokens\ntokens = set(norm_snippet.split())\ncandidates = []\nfor i, h in enumerate(hadith_data):\n    txt = h.get('hadithTxt') or h.get('Matn') or \"\"\n    norm = normalize_ar(txt)\n    if not norm:\n        continue\n    # token overlap\n    overlap = tokens.intersection(set(norm.split()))\n    if overlap:\n        # simple score: number of overlapping tokens\n        candidates.append((i, len(overlap), txt, norm))\n\n# sort by score descending\ncandidates_sorted = sorted(candidates, key=lambda x: (-x[1], len(x[3])))\ncandidates_sorted[:20], len(candidates_sorted)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967286b7048194b21204a583abc14e0782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728847b881948406298f22aea8fe0782b042fb8a4458",
+      "code": "# Direct search for key words related to marriage and \"امة\"\nkeys = [\"لا تنكح\", \"لا تزوج\", \"لا نكاح\", \"امة\", \"أمة\", \"الامة\", \"أمَة\", \"أُمَّة\", \"لا تنكح الامة\", \"نهى أن تنكح\"]\ndef contains_any(s, subs):\n    return any(sub in s for sub in subs)\n\nmatches = []\nfor i, h in enumerate(hadith_data):\n    txt = h.get('hadithTxt') or h.get('Matn') or \"\"\n    if contains_any(txt, [\"أمة\",\"الأمة\",\"أَمَة\",\"أُمَّة\",\"الْأَمَة\",\"أَمَةً\",\"أُمَه\"]):\n        if contains_any(txt, [\"لا تنكح\",\"لا تزوج\",\"لا نكاح\",\"نكاح\",\"ينكح\",\"تتزوج\",\"تزويج\"]):\n            matches.append((i, txt[:300]))\n\nlen(matches)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967290f3748194888a2965a51c97060782b042fb8a4458",
+      "code": "# Show the matches found\nfor i, snippet in matches:\n    print(i)\n    print(snippet)\n    print(\"=\"*80)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729315248194b5da5b1a3f69a0670782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967293f6548194b75b1a8833045d1d0782b042fb8a4458",
+      "code": "# Normalized search combinations\ndef norm_contains(s, sub):\n    return normalize_ar(s).find(normalize_ar(sub)) != -1\n\ntargets = []\nfor i, h in enumerate(hadith_data):\n    txt = h.get('hadithTxt') or h.get('Matn') or \"\"\n    n = normalize_ar(txt)\n    if 'امه' in n and any(k in n for k in ['نكاح','ينكح','تنكح','تزوج','زواج']):\n        targets.append((i, txt[:300]))\n\nlen(targets)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729c7e008194b409cbd9e235b18a0782b042fb8a4458",
+      "code": "# Show a subset that might contain prohibition forms \"لا تنكح\" or \"نهى\"\ncount = 0\nfor i, _ in targets:\n    txt = hadith_data[i].get('hadithTxt') or hadith_data[i].get('Matn') or \"\"\n    n = normalize_ar(txt)\n    if 'لا ' in n or 'نهي' in n or 'نهى' in txt:\n        print(i)\n        print(txt[:400])\n        print(\"=\"*80)\n        count += 1\n        if count > 40:\n            break",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a1b8ec8194b817f63447d13b220782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a64e3881949f845675100fdce40782b042fb8a4458",
+      "code": "# Search for hadiths with \"عبد\" and \"ينكح\" or \"نكح\" and \"إذن\"\ndef search(texts):\n    res=[]\n    for i,h in enumerate(hadith_data):\n        txt = h.get('hadithTxt') or h.get('Matn') or \"\"\n        if all(term in txt for term in texts):\n            res.append((i, txt[:300]))\n    return res\n\nresults = search([\"عبد\",\"ينكح\",\"إذن\"])\nlen(results)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672aae8f88194b7028f385c3b1b8a0782b042fb8a4458",
+      "code": "results[:5]",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672acbe5481949722b65e7c5c58640782b042fb8a4458",
+      "code": "print(hadith_data[10899].get('hadithTxt') or hadith_data[10899].get('Matn'))",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672aeb7e4819488235ef03e2904240782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672aefcdc8194a2db15e8c53d10590782b042fb8a4458",
+      "code": "# Search patterns for \"أيما عبد\" and \"أيما امرأة نكحت\"\nfor terms in [[\"أيما\",\"عبد\",\"تزوج\"],[\"أيما\",\"امرأة\",\"نكحت\"],[\"عبد\",\"تزوج\",\"إذن مواليه\"],[\"لا ينكح\",\"العبد\"]]:\n    res = search(terms)\n    print(terms, len(res))\n    if res:\n        for i, snippet in res[:5]:\n            print(i, snippet)\n        print(\"=\"*60)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b399ac8194a454f9ed629c5cd50782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672b646688194b4e74124fe997c010782b042fb8a4458",
+      "code": "# Search for \"نهى أن تنكح الأمة على الحرة\" or similar\nphrases = [\"نهى أن تنكح الأمة على الحرة\",\"لا تنكح الأمة على الحرة\",\"لا تنكح الامة على الحرة\",\"ينهى ان تنكح الامه على الحره\"]\nfor ph in phrases:\n    res = [ (i,(hadith_data[i].get('hadithTxt') or hadith_data[i].get('Matn'))[:300]) \n           for i,h in enumerate(hadith_data) \n           if ph in (h.get('hadithTxt') or h.get('Matn') or \"\")]\n    print(ph, len(res))\n    if res:\n        for r in res[:3]:\n            print(r)\n        print(\"=\"*60)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672c0128c819496ea39fdadb1102d0782b042fb8a4458",
+      "code": "# Search any hadith mentioning \"الأمة على الحرة\"\nres = []\nfor i,h in enumerate(hadith_data):\n    txt = (h.get('hadithTxt') or h.get('Matn') or \"\")\n    if \"الأمة على الحرة\" in txt or \"الامة على الحرة\" in txt:\n        res.append((i, txt[:300]))\nlen(res), res[:5]",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672c260e88194904a9f5ca8d52db80782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672c343b88194bf2fd042c3f7c64a0782b042fb8a4458",
+      "code": "# Search for \"لا نكاح إلا بولي\"\nres = []\nfor i,h in enumerate(hadith_data):\n    txt = (h.get('hadithTxt') or h.get('Matn') or \"\")\n    if \"لا نكاح إلا بولي\" in txt or \"لا نِكاحَ إلا بولي\" in txt:\n        res.append((i, txt))\nlen(res)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672c59d0c81949d422c49ffe2dc450782b042fb8a4458",
+      "code": "for i, txt in res[:5]:\n    print(i)\n    print(txt) \n    print(\"=\"*80)",
+      "container_id": "cntr_6896726f67788190b0e510bdee4af2830fdc10c53744d17a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672c7f33881948661cedda7d85d660782b042fb8a4458",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672cf1f208194b934ffbe5f6f90550782b042fb8a4458",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لا نكاح إلا بولي\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 217533,
+    "input_tokens_details": {
+      "cached_tokens": 176432
+    },
+    "output_tokens": 2657,
+    "output_tokens_details": {
+      "reasoning_tokens": 896
+    },
+    "total_tokens": 220190
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

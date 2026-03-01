@@ -1,0 +1,219 @@
+{
+  "id": "resp_689708a15be88195a665cbfca2d394b200aada634e8cd1d3",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a63c488195b866f63adc34abc600aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a8cb1c81958f26f6e0be27802800aada634e8cd1d3",
+      "code": "# Load the provided JSON files and inspect structure\nimport json, os, textwrap, sys\n\nqfile = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\nhfile = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\n\nwith open(qfile, \"r\", encoding=\"utf-8\") as f:\n    qdata = json.load(f)\nwith open(hfile, \"r\", encoding=\"utf-8\") as f:\n    hdata = json.load(f)\n\nlen(qdata), len(hdata)\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ae31488195b882be959e30814f00aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ae6a2c81958ad55ad316067cdf00aada634e8cd1d3",
+      "code": "# show sample entries keys\nqdata[:3]\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b0149481958809afb1f25a329600aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b23fbc8195917399bd09c952f200aada634e8cd1d3",
+      "code": "# Inspect structure of hadith DB\nhdata[:3]\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b3ffe48195a71ba253e2766a4c00aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b8d2008195a9895b62cef8da8c00aada634e8cd1d3",
+      "code": "# Let's search for exact matches or close matches in quranic verses\norig_span = \"وَلَقَدْ عَلِمْتُ مَا لَا تَعْلَمُونَ وَلَقَدْ عَلِمْتُ بِالْجَهْلِ مِنْكُمْ عَضُدًا\"\nsnippet = \"وَلَقَدْ ع...مْ عَضُدًا\"  # not used much\n\n# Let's define normalization functions\nimport re\nimport unicodedata\n\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\ntatweel = '\\u0640'\n\npunctuation = r\"[^\\w\\s\\u0600-\\u06FF]\"  # keep Arabic letters and numbers and underscores and whitespace\n\ndef normalize_ar(text):\n    # NFKC\n    text = unicodedata.normalize('NFKC', text)\n    # remove tatweel\n    text = text.replace(tatweel, '')\n    # remove diacritics (tashkeel)\n    text = arabic_diacritics.sub('', text)\n    # unify hamza-like letters to bare alef or hamza?\n    # Map آ أ إ ؤ ئ to ا و ی? We'll map various hamzas to ا or همزة.\n    trans_map = {\n        'آ':'ا',\n        'أ':'ا',\n        'إ':'ا',\n        'ٱ':'ا',\n        'ء':'ء', # keep standalone hamza?\n        'ؤ':'و',\n        'ئ':'ي',\n        'ى':'ي',\n        'ة':'ه'\n    }\n    # Note: mapping ة to ه might alter, but helps matching\n    for k,v in trans_map.items():\n        text = text.replace(k,v)\n    # remove punctuation (but keep Arabic letters and spaces)\n    text = re.sub(r'[^\\u0600-\\u06FF\\s]', '', text)\n    # collapse spaces\n    text = re.sub(r'\\s+', ' ', text).strip()\n    # lowercase not applicable\n    return text\n\nnorm_orig = normalize_ar(orig_span)\nnorm_orig[:200], len(norm_orig)\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bea9708195b552e595594c4f2000aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c03b748195aac18368cfd6789900aada634e8cd1d3",
+      "code": "# compute similarity scores across quranic verses\n\ndef lcs_length(a,b):\n    # compute length of longest common substring? or subsequence? Let's do longest common substring.\n    # For longest common substring dynamic programming (O(n*m))\n    n, m = len(a), len(b)\n    if n==0 or m==0:\n        return 0\n    # use DP optimized with 2 rows\n    prev = [0]*(m+1)\n    maxlen = 0\n    for i in range(1,n+1):\n        curr = [0]*(m+1)\n        for j in range(1,m+1):\n            if a[i-1]==b[j-1]:\n                curr[j] = prev[j-1]+1\n                if curr[j] > maxlen:\n                    maxlen = curr[j]\n        prev = curr\n    return maxlen\n\nimport math\n\nnorm_candidates = []\nfor entry in qdata:\n    text = entry.get('ayah_text','')\n    norm_text = normalize_ar(text)\n    norm_candidates.append((entry, text, norm_text))\n\n# compute scores\nscores = []\norig_tokens = norm_orig.split()\nfor entry, text, norm_text in norm_candidates:\n    cand_tokens = norm_text.split()\n    # token overlap precision/recall/f1\n    common = set(orig_tokens) & set(cand_tokens)\n    # but token counts matter; compute multiset overlap\n    from collections import Counter\n    c_orig = Counter(orig_tokens)\n    c_cand = Counter(cand_tokens)\n    overlap = 0\n    for tok in (c_orig.keys() & c_cand.keys()):\n        overlap += min(c_orig[tok], c_cand[tok])\n    prec = overlap / max(1, sum(c_cand.values()))\n    rec = overlap / max(1, sum(c_orig.values()))\n    f1 = 2*prec*rec/(prec+rec) if (prec+rec)>0 else 0\n    # lcs ratio\n    lcs_len = lcs_length(norm_orig, norm_text)\n    lcs_ratio = lcs_len / max(1, len(norm_orig))\n    # also compute normalized edit distance ratio? Levenshtein not built in; can implement python code? We'll skip.\n    score = max(f1, lcs_ratio)\n    scores.append((score, f1, lcs_ratio, entry['surah_name'], entry['ayah_id'], text, norm_text))\n\n# sort descending by score\nscores_sorted = sorted(scores, key=lambda x: x[0], reverse=True)\nscores_sorted[:20]\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ca9dd88195b69431bd117fa48f00aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cf54108195a6e75b6d8ec5e31b00aada634e8cd1d3",
+      "code": "# search normalized substring \"ولقد علمت\"\nquery = normalize_ar(\"وَلَقَدْ عَلِمْتُ\")\nmatches = []\nfor entry, text, norm_text in norm_candidates:\n    if \"ولقد علمت\" in norm_text:\n        matches.append((entry['surah_name'], entry['ayah_id'], text, norm_text))\nmatches[:20], len(matches)\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d37e388195820d2375f94b62d300aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d9d79c819586a2dad95a578ca300aada634e8cd1d3",
+      "code": "# search for occurrences of the token \"الجهل\" \"جَهْل\" variants\nqueries = [\"الْجَهْلِ\", \"الجهل\", \"جَهْل\", \"جهل\"]\nhits = []\nfor entry, text, norm_text in norm_candidates:\n    if 'الجهل' in text or 'الجهل' in norm_text or 'جَهْل' in text or 'جهل' in norm_text:\n        hits.append((entry['surah_name'], entry['ayah_id'], text, norm_text))\nlen(hits), hits[:20]\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dcb1a4819580a75a59eaf4ca5700aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708de629c819580daf8cac23648c400aada634e8cd1d3",
+      "code": "# Search hadith DB for normalized matches\ndef normalize_text_simple(t):\n    return normalize_ar(t)\n\nquery_norm = norm_orig\n\nhadith_matches = []\nfor entry in hdata:\n    text_fields = []\n    if entry.get('Matn'):\n        text_fields.append(entry.get('Matn'))\n    if entry.get('hadithTxt'):\n        text_fields.append(entry.get('hadithTxt'))\n    for txt in text_fields:\n        if not txt:\n            continue\n        norm_txt = normalize_text_simple(txt)\n        # compute f1 and lcs ratio quickly\n        # token overlap\n        from collections import Counter\n        otoks = query_norm.split()\n        ctoks = norm_txt.split()\n        c_orig = Counter(otoks)\n        c_cand = Counter(ctoks)\n        overlap = 0\n        for tok in (c_orig.keys() & c_cand.keys()):\n            overlap += min(c_orig[tok], c_cand[tok])\n        prec = overlap / max(1, sum(c_cand.values()))\n        rec = overlap / max(1, sum(c_orig.values()))\n        f1 = 2*prec*rec/(prec+rec) if (prec+rec)>0 else 0\n        lcs_len = lcs_length(query_norm, norm_txt)\n        lcs_ratio = lcs_len / max(1, len(query_norm))\n        score = max(f1,lcs_ratio)\n        if score > 0.3:\n            hadith_matches.append((score, entry.get('hadithID'), entry.get('title'), txt[:200], norm_txt[:200]))\nlen(hadith_matches)\n",
+      "container_id": "cntr_689708a3cba4819080e499f7c50274c9019f9721d0777a79",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897099807b481959bbb0c47ae84337500aada634e8cd1d3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6897099b349c8195b7c4cbd6d92d962c00aada634e8cd1d3",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 56253,
+    "input_tokens_details": {
+      "cached_tokens": 49128
+    },
+    "output_tokens": 4437,
+    "output_tokens_details": {
+      "reasoning_tokens": 4416
+    },
+    "total_tokens": 60690
+  },
+  "user": null,
+  "store": false
+}

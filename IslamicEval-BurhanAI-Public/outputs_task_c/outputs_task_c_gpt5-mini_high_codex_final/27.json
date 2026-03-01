@@ -1,0 +1,429 @@
+{
+  "id": "resp_689708a156f48196a6e58241a2042112087c246357a54dff",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5a5a48196920a96f65cbb30aa087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a8a4d88196bb6f0fd380aa06ac087c246357a54dff",
+      "code": "import os, json, textwrap, sys, re, unicodedata\nprint(os.listdir('/mnt/data'))",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ac8c7081969c8fdfff9caea226087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708acbb6481968819a59fe9f743aa087c246357a54dff",
+      "code": "path = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\nwith open(path, 'r', encoding='utf-8') as f:\n    data = json.load(f)\nlen(data)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708aefee88196a074f46ef9f9a499087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b0b01c8196b4b68b7328b51fdf087c246357a54dff",
+      "code": "# inspect first item\ndata[0].keys()",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b25ffc8196b0f3edb02d065dbf087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b889188196819d4080cb1fbb3a087c246357a54dff",
+      "code": "# Load utilities and search\nimport re, unicodedata, math, itertools\nfrom collections import Counter\n\ndef normalize_arabic(text):\n    if text is None:\n        return ''\n    # Ensure str\n    text = str(text)\n    # Remove tatweel\n    text = text.replace('\\u0640', '')\n    # Normalize hamza forms\n    text = text.replace('أ','ا').replace('إ','ا').replace('آ','ا')\n    # Map ؤ -> و, ئ -> ي, ة -> ه? maybe keep ة but many maps sometimes\n    text = text.replace('ؤ','و').replace('ئ','ي')\n    # Remove diacritics (harakat) and other combining marks\n    # Arabic diacritics range: \\u064B-\\u065F and \\u0610-\\u061A and \\u06D6-\\u06ED maybe but we'll remove common\n    diacritic_pattern = re.compile(r'[\\u064B-\\u065F\\u0610-\\u061A\\u06D6-\\u06ED\\u0670\\u0656-\\u065F]+')\n    text = diacritic_pattern.sub('', text)\n    # Remove punctuation and symbols\n    punct_pattern = re.compile(r'[^\\w\\s\\u0600-\\u06FF]', flags=re.U)  # remove non arabic/word/space?\n    # But \\w includes underscores and ASCII letters, so better remove punctuation explicitly\n    # Let's remove ASCII punctuation and Arabic punctuation\n    arabic_punct = '،؛؟“”«»ـ…ـٔ‘’\"\\'(){}[]<>:.,؛؟'\n    for ch in arabic_punct:\n        text = text.replace(ch, ' ')\n    # Remove extra punctuation via regex (keep Arabic letters and numbers)\n    text = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', text)\n    # Collapse spaces\n    text = re.sub(r'\\s+', ' ', text).strip()\n    # Lowercase ASCII if any\n    text = text.lower()\n    return text\n\ndef token_set(tokens):\n    return set([t for t in tokens if t.strip()!=''])\n\ndef tokenize(text):\n    return text.split()\n\ndef lcs_length(a,b):\n    # compute longest common substring length? LCS (sequence) char-based: longest common subsequence? \n    # We'll compute longest common substring (consecutive) OR subsequence? Use substring for phrase match.\n    # But we want robust: compute longest common substring length\n    if not a or not b:\n        return 0\n    # dynamic programming for longest common substring\n    la, lb = len(a), len(b)\n    dp = [[0]*(lb+1) for _ in range(la+1)]\n    maxlen=0\n    for i in range(la-1, -1, -1):\n        for j in range(lb-1, -1, -1):\n            if a[i]==b[j]:\n                dp[i][j] = dp[i+1][j+1]+1\n                if dp[i][j]>maxlen:\n                    maxlen = dp[i][j]\n            else:\n                dp[i][j]=0\n    return maxlen\n\ndef token_f1(a,b):\n    ta = tokenize(a)\n    tb = tokenize(b)\n    ca = Counter(ta)\n    cb = Counter(tb)\n    common = sum(min(ca[t], cb[t]) for t in set(ca.keys()) & set(cb.keys()))\n    if common==0:\n        return 0.0\n    prec = common / len(tb) if len(tb)>0 else 0\n    rec = common / len(ta) if len(ta)>0 else 0\n    if prec+rec==0:\n        return 0.0\n    return 2*prec*rec/(prec+rec)\n\n# load data\nhadiths = data\n\n# get the FULL substring\nfull_substring = \"إِنَّ اللَهَ يَبْتَلِي الْمُؤْمِنينَ بِالذَنبِ وَاللَهُ يَبْتَلِي الْمُنافِقينَ بِالرِزقِ\"\nsnippet = \"إِنَّ اللَ... بِالرِزقِ\"  # snippet for info\n\nnorm_full = normalize_arabic(full_substring)\nnorm_snip = normalize_arabic(\"إِنَّ اللَ... بِالرِزقِ\".replace('...', ''))\nnorm_full, norm_snip\n",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c439dc8196a17710cf7a705a35087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c69fe0819691bedec10f217c06087c246357a54dff",
+      "code": "results=[]\nfor idx,entry in enumerate(hadiths):\n    # consider fields hadithTxt and Matn\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt:\n            continue\n        norm_txt = normalize_arabic(txt)\n        # substring check\n        contains = norm_full in norm_txt or norm_txt in norm_full\n        # compute token f1 and lcs char ratio\n        f1 = token_f1(norm_full, norm_txt)\n        lcs_len = lcs_length(norm_full, norm_txt)\n        # char lcs ratio: lcs length / max length\n        maxlen = max(len(norm_full), len(norm_txt))\n        lcs_ratio = lcs_len / maxlen if maxlen>0 else 0\n        sim = max(f1, lcs_ratio)\n        if sim>0:\n            results.append((sim, f1, lcs_ratio, contains, idx, field, txt))\n# sort\nresults_sorted = sorted(results, key=lambda x: x[0], reverse=True)\nresults_sorted[:20]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897096cd7208196935122b7c8c7cc49087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897096f9e4c8196a55447f16ac5a246087c246357a54dff",
+      "code": "def normalize_arabic_v2(text):\n    if text is None:\n        return ''\n    text = str(text)\n    text = text.replace('\\u0640', '')\n    # Normalize hamza forms only for alef variations\n    text = text.replace('أ','ا').replace('إ','ا').replace('آ','ا')\n    # Do NOT map ؤ/ئ to others\n    # Remove diacritics\n    diacritic_pattern = re.compile(r'[\\u064B-\\u065F\\u0610-\\u061A\\u06D6-\\u06ED\\u0670\\u0656-\\u065F]+')\n    text = diacritic_pattern.sub('', text)\n    # Remove punctuation: Arabic punct and ascii\n    arabic_punct = '،؛؟“”«»ـ…ٔ‘’\"\\'(){}[]<>:.,؛؟'\n    for ch in arabic_punct:\n        text = text.replace(ch, ' ')\n    # Remove any non-Arabic letter/digit/space\n    text = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', text)\n    text = re.sub(r'\\s+', ' ', text).strip()\n    text = text.lower()\n    return text\n\nnorm_full_v2 = normalize_arabic_v2(full_substring)\nnorm_full_v2\n",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970973e98c819694dcb4adb598230f087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897097414948196a628ecc7b2b87050087c246357a54dff",
+      "code": "results=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt:\n            continue\n        norm_txt = normalize_arabic_v2(txt)\n        f1 = token_f1(norm_full_v2, norm_txt)\n        lcs_len = lcs_length(norm_full_v2, norm_txt)\n        maxlen = max(len(norm_full_v2), len(norm_txt))\n        lcs_ratio = lcs_len / maxlen if maxlen>0 else 0\n        sim = max(f1, lcs_ratio)\n        contains = norm_full_v2 in norm_txt or norm_txt in norm_full_v2\n        if sim>0:\n            results.append((sim, f1, lcs_ratio, contains, idx, field, txt))\nresults_sorted = sorted(results, key=lambda x: x[0], reverse=True)\nresults_sorted[:40]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a18417c819693a451c14fcc95b7087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a19b6cc8196b656a31b9542fa0c087c246357a54dff",
+      "code": "token = 'يبتلي'\ncandidates=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt:\n            continue\n        norm_txt = normalize_arabic_v2(txt)\n        if token in norm_txt:\n            candidates.append((idx,field, txt, norm_txt))\nlen(candidates)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a1fe07c8196bbe3484e9a019080087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a200d388196a73395aa959be5f9087c246357a54dff",
+      "code": "for c in candidates:\n    print(\"Index:\", c[0], \"Field:\", c[1])\n    print(c[2])\n    print(\"Norm:\", c[3])\n    print(\"-\"*40)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a222ea88196983865fceae1fbac087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a238c608196b5a6cf8a3ad73051087c246357a54dff",
+      "code": "# search for 'المؤمنين' and 'بالذنب'\nt1='المؤمنين'; t2='بالذنب'\nmatches=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt:\n            continue\n        norm = normalize_arabic_v2(txt)\n        if t1 in norm and 'بالذنب' in norm:\n            matches.append((idx, field, txt, norm))\nlen(matches)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a29f70481968069d697d544bfc4087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a2a28cc8196950262a857a4d64b087c246357a54dff",
+      "code": "phrase = 'يبتلي المؤمنين'\ncands=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt: continue\n        norm = normalize_arabic_v2(txt)\n        if phrase in norm:\n            cands.append((idx, field, txt, norm))\ncands[:10], len(cands)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a306bfc8196bb453f0c51cd1442087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a3138188196b114888e70ad144f087c246357a54dff",
+      "code": "for token in ['المناف', 'المنافقين','المنافِقين','بالرزق','رزق']:\n    cnt=0\n    for idx,entry in enumerate(hadiths):\n        for field in ('Matn','hadithTxt'):\n            txt = entry.get(field)\n            if not txt: continue\n            norm = normalize_arabic_v2(txt)\n            if token in norm:\n                cnt+=1\n                break\n    print(token, cnt)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a48a9048196af1f7468bcec8820087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a4a3b888196a5c953da79d8eeae087c246357a54dff",
+      "code": "qpath = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\nwith open(qpath, 'r', encoding='utf-8') as f:\n    qdata = json.load(f)\nlen(qdata)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a4c7fb88196a68e771152a6acd4087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a4cb4e88196ad156b6bef5c4ee3087c246357a54dff",
+      "code": "qdata[0].keys(), qdata[0]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a4e8df88196ac557e2efeab6456087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a50010c8196b3c850ea40ab9728087c246357a54dff",
+      "code": "norm_full_v2 = normalize_arabic_v2(full_substring)\ntokens_full = norm_full_v2.split()\ntokens_full\n",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a52c3c081969584afdffa443f2a087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a53317c8196ab0e67f8df7a0c8f087c246357a54dff",
+      "code": "from collections import defaultdict\ncounts=defaultdict(int)\nfor entry in qdata:\n    text = entry.get('ayah_text','')\n    norm = normalize_arabic_v2(text)\n    for tok in tokens_full:\n        if tok in norm:\n            counts[tok]+=1\ncounts",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a5577308196a8cbf17106943ed4087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a55a1d481969792f1d7d64fcde9087c246357a54dff",
+      "code": "for entry in qdata:\n    norm = normalize_arabic_v2(entry['ayah_text'])\n    if 'يبتلي' in norm:\n        print(entry['surah_name'], entry['ayah_id'], entry['ayah_text'])",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a5912cc8196a9c9a2c1fe4fe8c7087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a5a919c8196b41fc464a17dad49087c246357a54dff",
+      "code": "for tok in ['يفتني','يفتنيهم','يفتلى','يفتلي','يفتليهم','يُفْتَنُ','يفتَنُ']:\n    c=0\n    for entry in hadiths:\n        if entry.get('Matn') and tok in normalize_arabic_v2(entry.get('Matn', '')):\n            c+=1\n    if c>0:\n        print(tok, c)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a6b0b988196b6cd1d74fbd0fb0d087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a6b9ef481969e95de526eb25f7a087c246357a54dff",
+      "code": "cands=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt=entry.get(field)\n        if not txt: continue\n        norm=normalize_arabic_v2(txt)\n        if 'بالذن' in norm:\n            cands.append((idx,field,txt,norm))\nlen(cands), cands[:10]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a724f5c81969320bd34d0ca04e2087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a74f1f481969b8a8de514605d90087c246357a54dff",
+      "code": "matches=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt: continue\n        norm = normalize_arabic_v2(txt)\n        if 'المؤمنين' in norm and 'المنافقين' in norm:\n            matches.append((idx,field,txt,norm))\nlen(matches)",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a7b0b988196afe41c62ee44a15d087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a7b46c081969b2b6675080e8311087c246357a54dff",
+      "code": "matches[:5]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a7d20cc8196a074eb1cec26fcab087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a7e15948196a1ef9badc133e3eb087c246357a54dff",
+      "code": "matches2=[]\nfor idx,entry in enumerate(hadiths):\n    for field in ('Matn','hadithTxt'):\n        txt = entry.get(field)\n        if not txt: continue\n        norm = normalize_arabic_v2(txt)\n        if 'المنافقين' in norm and 'رزق' in norm:\n            matches2.append((idx,field,txt,norm))\nlen(matches2), matches2[:10]",
+      "container_id": "cntr_689708a3129481908cdb918fa5a9eb1b051ad75b33c404fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a84cc288196b35c7d2df0adaf92087c246357a54dff",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68970a8705fc81968dfa6e2c6a1e6d89087c246357a54dff",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 343130,
+    "input_tokens_details": {
+      "cached_tokens": 324376
+    },
+    "output_tokens": 5333,
+    "output_tokens_details": {
+      "reasoning_tokens": 5312
+    },
+    "total_tokens": 348463
+  },
+  "user": null,
+  "store": false
+}

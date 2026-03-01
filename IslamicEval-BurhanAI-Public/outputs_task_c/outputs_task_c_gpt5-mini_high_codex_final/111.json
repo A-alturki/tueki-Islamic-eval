@@ -1,0 +1,250 @@
+{
+  "id": "resp_689708a1667881969906c33e433a33fb0893045158ea98b2",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5c0f4819681790b545bbec2ed0893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a89b20819696796568bc616d020893045158ea98b2",
+      "code": "# Load the JSON files and inspect structure\nimport json, os, sys, math, re\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\n\nwith open(qpath, 'r', encoding='utf-8') as f:\n    qdata = json.load(f)\nwith open(hpath, 'r', encoding='utf-8') as f:\n    hdata = json.load(f)\n\nprint(\"Quran entries:\", len(qdata))\nprint(\"Hadith entries:\", len(hdata))\n# show a sample quran entry\nqdata[:3]",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708af557c8196a2b11cb1055a2bac0893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b315908196866838becce06ba40893045158ea98b2",
+      "code": "# Define normalization functions\nimport re\ndef normalize_arabic(text):\n    # remove tatweel\n    text = re.sub('\\u0640','', text)\n    # remove tashkeel (diacritics)\n    # Arabic diacritics Unicode range:  064B-0652 etc; include maddah and sukūn etc\n    tashkeel_pattern = re.compile('[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\n    text = tashkeel_pattern.sub('', text)\n    # remove punctuation and symbols\n    punct = r\"\"\"[ـ،؛؟!\\\"'(){}\\[\\]<>:.,ـ…٪%•–—\\-ـ«»\\/]\"\"\"\n    text = re.sub(punct, ' ', text)\n    # unify hamza forms\n    text = re.sub('[أإآا]', 'ا', text)\n    # normalize different alef maksura and ya\n    text = re.sub('ى', 'ي', text)\n    # normalize taa marbuta to haa? maybe leave\n    # remove extra spaces and lowercase (Arabic has no case)\n    text = re.sub('\\s+',' ', text).strip()\n    return text\n\n# test normalization\ntest = \"يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاطِلِ\"\nprint(test, \"->\", normalize_arabic(test))",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b745ec819680b50a30a70a2a710893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b7ca9481968142cd21738ec42e0893045158ea98b2",
+      "code": "full_span = \"يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاط\"\nsnippet = \"يَا أَيُّه... بِالْبَاط\"\n# Normalize: remove ellipsis from snippet or keep\nsnippet = snippet.replace('...', ' ')\nprint(\"Full normalized:\", normalize_arabic(full_span))\nprint(\"Snippet normalized:\", normalize_arabic(snippet))",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bab1e08196bd5e34280eb822f50893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bc65388196abc852793cd6beba0893045158ea98b2",
+      "code": "from difflib import SequenceMatcher\ndef seq_ratio(a,b):\n    return SequenceMatcher(None, a, b).ratio()\n\ndef token_f1(a,b):\n    at = a.split()\n    bt = b.split()\n    set_a = set(at)\n    set_b = set(bt)\n    # But token overlap should count multiplicities; use counts\n    from collections import Counter\n    ca = Counter(at)\n    cb = Counter(bt)\n    overlap = sum(min(ca[t], cb[t]) for t in set(ca.keys()) & set(cb.keys()))\n    if len(at)==0 and len(bt)==0:\n        return 1.0\n    if len(at)==0 or len(bt)==0:\n        return 0.0\n    return 2*overlap/(len(at)+len(bt))\n\n# prepare normalized ayahs\nnorm_ayahs = []\nfor row in qdata:\n    text = row['ayah_text']\n    ntext = normalize_arabic(text)\n    norm_ayahs.append((row, text, ntext))\n    \n# compute scores\ninput_norm_full = normalize_arabic(full_span)\ninput_norm_snip = normalize_arabic(snippet)\n\nresults = []\nfor row, orig_text, ntext in norm_ayahs:\n    r1 = seq_ratio(input_norm_full, ntext)\n    f1 = token_f1(input_norm_full, ntext)\n    # also consider snippet\n    r2 = seq_ratio(input_norm_snip, ntext)\n    f2 = token_f1(input_norm_snip, ntext)\n    best_ratio = max(r1,r2)\n    best_f1 = max(f1,f2)\n    results.append((best_ratio, best_f1, row, orig_text, ntext))\n# sort by ratio then f1 desc\nresults_sorted = sorted(results, key=lambda x: (x[0], x[1]), reverse=True)\n# show top 10\nfor i in range(10):\n    r,f,row,orig,n = results_sorted[i]\n    print(i+1, \"ratio:\", r, \"f1:\", f, \"surah:\", row['surah_name'], row['ayah_id'], orig, \"|| normalized:\", n)",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c3fd008196b26d3fa1aaa77aca0893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c55ca0819696c254a5355e6afb0893045158ea98b2",
+      "code": "# Search for ayahs containing \"اموالكم\" or \"اموال\"\nsearch_term = normalize_arabic(\"أَمْوَالَكُمْ\")\nmatches = []\nfor row in qdata:\n    n = normalize_arabic(row['ayah_text'])\n    if \"اموال\" in n or \"اموالكم\" in n:\n        matches.append((row['surah_name'], row['ayah_id'], row['ayah_text'], n))\nlen(matches), matches[:10]",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c7e9f48196ab9fe547f831e9cb0893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cc923881969a49fde0f3264a490893045158ea98b2",
+      "code": "# direct search for pattern \"لا تَأْكُلُوا أَمْوَالَكُمْ\" in original ayah_texts\nfor row in qdata:\n    if \"تَأْكُلُوا أَمْوَالَكُمْ\" in row['ayah_text'] or \"تَأْكُلُوا أَمْوَالَكُم\" in row['ayah_text'] or \"تَأْكُلُوا أَمْوَالَكُمْ\" in row['ayah_text'].replace('ك','ك'):\n        print(row['surah_name'], row['ayah_id'], row['ayah_text'])",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cf3a848196aed7102c97709cc50893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d2abc88196b046feca293715520893045158ea98b2",
+      "code": "# find the Nisa 29 row and compute similarity metrics\nnisa29 = None\nfor row in qdata:\n    if row['surah_name']=='النساء' and row['ayah_id']==29:\n        nisa29 = row\n        break\nnisa29, nisa29['ayah_text'] if nisa29 else None\n",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689708d4d8548196afb8659867877ac80893045158ea98b2",
+      "code": "cand_text = nisa29['ayah_text']\ninput_full = full_span\n# normalize\nn_cand = normalize_arabic(cand_text)\nn_input = normalize_arabic(input_full)\nn_cand, n_input\n",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689708d6fb188196874fb309ef4b989e0893045158ea98b2",
+      "code": "from difflib import SequenceMatcher\nratio = SequenceMatcher(None, n_input, n_cand).ratio()\ndef token_f1_counts(a,b):\n    at = a.split()\n    bt = b.split()\n    from collections import Counter\n    ca = Counter(at)\n    cb = Counter(bt)\n    overlap = sum(min(ca[t], cb[t]) for t in set(ca.keys()) & set(cb.keys()))\n    if len(at)==0 and len(bt)==0:\n        return 1.0\n    if len(at)==0 or len(bt)==0:\n        return 0.0\n    return 2*overlap/(len(at)+len(bt)), overlap, len(at), len(bt)\ntf1, overlap, la, lb = token_f1_counts(n_input, n_cand)\nratio, tf1, overlap, la, lb\n",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708da38e88196bcf2dcd36e599f310893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e324388196b5347671d780cb770893045158ea98b2",
+      "code": "# compute longest common substring length\ndef longest_common_substring(a,b):\n    # returns length of longest common substring\n    m = [[0]*(len(b)+1) for _ in range(len(a)+1)]\n    longest = 0\n    end_pos = 0\n    for i in range(len(a)):\n        for j in range(len(b)):\n            if a[i]==b[j]:\n                m[i+1][j+1] = m[i][j]+1\n                if m[i+1][j+1] > longest:\n                    longest = m[i+1][j+1]\n                    end_pos = i+1\n    return longest, a[end_pos-longest:end_pos]\n\nlcs_len, lcs_str = longest_common_substring(n_input, n_cand)\nlen_n_cand = len(n_cand)\nlcs_len, lcs_str, len_n_cand, lcs_len/len_n_cand\n",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e69a2c8196af0601c7b9be6bd80893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708f267508196bc136a78602b06ee0893045158ea98b2",
+      "code": "# extract the exact ayah text for Nisa 29\nfor row in qdata:\n    if row['surah_name']=='النساء' and row['ayah_id']==29:\n        print(repr(row['ayah_text']))\n        ayah_text = row['ayah_text']\n        break\nayah_text\n",
+      "container_id": "cntr_689708a330808190a52ebb8eeb3aef1809b3c3f54a029a84",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f50bec8196a35c37b763e38f8f0893045158ea98b2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708f5b8a08196a2a2f208f29b91d30893045158ea98b2",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاطِلِ إِلَّا أَنْ تَكُونَ تِجَارَةً عَنْ تَرَاضٍ مِنْكُمْ ۚ وَلَا تَقْتُلُوا أَنْفُسَكُمْ ۚ إِنَّ اللَّهَ كَانَ بِكُمْ رَحِيمًا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 78216,
+    "input_tokens_details": {
+      "cached_tokens": 72160
+    },
+    "output_tokens": 6085,
+    "output_tokens_details": {
+      "reasoning_tokens": 5952
+    },
+    "total_tokens": 84301
+  },
+  "user": null,
+  "store": false
+}

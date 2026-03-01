@@ -1,0 +1,239 @@
+{
+  "id": "resp_68950bc2bdbc819ea3de56079c783fa60e253044e340d4c0",
+  "created_at": 1754598338.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68950bc7652c819e8a7eb9638636e2e00e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950c711fe0819e90cca91665f8d34b0e253044e340d4c0",
+      "code": "# Read the file content\r\npath = \"/mnt/data/file-TywBRAHufe49CDFELP5H89-text_to_analyse.txt\"\r\nwith open(path, \"r\", encoding=\"utf-8\") as f:\r\n    text = f.read()\r\n\r\nlen(text)",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950c757e00819e9c6c7473731ca9d70e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950c760260819e9c7e6e93a1ff76ad0e253044e340d4c0",
+      "code": "print(text)",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950c7955f0819eb52a1ecaca93074a0e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950c80fe28819eb387fbf3bb33722a0e253044e340d4c0",
+      "code": "import re, json, sys, textwrap\r\n\r\ntext = text  # from previous cell\r\n\r\ndef trim_edges(s):\r\n    # Define characters to strip from edges (both sides), including whitespace\r\n    strip_chars = ''.join([\r\n        ' \\t\\r\\n',\r\n        '\"\\'«»()[]',\r\n        '،؛:.,!؟?…',\r\n        'ـ',\r\n    ])\r\n    return s.strip(strip_chars)\r\n\r\n# Collect citations as dicts\r\ncitations = []\r\n\r\n# 1) Aya markers between (aya_start) and (aya_end)\r\naya_spans = []\r\nstart_token = \"(aya_start)\"\r\nend_token = \"(aya_end)\"\r\n\r\nstart_idx = 0\r\nwhile True:\r\n    s = text.find(start_token, start_idx)\r\n    if s == -1:\r\n        break\r\n    e = text.find(end_token, s + len(start_token))\r\n    if e == -1:\r\n        # unmatched; break\r\n        break\r\n    # Matn between tokens\r\n    matn_start = s + len(start_token)\r\n    matn_end = e  # exclude end token\r\n    matn = text[matn_start:matn_end]\r\n    # Trim edges (whitespace, punctuation) - but likely none\r\n    matn_trimmed = trim_edges(matn)\r\n    # Adjust indices according to trimming\r\n    # Find trimmed start relative to matn_start by rstrip in front and end\r\n    # We can compute by comparing matn to matn_trimmed\r\n    leading_len = len(matn) - len(matn.lstrip(' \\t\\r\\n\"\\'«»()[]،؛:.,!؟?…ـ'))\r\n    trailing_len = len(matn) - len(matn.rstrip(' \\t\\r\\n\"\\'«»()[]،؛:.,!؟?…ـ'))\r\n    # But this approach might mistakenly remove internal punctuation at middle. \r\n    # We'll recompute by searching matn_trimmed within matn and taking first match.\r\n    inner_start = matn.find(matn_trimmed)\r\n    if inner_start == -1:\r\n        inner_start = 0\r\n        matn_trimmed = matn  # fallback\r\n    inner_end = inner_start + len(matn_trimmed)\r\n    span_start = matn_start + inner_start\r\n    span_end = matn_start + inner_end\r\n    aya_spans.append((span_start, span_end, matn_trimmed))\r\n    start_idx = e + len(end_token)\r\n\r\nfor span_start, span_end, span_text in aya_spans:\r\n    citations.append({\r\n        \"span_start\": span_start,\r\n        \"span_end\": span_end,\r\n        \"span_text\": span_text,\r\n        \"citation_type\": \"Aya\"\r\n    })\r\n\r\n# 2) Hadith markers between (hadith_start) and (hadith_end)\r\nhadith_spans = []\r\nhs, he = \"(hadith_start)\", \"(hadith_end)\"\r\nstart_idx = 0\r\nwhile True:\r\n    s = text.find(hs, start_idx)\r\n    if s == -1:\r\n        break\r\n    e = text.find(he, s + len(hs))\r\n    if e == -1:\r\n        break\r\n    matn_start = s + len(hs)\r\n    matn_end = e\r\n    matn = text[matn_start:matn_end]\r\n    matn_trimmed = trim_edges(matn)\r\n    inner_start = matn.find(matn_trimmed)\r\n    if inner_start == -1:\r\n        inner_start = 0\r\n        matn_trimmed = matn\r\n    inner_end = inner_start + len(matn_trimmed)\r\n    span_start = matn_start + inner_start\r\n    span_end = matn_start + inner_end\r\n    hadith_spans.append((span_start, span_end, matn_trimmed))\r\n    start_idx = e + len(he)\r\n\r\nfor span_start, span_end, span_text in hadith_spans:\r\n    citations.append({\r\n        \"span_start\": span_start,\r\n        \"span_end\": span_end,\r\n        \"span_text\": span_text,\r\n        \"citation_type\": \"Hadeeth\"\r\n    })\r\n\r\n# 3) Double parentheses ((...)) in the references section\r\n# We'll find all occurrences of \"((...))\" and extract content inside without outer parentheses and whitespace/punct edges\r\ndouble_paren_spans = []\r\npattern = r\"\\(\\((.*?)\\)\\)\"\r\nfor m in re.finditer(pattern, text, flags=re.DOTALL):\r\n    content = m.group(1)\r\n    # compute trimmed content and indices\r\n    trimmed = trim_edges(content)\r\n    # Exclude trailing question mark at end: our trim_edges already removes '?', '؟' at edges\r\n    # Now locate trimmed within content to compute offsets\r\n    inner_start = content.find(trimmed)\r\n    if inner_start == -1:\r\n        continue\r\n    # compute overall start index in text\r\n    matn_start = m.start(1) + inner_start\r\n    matn_end = matn_start + len(trimmed)\r\n    # Save this as hadith, but we need to ensure it is intended hadith.\r\n    # Check context around it maybe; for this task we'll include all since they appear in [2] as hadith quotes.\r\n    double_paren_spans.append((matn_start, matn_end, trimmed))\r\n\r\n# Let's inspect what we found\r\ndouble_paren_spans_texts = [text[s:e] for s,e,_ in double_paren_spans]\r\ndouble_paren_spans_texts",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950c9a4210819eab1651d7b59d22720e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950c9e56dc819e9248b7a41bb8905b0e253044e340d4c0",
+      "code": "for span_start, span_end, span_text in double_paren_spans:\r\n    citations.append({\r\n        \"span_start\": span_start,\r\n        \"span_end\": span_end,\r\n        \"span_text\": span_text,\r\n        \"citation_type\": \"Hadeeth\"\r\n    })\r\n\r\n# 4) The ayah in [4] after \"حين قال: (\" and before \")\"\r\nphrase = \"حين قال: (\"\r\nidx = text.find(phrase)\r\nayah_additional = []\r\nif idx != -1:\r\n    open_paren_idx = text.find(\"(\", idx)\r\n    close_paren_idx = text.find(\")\", open_paren_idx + 1)\r\n    if open_paren_idx != -1 and close_paren_idx != -1:\r\n        content = text[open_paren_idx+1:close_paren_idx]\r\n        trimmed = trim_edges(content)\r\n        inner_start = content.find(trimmed)\r\n        span_start = open_paren_idx + 1 + inner_start\r\n        span_end = span_start + len(trimmed)\r\n        ayah_additional.append((span_start, span_end, trimmed))\r\nayah_additional",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950ca25740819ea0b68e5f2d2682390e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950ca297c0819e9cbc6183fcb279cf0e253044e340d4c0",
+      "code": "for span_start, span_end, span_text in ayah_additional:\r\n    citations.append({\r\n        \"span_start\": span_start,\r\n        \"span_end\": span_end,\r\n        \"span_text\": span_text,\r\n        \"citation_type\": \"Aya\"\r\n    })\r\n\r\n# 5) The hadith paraphrase after \"فيقولون له:\" (we need to ensure this pattern occurs in the text.)\r\npattern_phrase = \"فيقولون له:\"\r\nidx = text.find(pattern_phrase)\r\nhadith_quote_spans = []\r\nif idx != -1:\r\n    after_idx = idx + len(pattern_phrase)\r\n    # Skip whitespace\r\n    j = after_idx\r\n    while j < len(text) and text[j].isspace():\r\n        j += 1\r\n    # The quote continues until \"فيعتذر\" that follows shortly\r\n    end_marker = \"فيعتذر\"\r\n    end_idx = text.find(end_marker, j)\r\n    if end_idx != -1:\r\n        # The quoted content is text[j:end_idx]\r\n        content = text[j:end_idx]\r\n        trimmed = trim_edges(content)\r\n        # Determine trimmed indices relative to text\r\n        inner_start = content.find(trimmed)\r\n        span_start = j + inner_start\r\n        span_end = span_start + len(trimmed)\r\n        hadith_quote_spans.append((span_start, span_end, trimmed))\r\nhadith_quote_spans",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950ca770b0819ea2ea9e8d12b5bd060e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950ca8a398819e971d9912769d78e90e253044e340d4c0",
+      "code": "# Sort citations by start index for readability\r\ncitations_sorted = sorted(citations, key=lambda x: x[\"span_start\"])\r\n\r\ndef show_context(span_start, span_end, width=40):\r\n    start = max(0, span_start - width)\r\n    end = min(len(text), span_end + width)\r\n    ctx = text[start:end]\r\n    # highlight span by replacing with brackets? We'll just show substring with context markers\r\n    return ctx, text[span_start:span_end]\r\n\r\nfor c in citations_sorted:\r\n    ctx, span = show_context(c[\"span_start\"], c[\"span_end\"])\r\n    print(c[\"citation_type\"], c[\"span_start\"], c[\"span_end\"], repr(span))\r\n    print(ctx)\r\n    print(\"-\" * 80)",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950caf0318819eace06261b52a24290e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950cb0e980819ea82b579dd3535f710e253044e340d4c0",
+      "code": "# Add hadith paraphrase spans to citations\r\nfor span_start, span_end, span_text in hadith_quote_spans:\r\n    citations.append({\r\n        \"span_start\": span_start,\r\n        \"span_end\": span_end,\r\n        \"span_text\": span_text,\r\n        \"citation_type\": \"Hadeeth\"\r\n    })\r\n\r\n# Sort and display again\r\ncitations_sorted = sorted(citations, key=lambda x: x[\"span_start\"])\r\nfor c in citations_sorted:\r\n    print(c[\"citation_type\"], c[\"span_start\"], c[\"span_end\"], repr(c[\"span_text\"]))",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68950cb48b90819e9af8c9cbe68902ac0e253044e340d4c0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68950cc43920819eb33b0629b5aaacf30e253044e340d4c0",
+      "code": "result = {\"citations\": citations_sorted}\r\nimport json, sys\r\nprint(json.dumps(result, ensure_ascii=False, indent=2))",
+      "container_id": "cntr_68950bc5bb64819180f82dc3d084a17802c733f4e27e171c",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "msg_68950cc82178819eb379a1f8b89ab8290e253044e340d4c0",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":239,\"span_end\":385,\"span_text\":\"وَلَمَّا بَلَغَ أَشُدَّهُ وَاسْتَوَىٰ أَتْلُجَ الْبَيْتَ حِينَ بَلَغَ أَنِ اعْبُدُوا اللَّهَ رَبِّي وَرَبَّكُمْ ۖ إِنَّنِي خَشِيتُ أَن تَقْتُلُونِ\",\"citation_type\":\"Aya\"},{\"span_start\":594,\"span_end\":667,\"span_text\":\"أَنْتَ آدَمُ الَّذِي أَغْوَيْتَ النَّاسَ وَأَخْرَجْتَهُمْ مِنَ الْجَنَّةِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":988,\"span_end\":1026,\"span_text\":\"وَلَا تَزِرُ وَازِرَةٌ وِزْرَ أُخْرَىٰ\",\"citation_type\":\"Aya\"},{\"span_start\":1657,\"span_end\":1699,\"span_text\":\"أنت آدم الذي أغويت الناس وأخرجتهم من الجنة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1725,\"span_end\":1815,\"span_text\":\"أنت آدم أبو البشر، خلقك الله بيده، وأسجد لك ملائكته، ثم تخرج الناس من الجنة تأكل من الشجرة\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2025,\"span_end\":2129,\"span_text\":\"قال له موسى أنت آدم الذي أغويت الناس وأخرجتهم من الجنة؟ فقال له آدم: أنت موسى الذي أعطاه الله علم كل شيء\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2150,\"span_end\":2180,\"span_text\":\"أنت موسى الذي أعطاه علم كل شيء\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2204,\"span_end\":2270,\"span_text\":\"أن الخضر قال له: ما علمي وما علمك إلى كما نقص هذا العصفور من البحر\",\"citation_type\":\"Hadeeth\"},{\"span_start\":3228,\"span_end\":3277,\"span_text\":\"أنت أول رسول بعثه الله إلى الأرض اشفع لنا عند ربك\",\"citation_type\":\"Hadeeth\"},{\"span_start\":3331,\"span_end\":3428,\"span_text\":\"فَقَالَ رَبِّ إِنَّ ابْنِي مِنْ أَهْلِي وَإِنَّ وَعْدَكَ الْحَقُّ وَأَنْتَ أَحْكَمُ الْحَاكِمِينَ\",\"citation_type\":\"Aya\"}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-TywBRAHufe49CDFELP5H89"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1a_spans",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer"
+                },
+                "span_end": {
+                  "type": "integer"
+                },
+                "span_text": {
+                  "type": "string"
+                },
+                "citation_type": {
+                  "type": "string",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 113072,
+    "input_tokens_details": {
+      "cached_tokens": 106344
+    },
+    "output_tokens": 11908,
+    "output_tokens_details": {
+      "reasoning_tokens": 11328
+    },
+    "total_tokens": 124980
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

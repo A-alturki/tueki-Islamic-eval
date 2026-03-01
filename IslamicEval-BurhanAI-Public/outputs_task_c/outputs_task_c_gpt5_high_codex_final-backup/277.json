@@ -1,0 +1,182 @@
+{
+  "id": "resp_689678d2f120819691f45dd339ec65170cf0a0ffe429ad58",
+  "created_at": 1754691794.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7536c8196944f110ae2b326ee0cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678eb1ce08196b158ea33ede6e9490cf0a0ffe429ad58",
+      "code": "import json, re, os, unicodedata, math, itertools, statistics, sys, textwrap",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ecbe448196bc69553c7c4671980cf0a0ffe429ad58",
+      "code": "# Load files\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\nlen(quran), type(quran)",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ef293c8196adaeb724b113dfa90cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ef632c8196b9c834d1dda685400cf0a0ffe429ad58",
+      "code": "quran[0].keys(), quran[0]",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f0eb88819680b019396608615c0cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f186348196a61bf5b1772924a90cf0a0ffe429ad58",
+      "code": "cands_wain = [v for v in quran if \"وَإِنْ خِفْتُمْ\" in v['ayah_text']]\nlen(cands_wain), [(v['surah_id'], v['ayah_id'], v['ayah_text']) for v in cands_wain[:10]]",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f3e8648196bcd8953f548da7ca0cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f58c5c8196974859b69aa97aaf0cf0a0ffe429ad58",
+      "code": "import unicodedata\nimport re\n\ndef strip_diacritics(s):\n    # Remove Arabic diacritics\n    # Keep alif madda? We'll remove combining marks\n    return ''.join(ch for ch in unicodedata.normalize('NFKD', s) \n                   if not unicodedata.combining(ch))\n\ndef normalize_arabic(s):\n    s = s.strip()\n    # remove tatweel\n    s = s.replace('ـ', '')\n    # unify hamza/alif forms: أإآا -> ا\n    s = re.sub('[إأآٱ]', 'ا', s)\n    # ya/ya alef maqsura: ى -> ي\n    s = s.replace('ى', 'ي')\n    # taa marbuta to ha? We'll keep ة->ه or toة? For search, maybe convert ة to ه or to ت؟ We'll keep as ه? I'll keep as ة unchanged to avoid mismatch; but for robust, convert to ه or just leave\n    # We'll keep it as ه to unify with ta marbuta differences? Possibly not needed.\n    # Actually leave unchanged.\n    # waw hamza? ؤ -> و, ئ -> ي\n    s = s.replace('ؤ', 'و').replace('ئ', 'ي')\n    # Remove punctuation and non-letters digits\n    s = re.sub(r'[^\\w\\s]+', ' ', s, flags=re.UNICODE)\n    # Remove diacritics\n    s = strip_diacritics(s)\n    # lowercase not applicable\n    # collapse whitespace\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef lcs_length(a, b):\n    # dynamic programming LCS\n    # to limit memory, we can compute with integer arrays\n    n, m = len(a), len(b)\n    # convert to list of chars\n    A, B = a, b\n    prev = [0]*(m+1)\n    for i in range(1, n+1):\n        cur = [0]*(m+1)\n        ai = A[i-1]\n        for j in range(1, m+1):\n            if ai == B[j-1]:\n                cur[j] = prev[j-1] + 1\n            else:\n                if prev[j] >= cur[j-1]:\n                    cur[j] = prev[j]\n                else:\n                    cur[j] = cur[j-1]\n        prev = cur\n    return prev[m]\n\ndef lcs_ratio(a, b):\n    # char-level longest common subsequence ratio to max length\n    L = lcs_length(a, b)\n    return L / max(len(a), len(b)) if max(len(a), len(b))>0 else 0.0\n\ndef token_f1(a, b):\n    toks_a = normalize_arabic(a).split()\n    toks_b = normalize_arabic(b).split()\n    # Use set-based?\n    # We'll do multiset F1: compute overlap counts\n    from collections import Counter\n    ca, cb = Counter(toks_a), Counter(toks_b)\n    common = sum((ca & cb).values())\n    prec = common / sum(ca.values()) if sum(ca.values())>0 else 0\n    rec = common / sum(cb.values()) if sum(cb.values())>0 else 0\n    if prec+rec==0: \n        f1 = 0\n    else: \n        f1 = 2*prec*rec/(prec+rec)\n    return f1, prec, rec, common, sum(ca.values()), sum(cb.values())\n\norig_full = \"وَإِنْ خِفْتُمْ أَنْ تَجْرِبُوا أَزْوَاجَكُمْ فَزَوَّجُوا مَا أَحْبَبْتُمْ مِنْ أَزْوَاجِكُمْ أَوِ امْرَأَتَيْكُمْ أَوِ امْتَلِكُوا مِنَ الْمُسْلِمَاتِ الْمُؤْمِنَاتِ\"\ncand = cands_wain[0]['ayah_text']\norig_norm = normalize_arabic(orig_full)\ncand_norm = normalize_arabic(cand)\norig_norm, cand_norm[:60], len(orig_norm), len(cand_norm), lcs_ratio(orig_norm, cand_norm), token_f1(orig_full, cand)",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fe38648196a2344ab565a329590cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679275e088196913f66fd971635860cf0a0ffe429ad58",
+      "code": "cand_43 = [v for v in quran if v['surah_id']==4 and v['ayah_id']==3][0]['ayah_text']\ncand_43",
+      "container_id": "cntr_689678d4c42c8190873c3f09c4118d940666a330c73e0437",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792910888196b74f532d7018aaa10cf0a0ffe429ad58",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967930890481969c6b53c1f2e8e32d0cf0a0ffe429ad58",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَإِنْ خِفْتُمْ أَلَّا تُقْسِطُوا فِي الْيَتَامَىٰ فَانْكِحُوا مَا طَابَ لَكُمْ مِنَ النِّسَاءِ مَثْنَىٰ وَثُلَاثَ وَرُبَاعَ ۖ فَإِنْ خِفْتُمْ أَلَّا تَعْدِلُوا فَوَاحِدَةً أَوْ مَا مَلَكَتْ أَيْمَانُكُمْ ۚ ذَٰلِكَ أَدْنَىٰ أَلَّا تَعُولُوا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 32842,
+    "input_tokens_details": {
+      "cached_tokens": 30744
+    },
+    "output_tokens": 6954,
+    "output_tokens_details": {
+      "reasoning_tokens": 6784
+    },
+    "total_tokens": 39796
+  },
+  "user": null,
+  "store": false
+}

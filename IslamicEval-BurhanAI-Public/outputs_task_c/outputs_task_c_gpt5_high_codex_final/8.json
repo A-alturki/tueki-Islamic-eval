@@ -1,0 +1,333 @@
+{
+  "id": "resp_689678d2fedc81949a94a50a28f5b3ab07bcd11c0170b41a",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d727e88194a7e3803e363094ac07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e63bac8194a2a4ac38dfb7273907bcd11c0170b41a",
+      "code": "import json, re, os, sys, textwrap, unicodedata, math, itertools, statistics, numpy as np",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e8abb08194b63becd1b55ba2c607bcd11c0170b41a",
+      "code": "import json, os, re, unicodedata, math, statistics, difflib, numpy as np",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ea4d9c8194abdc671ae2e8756e07bcd11c0170b41a",
+      "code": "# Load files\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran = json.load(f)\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_db = json.load(f)\n\nlen(quran), len(hadith_db)",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ece57c8194b5eea75dd69209f807bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ed4af48194a1dfbe65f02c4ace07bcd11c0170b41a",
+      "code": "# Inspect sample entries\nlist(quran[0].keys())[:20], list(hadith_db[0].keys())[:40]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ef17788194bdb9edf437c3999707bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ef748881949d8756fb4a6dfda407bcd11c0170b41a",
+      "code": "import re\nAR_DIAC = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]\")\nTATWEEL = \"\\u0640\"\nPUNCT = re.compile(r\"[\\u061F\\u060C\\u061B!.,;:()\\[\\]\\\"'،؛؟ـ\\-—…«»<>\\/\\\\\\{\\}\\|\\+\\=\\*\\^%$#@`~_]\")\nSPACES = re.compile(r\"\\s+\")\ndef normalize(s):\n    if s is None:\n        return \"\"\n    s = str(s)\n    s = s.replace(TATWEEL, \"\")\n    s = AR_DIAC.sub(\"\", s)\n    s = PUNCT.sub(\" \", s)\n    # unify hamza forms? Replace all alef variants with bare alif?\n    # We'll map to simple forms\n    s = s.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\n    s = s.replace(\"ة\", \"ه\")  # maybe\n    s = s.replace(\"ى\", \"ي\")\n    s = s.replace(\"ؤ\", \"و\").replace(\"ئ\", \"ي\")\n    s = s.lower()\n    s = SPACES.sub(\" \", s).strip()\n    return s\n\nnorm_full_span = normalize(\"لا دين إلا الإسلام، والدين الإسلام\")\nnorm_snippet = normalize(\"لا دين إلا...ين الإسلام\")\nnorm_full_span, norm_snippet",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790074208194a36f9fb6c4c5fbfa07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967900ef288194b2b6b3f8dee38ce507bcd11c0170b41a",
+      "code": "def token_f1(a, b):\n    ta = normalize(a).split()\n    tb = normalize(b).split()\n    if not ta or not tb:\n        return 0.0\n    from collections import Counter\n    ca = Counter(ta)\n    cb = Counter(tb)\n    inter = sum((ca & cb).values())\n    prec = inter / len(ta)\n    rec = inter / len(tb)\n    if prec + rec == 0:\n        return 0.0\n    return 2 * prec * rec / (prec + rec)\n\ndef lcs_ratio(a, b):\n    sa = normalize(a)\n    sb = normalize(b)\n    # approximate using difflib\n    sm = difflib.SequenceMatcher(None, sa, sb)\n    return sm.ratio()\n\ndef combined_score(a, b):\n    return 0.5 * token_f1(a, b) + 0.5 * lcs_ratio(a, b)\n\nnorm_full = \"لا دين الا الاسلام والدين الاسلام\"\nprint(norm_full)\n",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967904349c8194a08ad70e463e6ae607bcd11c0170b41a",
+      "code": "# Search in hadith for ngrams or substring matches\ncand_hadith = []\nfor rec in hadith_db:\n    text = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n    ntext = normalize(text)\n    if not ntext:\n        continue\n    # direct substring search for \"لا دين الا\" or \"الدين الاسلام\"\n    if \"لا دين الا\" in ntext or \"الدين الاسلام\" in ntext:\n        score = combined_score(norm_full, text)\n        cand_hadith.append((score, text, rec))\n        \nlen(cand_hadith)",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967908b7f48194a8e131247722b5e907bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790917488194911aab1e5cce7c6707bcd11c0170b41a",
+      "code": "keys = [\"hadithTxt\", \"Matn\"]\ndef iter_texts():\n    for rec in hadith_db:\n        for k in keys:\n            text = rec.get(k)\n            if text:\n                yield rec, text\n\ndef search_keywords(keywords):\n    cands = []\n    for rec, text in iter_texts():\n        ntext = normalize(text)\n        found = all(kw in ntext for kw in keywords)\n        if found:\n            cands.append((text, rec))\n    return cands\n\nfor kws in [[\"لا\", \"دين\", \"الاسلام\"], [\"الدين\", \"الاسلام\"], [\"دين\", \"الاسلام\"], [\"لا\", \"يقبل\", \"دين\", \"غير\", \"الاسلام\"], [\"لا دين\", \"الا\", \"الاسلام\"]]:\n    c = search_keywords(kws)\n    print(kws, len(c))",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791ed3b08194b904a7a405aefe0b07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791f3698819499b01797e1beb75f07bcd11c0170b41a",
+      "code": "# Show some of the candidates for the \"لا دين\" pattern\ncands = search_keywords([\"لا دين\", \"الا\", \"الاسلام\"])\nfor text, rec in cands[:20]:\n    print(\"---\")\n    print(text)\n    # print metadata maybe title\n    # print(rec.get(\"title\"))\n",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679250c808194a346f0bb6d13eae707bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792bdda08194a2ad78c116e84ac907bcd11c0170b41a",
+      "code": "q_cands = []\nfor rec in quran:\n    text = rec[\"ayah_text\"]\n    if \"الإسلام\" in text or \"الاسلام\" in normalize(text):\n        score = combined_score(\"لا دين إلا الإسلام، والدين الإسلام\", text)\n        q_cands.append((score, text, rec))\n# sort by highest score\nq_cands_sorted = sorted(q_cands, key=lambda x: -x[0])\nq_cands_sorted[:10]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792edd708194bbe05a88e9d4ee5007bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967932773081948a37f6310cd2776907bcd11c0170b41a",
+      "code": "def find_texts_containing(phrase, db_texts):\n    results = []\n    nphrase = normalize(phrase)\n    for rec, text in db_texts():\n        if nphrase in normalize(text):\n            results.append((text, rec))\n    return results\n\n# Function to generate hadith texts\ndef hadith_texts():\n    for rec in hadith_db:\n        text = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n        if text:\n            yield rec, text\n\nfind_texts_containing(\"لا دين الا الاسلام\", hadith_texts)[:5]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967939a2dc81949caaf4ae6b62ab8d07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967939e1988194828a7004ded3760907bcd11c0170b41a",
+      "code": "find_texts_containing(\"لا دين إلا\", hadith_texts)[:5]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793cff048194893dd6ce14e815cd07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793d297c8194a8626ae79cad500407bcd11c0170b41a",
+      "code": "find_texts_containing(\"الدين الإسلام\", hadith_texts)[:5]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679405ac88194b510aa4d036a96c307bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967940938c8194a09fd14019e5997207bcd11c0170b41a",
+      "code": "find_texts_containing(\"الدين الاسلام\", hadith_texts)[:5]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967943eacc81948d6a52d3bdde66fa07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679478294819494ea32c6a539c52607bcd11c0170b41a",
+      "code": "full_span = \"لا دين إلا الإسلام، والدين الإسلام\"\n\ndef top_similar(db_texts, full_span, topn=10):\n    best = []\n    for rec, text in db_texts():\n        score = combined_score(full_span, text)\n        best.append((score, text, rec))\n    best_sorted = sorted(best, key=lambda x: -x[0])[:topn]\n    return best_sorted\n\ntop_hadith = top_similar(hadith_texts, full_span, topn=20)\n[(s, t[:200]) for s,t,_ in top_hadith[:10]]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967954023881949d27f22c50b821ba07bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795497d48194bd081bd38fca18e507bcd11c0170b41a",
+      "code": "def quran_texts():\n    for rec in quran:\n        yield rec, rec[\"ayah_text\"]\n\ntop_quran = top_similar(quran_texts, full_span, topn=20)\n[(s, t) for s,t,_ in top_quran[:10]]",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967957c85881949f723a50b8d32af607bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795fbc808194b0a9e6357d5ec67207bcd11c0170b41a",
+      "code": "# Let's compute combined similarity between the phrase and two candidate truths:\nA = \"لا دين إلا الإسلام، والدين الإسلام\"\nc1 = \"إِنَّ الدِّينَ عِنْدَ اللَّهِ الْإِسْلَامُ\"\nc2 = \"وَمَنْ يَبْتَغِ غَيْرَ الْإِسْلَامِ دِينًا فَلَنْ يُقْبَلَ مِنْهُ\"\nc3 = \"الدين النصيحة\"\nfor c in [c1,c2,c3]:\n    print(c, combined_score(A,c))",
+      "container_id": "cntr_689678d48fe48190830d6fda2c337df2085dad553b5720eb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796292908194b7b73cc02469b8c207bcd11c0170b41a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967963a2688194bb46fe501d9d651507bcd11c0170b41a",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 118458,
+    "input_tokens_details": {
+      "cached_tokens": 102608
+    },
+    "output_tokens": 4437,
+    "output_tokens_details": {
+      "reasoning_tokens": 4416
+    },
+    "total_tokens": 122895
+  },
+  "user": null,
+  "store": false
+}

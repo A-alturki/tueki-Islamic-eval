@@ -1,0 +1,199 @@
+{
+  "id": "resp_6896726da3b48195ae0ca594097e59d90575220c868b2fb5",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689672739a58819591f72580116ffe540575220c868b2fb5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967279900081959b8da5f096058c250575220c868b2fb5",
+      "code": "import json, re, unicodedata, pandas as pd\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nhadith = load_json('/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json')\r\nlen(hadith), list(hadith[0].keys())[:10]",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727f40ec81959991094eb9a7bbc20575220c868b2fb5",
+      "code": "# Build a searchable dataframe with matn text combined\r\nimport pandas as pd, re, unicodedata\r\n\r\ndf = pd.DataFrame(hadith)\r\ndf['text'] = df['Matn'].fillna('') + ' ' + df['hadithTxt'].fillna('')\r\nlen(df), df.columns[:10]",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672826894819596fc4667309602da0575220c868b2fb5",
+      "code": "# normalization function\r\nimport re\r\ndef normalize_ar(s):\r\n    if not isinstance(s, str):\r\n        return ''\r\n    s = re.sub(r'[ًٌٍَُِّْـٰ]', '', s)  # remove harakat and tatweel and dagger alif\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ى','ي').replace('ؤ','و').replace('ئ','ي')\r\n    s = re.sub(r'[^\\u0621-\\u063A\\u0641-\\u064A\\s]', ' ', s)  # remove punctuation/others\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\nnorm_query = normalize_ar(\"لا زواجَ لِأُختَيها\")\r\nnorm_query",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967286755481958e5c357bf2bb01b40575220c868b2fb5",
+      "code": "# Search for close matches by tokens\r\ntokens = set(norm_query.split())\r\ncandidates = []\r\nfor i, txt in enumerate(df['text']):\r\n    n = normalize_ar(txt)\r\n    if not n:\r\n        continue\r\n    # simple overlap count\r\n    overlap = len(tokens & set(n.split()))\r\n    if 'اخت' in n or 'اختها' in n or 'اخت' in tokens:\r\n        pass\r\n    if overlap >= 2:\r\n        candidates.append((i, overlap, n[:120], txt[:200]))\r\nlen(candidates)",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967293ad0c81958726e13a678755ad0575220c868b2fb5",
+      "code": "candidates[:1]",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967295797c8195869fc505039f5ae80575220c868b2fb5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967295ed208195aeba31e5e38166160575220c868b2fb5",
+      "code": "patterns = [\r\n    \"لا تنكح المرأة على عمتها\",\r\n    \"لا تُنكَح المرأة على عمتها\",\r\n    \"لا تنكح المرأة على خالتها\",\r\n    \"لا يجمع بين المرأة وعمتها\",\r\n    \"لا يجمع بين المرأة وخالتها\",\r\n    \"لا تنكح المرأة على عمتها ولا على خالتها\",\r\n    \"لا يجمع بين المرأة وعمتها ولا بين المرأة وخالتها\",\r\n]\r\nmatches = []\r\nfor i, txt in enumerate(df['text'].fillna('')):\r\n    for p in patterns:\r\n        if p in txt:\r\n            matches.append((i, txt))\r\nlen(matches)",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967299ab7c8195aa08aa2576ec23df0575220c868b2fb5",
+      "code": "# Show a few unique matn texts of matches\r\nunique = set()\r\nout = []\r\nfor i, txt in matches:\r\n    t = txt.strip()\r\n    if t not in unique:\r\n        unique.add(t)\r\n        out.append((i, t))\r\nlen(out), out[:5]",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729be45c81959a31003355599d890575220c868b2fb5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a4124c8195ba5fb2c552b25b570575220c868b2fb5",
+      "code": "idx = 10860\r\nrow = df.iloc[idx]\r\nrow['Matn'], row['hadithTxt'][:300]",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a638688195a22713f4a6a6f0c00575220c868b2fb5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a6d1388195a044e558bd32c5f30575220c868b2fb5",
+      "code": "for idx in [10864,10866,5017,5018]:\r\n    row = df.iloc[idx]\r\n    print(idx, repr(row['Matn']))",
+      "container_id": "cntr_6896726fb23c8190919c9ba5d1db22530b97c4a6a61119f6",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a96afc8195b2305d689f7c37120575220c868b2fb5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672b11a1c81958c7098331545cfe00575220c868b2fb5",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لَا يُجْمَعُ بَيْنَ الْمَرْأَةِ وَعَمَّتِهَا ، وَلَا بَيْنَ الْمَرْأَةِ وَخَالَتِهَا . \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 35578,
+    "input_tokens_details": {
+      "cached_tokens": 22208
+    },
+    "output_tokens": 1974,
+    "output_tokens_details": {
+      "reasoning_tokens": 1088
+    },
+    "total_tokens": 37552
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

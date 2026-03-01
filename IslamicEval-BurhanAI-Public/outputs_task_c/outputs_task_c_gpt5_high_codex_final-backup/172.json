@@ -1,0 +1,228 @@
+{
+  "id": "resp_689678d2833c81968ba9b30eed223be60e4bae951411417d",
+  "created_at": 1754691794.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d6fb748196871e910fbf0030f60e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f057c88196aac4bf34b0916fbb0e4bae951411417d",
+      "code": "# Load the provided databases\r\nimport json, re, unicodedata, math\r\nfrom difflib import SequenceMatcher\r\nfrom pathlib import Path\r\n\r\nquran_path = Path(\"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\")\r\nhadith_path = Path(\"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\")\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith = json.load(f)\r\n\r\nlen(quran), len(hadith)",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f3c1a081968b2362a6d512b78c0e4bae951411417d",
+      "code": "# Helper normalization functions for Arabic search\r\nimport regex as reg\r\n\r\nARABIC_DIACRITICS = reg.compile(r\"[\\p{M}\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\nTATWEEL = \"\\u0640\"\r\n\r\ndef normalize_ar(s):\r\n    if not isinstance(s, str):\r\n        return \"\"\r\n    s = s.replace(TATWEEL, \"\")\r\n    s = ARABIC_DIACRITICS.sub(\"\", s)\r\n    # unify hamza forms\r\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ة\",\"ه\")\r\n    # punctuation removal and spaces\r\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)\r\n    s = re.sub(r\"\\s+\", \" \", s).strip()\r\n    return s\r\n\r\n# Access fields\r\nquran_ayah_texts = [x.get(\"ayah_text\",\"\") for x in quran]\r\nquran_meta = quran  # keep whole dicts for indexing/refs\r\n\r\n# For hadith, collect matn/hadithTxt\r\nhadith_texts = []\r\nfor h in hadith:\r\n    t = h.get(\"hadithTxt\") or h.get(\"Matn\") or \"\"\r\n    hadith_texts.append(t)\r\n\r\n# The given inputs\r\nfull_span = \"وَلَقَدْ خَلَقْنَا الْإِنسَانَ وَنَعْلَمُ مَا تُوَسِّسُ فِي نَفْسِهِ وَنَحْنُ أَقْر\"\r\nsnippet = \"وَلَقَدْ خ...حْنُ أَقْر\"\r\n\r\nnorm_full = normalize_ar(full_span)\r\nnorm_full",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678fbea2c81969887f67de8d8824d0e4bae951411417d",
+      "code": "# Search in Quran by obvious anchor phrase \"ولقد خلقنا الانسان\"\r\nanchor = \"ولقد خلقنا الانسان\"\r\ncandidates = []\r\nfor i, ayah in enumerate(quran_ayah_texts):\r\n    norm_ayah = normalize_ar(ayah)\r\n    if anchor in norm_ayah or \"ونحن اقرب اليه\" in norm_ayah:\r\n        # store candidate with meta\r\n        candidates.append((i, ayah, norm_ayah))\r\n\r\nlen(candidates)",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679002e7081968e7ddbeef1c4cb0c0e4bae951411417d",
+      "code": "# Show the candidate ayat (text only) to inspect\r\nfor idx, (i, ayah, norm_ayah) in enumerate(candidates, 1):\r\n    print(idx, \"->\", ayah)",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679021e308196b5ca471460c96a9e0e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790608608196b0b87d0e5f0299ba0e4bae951411417d",
+      "code": "# Compute normalized similarity between the full span and each candidate\r\ndef lcs_length(a,b):\r\n    # classic DP\r\n    n, m = len(a), len(b)\r\n    dp = [0]*(m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        for j in range(1, m+1):\r\n            temp = dp[j]\r\n            if a[i-1]==b[j-1]:\r\n                dp[j]=prev+1\r\n            else:\r\n                dp[j]=max(dp[j], dp[j-1])\r\n            prev = temp\r\n    return dp[m]\r\n\r\ndef sim_score(a,b):\r\n    a_n = normalize_ar(a)\r\n    b_n = normalize_ar(b)\r\n    l = lcs_length(a_n, b_n)\r\n    # normalize by max length to be conservative\r\n    denom = max(len(a_n), len(b_n), 1)\r\n    return l/denom, a_n, b_n, l, denom\r\n\r\nscores = []\r\nfor i, ayah, _ in candidates:\r\n    s, a_n, b_n, l, d = sim_score(full_span, ayah)\r\n    scores.append((s, ayah))\r\n    print(round(s,4), \"->\", ayah)\r\n\r\nsorted(scores, key=lambda x: -x[0])[:3]",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790b55ec8196a480cf6c0bf4a82b0e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790cb12c8196aa00e64e5ef5b1e50e4bae951411417d",
+      "code": "def sim_score_min(a,b):\r\n    a_n = normalize_ar(a)\r\n    b_n = normalize_ar(b)\r\n    l = lcs_length(a_n, b_n)\r\n    denom = min(len(a_n), len(b_n), 1)\r\n    return l/denom, a_n, b_n, l, denom\r\n\r\nfor i, ayah, _ in candidates:\r\n    s, *_ = sim_score_min(full_span, ayah)\r\n    print(round(s,4), \"->\", ayah)",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790ef6cc81968e2420979c0a5c870e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967910ad7481968e04ba0dd8abac780e4bae951411417d",
+      "code": "def sim_score_min(a,b):\r\n    a_n = normalize_ar(a)\r\n    b_n = normalize_ar(b)\r\n    l = lcs_length(a_n, b_n)\r\n    denom = max(min(len(a_n), len(b_n)), 1)\r\n    return l/denom, a_n, b_n, l, denom\r\n\r\nfor i, ayah, _ in candidates:\r\n    s, *_ = sim_score_min(full_span, ayah)\r\n    print(round(s,4), \"->\", ayah)",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967913abd081968d8d5770f309ed770e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679157b988196ad9f0654d09ba86f0e4bae951411417d",
+      "code": "# Find the exact dict entry for the candidate ayah (text equals)\r\ntarget = None\r\nfor entry in quran:\r\n    if entry.get(\"ayah_text\") == \"وَلَقَدْ خَلَقْنَا الْإِنْسَانَ وَنَعْلَمُ مَا تُوَسْوِسُ بِهِ نَفْسُهُ ۖ وَنَحْنُ أَقْرَبُ إِلَيْهِ مِنْ حَبْلِ الْوَرِيدِ\":\r\n        target = entry\r\n        break\r\n\r\ntarget",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791848cc8196accd90a39d3c15cd0e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791997dc8196bfd43c7a0e0fe0ee0e4bae951411417d",
+      "code": "# Quick check in hadith texts for the anchor phrase (should be none or irrelevant)\r\nanchor_norm = normalize_ar(\"وَلَقَدْ خَلَقْنَا الْإِنسَانَ\")\r\nhits = 0\r\nfor t in hadith_texts:\r\n    if not t: \r\n        continue\r\n    if anchor_norm in normalize_ar(t):\r\n        hits += 1\r\nhits",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791ce3308196a20ee3377b84e5440e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792325208196a16e7e272836e0040e4bae951411417d",
+      "code": "# Extract the exact ayah text to ensure no character drift\r\nexact_text = target[\"ayah_text\"]\r\nexact_text",
+      "container_id": "cntr_689678d445908190ae4fc6856e6d6ecb043e1ab4fe1ac504",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792565688196ada585c88b05528d0e4bae951411417d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896792f627c8196bd75dce44130464b0e4bae951411417d",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَلَقَدْ خَلَقْنَا الْإِنْسَانَ وَنَعْلَمُ مَا تُوَسْوِسُ بِهِ نَفْسُهُ ۖ وَنَحْنُ أَقْرَبُ إِلَيْهِ مِنْ حَبْلِ الْوَرِيدِ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 77005,
+    "input_tokens_details": {
+      "cached_tokens": 55224
+    },
+    "output_tokens": 6628,
+    "output_tokens_details": {
+      "reasoning_tokens": 4992
+    },
+    "total_tokens": 83633
+  },
+  "user": null,
+  "store": false
+}

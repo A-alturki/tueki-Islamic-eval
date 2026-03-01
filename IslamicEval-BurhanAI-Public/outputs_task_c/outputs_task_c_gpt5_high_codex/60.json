@@ -1,0 +1,704 @@
+{
+  "id": "resp_689675342bb48197ae4cdddc136afa75003dcb083cbf2a6f",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967538d3d08197a9f1999f1df879c6003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896753ea8d88197ab533acc285f7122003dcb083cbf2a6f",
+      "code": "import json, re, unicodedata, os, textwrap, difflib, math, statistics, itertools",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675411a4081978858be347fad8741003dcb083cbf2a6f",
+      "code": "import json, os, sys, pprint, pathlib, glob, itertools, re, unicodedata, math, statistics",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896754294a081978903a7b4e92d6f50003dcb083cbf2a6f",
+      "code": "quran_path = '/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json'\nhadith_path = '/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json'\nprint(os.path.exists(quran_path), os.path.exists(hadith_path))",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675460a5c8197a35cb989e9865a0e003dcb083cbf2a6f",
+      "code": "with open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\ntype(hadith_data), len(hadith_data)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675487cac81979b48bef5a2ed7f67003dcb083cbf2a6f",
+      "code": "# Inspect keys\nhadith_data[0].keys()",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754a38f48197b26aa29d52c94644003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754aeaf4819784bb48a1b189711e003dcb083cbf2a6f",
+      "code": "import re, unicodedata, string\n\n# Arabic normalization helpers\nAR_DIAC = ''.join(chr(c) for c in range(0x064B, 0x065F+1)) + '\\u0670' + '\\u06D6' + '\\u06D7' + '\\u06D8' + '\\u06D9' + '\\u06DA' + '\\u06DB' + '\\u06DC' + '\\u06DF' + '\\u06E0' + '\\u06E1' + '\\u06E2' + '\\u06E3' + '\\u06E4' + '\\u06E7' + '\\u06E8' + '\\u06EA' + '\\u06EB' + '\\u06EC' + '\\u06ED'\ntatweel = '\\u0640'\npunc = ''.join(sorted(set(string.punctuation + '،؛؟…«»“”\"\\'`´’‘–—<>[](){}')))\n\ndef normalize_ar(s):\n    if s is None:\n        return ''\n    s = str(s)\n    s = s.replace('\\u200f','').replace('\\u202a','').replace('\\u202b','').replace('\\u202c','')\n    s = ''.join(ch for ch in s if ch not in AR_DIAC)\n    s = s.replace(tatweel, '')\n    # unify hamza/alef/maksura/ta marbuta\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    # remove punctuation\n    s = ''.join(' ' if ch in punc else ch for ch in s)\n    # collapse whitespace\n    s = ' '.join(s.split())\n    return s.strip().lower()\n\ndef lcs_length(a,b):\n    # longest common subsequence length in terms of characters\n    n,m = len(a), len(b)\n    dp = [0]*(m+1)\n    for i in range(1,n+1):\n        prev = 0\n        for j in range(1,m+1):\n            temp = dp[j]\n            if a[i-1]==b[j-1]:\n                dp[j] = prev+1\n            else:\n                dp[j] = max(dp[j], dp[j-1])\n            prev = temp\n    return dp[m]\n\ndef token_f1(a,b):\n    ta = a.split()\n    tb = b.split()\n    common = 0\n    tb_counts = {}\n    for t in tb:\n        tb_counts[t]=tb_counts.get(t,0)+1\n    for t in ta:\n        if tb_counts.get(t,0)>0:\n            common+=1\n            tb_counts[t]-=1\n    if len(ta)==0 or len(tb)==0:\n        return 0.0\n    precision = common/len(ta)\n    recall = common/len(tb)\n    if precision+recall==0:\n        return 0.0\n    return 2*precision*recall/(precision+recall)\n\ndef similarity(a,b):\n    na, nb = normalize_ar(a), normalize_ar(b)\n    if not na or not nb:\n        return 0.0\n    lcs = lcs_length(na, nb)\n    lcs_norm = lcs / max(len(na), len(nb))\n    tf1 = token_f1(na, nb)\n    # combine\n    return 0.5*lcs_norm + 0.5*tf1\n\ntest = \"من قتل في سبيل الله أُجيرته من النار كل يوم\"\nnormalize_ar(test), similarity(test, test)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675542a4481978e4ed21908a00e1a003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967554bea48197a381717f0f2ac1d8003dcb083cbf2a6f",
+      "code": "target_full = \"من قتل في سبيل الله أُجيرته من النار كل يوم\"\nnorm_target = normalize_ar(target_full)\nlen(hadith_data)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675568c8c8197bbae3ade2546b1f4003dcb083cbf2a6f",
+      "code": "# Search for entries with substring match on normalized fields\nmatches = []\nfor rec in hadith_data:\n    for field in ['hadithTxt','Matn']:\n        text = rec.get(field) or ''\n        norm = normalize_ar(text)\n        if norm_target in norm:\n            matches.append((rec['hadithID'], field, text))\nlen(matches)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896755d548c819795c7bded90b74bdf003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896755dc1588197afb907027cdcac79003dcb083cbf2a6f",
+      "code": "def contains_all(norm_text, words):\n    return all(w in norm_text for w in words)\n\nwords1 = normalize_ar(\"من قتل في سبيل الله\").split()\nwords1, len(words1)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755fb5b08197b4e77d0441e031e9003dcb083cbf2a6f",
+      "code": "cands = []\nfor rec in hadith_data:\n    for field in ['hadithTxt','Matn']:\n        text = rec.get(field) or ''\n        norm = normalize_ar(text)\n        if contains_all(norm, words1):\n            cands.append((rec, field, text))\nlen(cands)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896756618848197883edcc88b7d880b003dcb083cbf2a6f",
+      "code": "# Further filter for words like 'اجار' root or 'نار' or 'كل يوم'\nfurther = []\nfor rec, field, text in cands:\n    norm = normalize_ar(text)\n    if any(w in norm for w in ['نار','اجار','اجاره','اجير','اجرت','وقي','الجنه','دخل','قتل']):\n        further.append((rec, field, text))\nlen(further)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967568bc0c8197b86a6331dfbf2509003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675691828819782206c36a9fcbdb8003dcb083cbf2a6f",
+      "code": "# Compute similarity score with each candidate\nscored = []\nfor rec, field, text in cands:\n    sim = similarity(target_full, text)\n    scored.append((sim, rec, field, text))\nscored_sorted = sorted(scored, key=lambda x: -x[0])\nscored_sorted[:10][0][0], len(scored_sorted)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756caba0819795a679c4632cf304003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757118888197811a043204b29dc7003dcb083cbf2a6f",
+      "code": "phrase = normalize_ar(\"من قتل في سبيل الله فهو شهيد\")\ncands2 = []\nfor rec in hadith_data:\n    for field in ['hadithTxt','Matn']:\n        text = rec.get(field) or ''\n        norm = normalize_ar(text)\n        if 'من قتل في سبيل الله' in norm and 'فهو شهيد' in norm:\n            cands2.append((rec, field, text))\nlen(cands2)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967577384c8197b74742cc8565d168003dcb083cbf2a6f",
+      "code": "cands2[:2][0][2]",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757907d481978b7328fa5e6e4fc9003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757a9e788197a81256e171f83585003dcb083cbf2a6f",
+      "code": "rec = cands2[0][0]\nrec.keys(), rec['BookID'], rec['hadithID']",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896757cb74481978444f853881016c3003dcb083cbf2a6f",
+      "code": "print(rec['Matn'])",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757ee5bc8197b59a698d5429a776003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675846dc081978c0658c9114cf8f6003dcb083cbf2a6f",
+      "code": "# Search for 'أجار' variations in hadith Matn\nvariants = ['أجار', 'أُجير', 'اجار', 'اجيره', 'أجير', 'أجاره', 'أُجِير', 'أُجِيرَ']\ndef has_variant(text):\n    nt = normalize_ar(text)\n    return any(normalize_ar(v) in nt for v in variants)\n\ncand_ajar = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or rec.get('hadithTxt') or ''\n    if has_variant(matn):\n        cand_ajar.append((rec, matn))\nlen(cand_ajar)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896758a3ff88197a1781eb7971b94b7003dcb083cbf2a6f",
+      "code": "for i,(rec, matn) in enumerate(cand_ajar[:10]):\n    print(i, rec['hadithID'], rec['BookID'])\n    print(matn)\n    print('-'*50)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758c98448197814aa6091e5df250003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758e2f6c8197a496b8488984d2dd003dcb083cbf2a6f",
+      "code": "# search for 'من النار' hadith with 'قتل' or 'قاتل' and 'سبيل الله'\nres = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'من النار' in norm and 'سبيل الله' in norm and ('قتل' in norm or 'قاتل' in norm):\n        res.append((rec, matn))\nlen(res)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896759289a88197bc37af99dfac240e003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967592f1b88197bdb05766d5bffa9b003dcb083cbf2a6f",
+      "code": "# search for 'صام يوما في سبيل الله' to check how 'النار' appears\nres2 = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'صام يوما في سبيل الله' in norm and ('نار' in norm):\n        res2.append((rec, matn))\nlen(res2)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675970c9c8197afba00faff98ffbd003dcb083cbf2a6f",
+      "code": "res2[:3]",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967598f7c88197b6c23dc3dfbdbba7003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896759bfe588197858edae175d6ca9f003dcb083cbf2a6f",
+      "code": "cand = \"مَنْ قُتِلَ فِي سَبِيلِ اللهِ فَهُوَ شَهِيدٌ\"\nsimilarity(target_full, cand)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896759e09188197923af54186bacbb8003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896759f3a108197ade1af462c6a6040003dcb083cbf2a6f",
+      "code": "# search for 'أجار' or 'أُجير' with 'النار'\nfound = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    if ('النار' in matn) and ('أجار' in matn or 'أُجير' in matn or 'أَجَار' in matn or 'أَجِير' in matn):\n        found.append((rec, matn))\nlen(found)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675a3156c8197aeeca864499705bf003dcb083cbf2a6f",
+      "code": "# Normalized search \nfound2 = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'النار' in norm and ('اجار' in norm or 'اجير' in norm):\n        found2.append((rec, matn))\nlen(found2)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675a6e0848197bb43dc1e53dc3a2c003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675a76a0481979372c26b53372c0a003dcb083cbf2a6f",
+      "code": "# search for hadith with 'حرم الله على النار' and 'سبيل الله'\nf = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'حرم' in norm and 'النار' in norm and 'سبيل الله' in norm:\n        f.append((rec, matn))\nlen(f)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675abdf0c819798b0b70d20577788003dcb083cbf2a6f",
+      "code": "for rec, matn in f:\n    print(rec['hadithID'], rec['BookID'])\n    print(matn)\n    print('---')",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675adca2c8197b214d05b8a130a61003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675b167f08197a57ccc96c58693a8003dcb083cbf2a6f",
+      "code": "cand1 = \"مَنِ اغْبَرَّتْ قَدَمَاهُ فِي سَبِيلِ اللهِ حَرَّمَهُ اللهُ عَلَى النَّارِ\"\nsimilarity(target_full, cand1)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675b3edd88197b90ae94ddbf1a8ef003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675b53b388197816560378cb1d425003dcb083cbf2a6f",
+      "code": "# search for \"من قتل في سبيل الله\" exact ascii ignoring diacritics \nnorm_phrase = normalize_ar(\"من قتل في سبيل الله\")\ncands3 = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    if norm_phrase in normalize_ar(matn):\n        cands3.append((rec, matn))\nlen(cands3)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675b9578c81979b0cacc7d711b9a9003dcb083cbf2a6f",
+      "code": "for rec, matn in cands3:\n    print(rec['hadithID'], rec['BookID'])\n    print(matn)\n    print('---')",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675bb80ec819796c3e2f2d17bdf7e003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675c0dd5c8197a08033b59d25f23b003dcb083cbf2a6f",
+      "code": "with open(quran_path, 'r', encoding='utf-8') as f:\n    quran_data = json.load(f)\nlen(quran_data), quran_data[0].keys()",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675c3a8048197829a87a640760ddc003dcb083cbf2a6f",
+      "code": "q_cands = []\nfor rec in quran_data:\n    text = rec['ayah_text']\n    norm = normalize_ar(text)\n    if 'قتلوا في سبيل الله' in norm or 'قتل في سبيل الله' in norm:\n        q_cands.append((rec, text))\nlen(q_cands)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675c750908197b408c75e967137cb003dcb083cbf2a6f",
+      "code": "for rec, text in q_cands:\n    print(rec['surah_id'], rec['ayah_id'], rec['ayah_text'])\n",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675ca1f548197bb06a07257f0c043003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675cca93481979bc79cea8efba409003dcb083cbf2a6f",
+      "code": "for rec, text in q_cands:\n    print(rec['surah_id'], rec['ayah_id'], similarity(target_full, text), text)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675cecfa881979e2b5672d878a517003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675cfe7f88197a15a0ae8eab2fe75003dcb083cbf2a6f",
+      "code": "matches_exact = []\nfor rec in hadith_data:\n    for field in ['Matn','hadithTxt']:\n        text = rec.get(field) or ''\n        if 'أُجيرته' in text or 'أجيرته' in text:\n            matches_exact.append((rec, field, text))\nlen(matches_exact)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675d242d88197a6ae2959efc9c314003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675d263b081979d0a4fd6c2cba5cb003dcb083cbf2a6f",
+      "code": "matches_var = []\nfor rec in hadith_data:\n    text = (rec.get('Matn') or '') + ' ' + (rec.get('hadithTxt') or '')\n    if any(v in text for v in ['أُجِيرَ','أُجيرَ','أجاره','أجارَه','أَجَارَه','أَجَارَ']):\n        matches_var.append((rec, text))\nlen(matches_var)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675d4ed408197927c32b87b7d268b003dcb083cbf2a6f",
+      "code": "for rec, text in matches_var[:12]:\n    print(rec['hadithID'], rec['BookID'])\n    print(text[:400])\n    print('---')",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675d79db08197904801867bfa4f0c003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675dae51481979ef4803668362b3f003dcb083cbf2a6f",
+      "code": "pattern = normalize_ar(\"أجير من النار\")\nres = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    if normalize_ar(matn).find(pattern) != -1:\n        res.append((rec, matn))\nlen(res)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675df7e488197969da62b24e30209003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675dff89c8197852e4e247ceb836c003dcb083cbf2a6f",
+      "code": "res = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'قاتل' in norm and 'سبيل الله' in norm and ('وجبت' in norm or 'الجنه' in norm):\n        res.append((rec, matn))\nlen(res)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675e44a8c8197abb9fedb8529e496003dcb083cbf2a6f",
+      "code": "for rec, matn in res[:10]:\n    print(rec['hadithID'], rec['BookID'])\n    print(matn)\n    print('---')",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675e6f4c8819790bb05b9f21dbb8c003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675e9aae48197bcc69ba1bad5d514003dcb083cbf2a6f",
+      "code": "# find hadith \"عينان لا تمسهما النار\"\ncands_eye = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    if 'عَيْنَانِ لَا تَمَسُّهُمَا النَّارُ' in matn or 'عَيْنَانِ لا تَمَسُّهُمَا النَّارُ' in matn or 'عينان لا تمسهما النار' in normalize_ar(matn):\n        cands_eye.append((rec, matn))\nlen(cands_eye)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675eec2e88197827984a7cc25fb90003dcb083cbf2a6f",
+      "code": "cands_eye",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675f1d47c8197ac0002f1871ed0f7003dcb083cbf2a6f",
+      "code": "similarity(target_full, cands_eye[0][1])",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675f41a048197b62be8fbe452ff50003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675f6461c8197b614b027082dc438003dcb083cbf2a6f",
+      "code": "# search raw string 'أجير' not the worker, but the passive morphological \"أُجير\" \"أُجِير\" \nany_hits = []\nfor rec in hadith_data:\n    text = (rec.get('Matn') or '') + ' ' + (rec.get('hadithTxt') or '')\n    if 'أُجير' in text or 'أُجِير' in text:\n        any_hits.append((rec, text))\nlen(any_hits)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675f9c0ac819787efe7692eb6bdf9003dcb083cbf2a6f",
+      "code": "any_hits",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675fbca748197875b452a0bd0e2c6003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967602c8c881979d0bfe8b92b6e8f2003dcb083cbf2a6f",
+      "code": "res_everyday = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if 'كل يوم' in norm and ('سبيل الله' in norm or 'النار' in norm):\n        res_everyday.append((rec, matn))\nlen(res_everyday)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967606fef881979b40e13f15a0a746003dcb083cbf2a6f",
+      "code": "res_everyday",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967608f5b881979ef7c19ec0014553003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896760c6eb08197bbf83de391893533003dcb083cbf2a6f",
+      "code": "# search 'hadithTxt' for the whole pattern approximated \"أُجير\" 'النار' 'سبيل الله'\nouts = []\nfor rec in hadith_data:\n    t = rec.get('hadithTxt') or ''\n    norm = normalize_ar(t)\n    if 'سبيل الله' in norm and ('نار' in norm) and ('اجار' in norm or 'اجير' in norm):\n        outs.append((rec, t))\nlen(outs)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967612a4448197a8d15a04874d0671003dcb083cbf2a6f",
+      "code": "outs[0][1][:400]",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896761544748197893df0d7d39dfbd6003dcb083cbf2a6f",
+      "code": "outs[0][0]['Matn']",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896761807f08197a818120fa41207bd003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896761cffd08197acf23e7e35f0a891003dcb083cbf2a6f",
+      "code": "cand = \"مَنْ صَامَ يَوْمًا فِي سَبِيلِ اللهِ ، بَاعَدَ اللهُ وَجْهَهُ عَنِ النَّارِ سَبْعِينَ خَرِيفًا \"\nsimilarity(target_full, cand)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896761f86a881979d2841dd9e9f30b9003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896762202dc8197b43f9dffe69ba4f4003dcb083cbf2a6f",
+      "code": "res = []\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    norm = normalize_ar(matn)\n    if ('يوم القيامه' in norm) and ('نار' in norm) and ('سبيل الله' in norm) and ('قتل' in norm):\n        res.append((rec, matn))\nlen(res)",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967625af54819791a97b3189bc61f3003dcb083cbf2a6f",
+      "code": "res",
+      "container_id": "cntr_68967535fe348190b7c8b50bcb536b420c29eadb7bb749d7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967627ccb48197a04922c2a4ce0da5003dcb083cbf2a6f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967639659c8197ac6790ab1e191bab003dcb083cbf2a6f",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 750509,
+    "input_tokens_details": {
+      "cached_tokens": 660176
+    },
+    "output_tokens": 6613,
+    "output_tokens_details": {
+      "reasoning_tokens": 6592
+    },
+    "total_tokens": 757122
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

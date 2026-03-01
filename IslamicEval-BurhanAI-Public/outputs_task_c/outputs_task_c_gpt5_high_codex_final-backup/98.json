@@ -1,0 +1,311 @@
+{
+  "id": "resp_689678d2e9508196be7f5c63c1d274f903c3a4f537143730",
+  "created_at": 1754691794.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d6fa508196b32022be643caa7203c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e890cc8196aab1a193fffcf75803c3a4f537143730",
+      "code": "import json, re, unicodedata, os, math, sys, textwrap, itertools, difflib, statistics",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ea68688196b97b3d7577cf6b4103c3a4f537143730",
+      "code": "quran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\n\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadiths = json.load(f)\n\nlen(quran), len(hadiths)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ed68888196a10baab890c9313003c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678edce48819693142249dbf8d9b703c3a4f537143730",
+      "code": "# Check first few entries for keys\nfor i in range(3):\n    print(hadiths[i].keys())",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f018fc8196abd36458a623f7d103c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f149c481968527fee6dc66985f03c3a4f537143730",
+      "code": "import re\nimport unicodedata\n\nAR_DIACRITICS = ''.join(chr(c) for c in range(0x0610, 0x061A+1)) + ''.join(chr(c) for c in range(0x064B, 0x065F+1)) + ''.join(chr(c) for c in range(0x06D6, 0x06ED+1))\nTATWEEL = '\\u0640'\nPUNCTUATION = ''.join([chr(c) for c in range(0x0600, 0x0605+1)]) + '.,;:!?\"\\'()[]{}،؛؟ـ…' + '«»' + 'ـ–—-_' + '\\n\\r\\t'\n\ndef normalize_ar(text):\n    if text is None:\n        return ''\n    # lower case\n    s = text\n    # remove diacritics\n    s = ''.join(ch for ch in s if ch not in AR_DIACRITICS)\n    # remove tatweel\n    s = s.replace(TATWEEL, '')\n    # unify alef forms to alif\n    s = re.sub('[\\u0622\\u0623\\u0625\\u0671\\u0672\\u0673\\u0675]', 'ا', s)  # different alifs\n    # unify yaa/alif maqsura\n    s = s.replace('ى', 'ي')\n    # unify taa marbuta?\n    s = s.replace('ة', 'ه')  # sometimes helpful\n    # unify ha vs ta marbuta maybe above suffices\n    # unify hamza on waw/ya/seatless to hamza\n    s = s.replace('ؤ', 'ء').replace('ئ', 'ء')\n    # remove punctuation\n    s = ''.join(ch for ch in s if ch not in PUNCTUATION)\n    # collapse whitespace\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef token_set_f1(a, b):\n    # token F1 (set-based) ignoring duplicates\n    ta = set(normalize_ar(a).split())\n    tb = set(normalize_ar(b).split())\n    if not ta and not tb:\n        return 1.0\n    if not ta or not tb:\n        return 0.0\n    inter = len(ta & tb)\n    P = inter / len(tb)\n    R = inter / len(ta)\n    if P+R == 0:\n        return 0.0\n    return 2*P*R/(P+R)\n\ndef lcs_len(a, b):\n    # compute lcs length for normalized strings\n    a = normalize_ar(a)\n    b = normalize_ar(b)\n    # Use dynamic programming with memory efficiency\n    n, m = len(a), len(b)\n    # If too long, might be heavy; but our strings small\n    dp = [0]*(m+1)\n    for i in range(1, n+1):\n        prev = 0\n        for j in range(1, m+1):\n            temp = dp[j]\n            if a[i-1] == b[j-1]:\n                dp[j] = prev+1\n            else:\n                dp[j] = max(dp[j], dp[j-1])\n            prev = temp\n    return dp[m]\n\ndef lcs_ratio(a, b):\n    a_n = normalize_ar(a)\n    b_n = normalize_ar(b)\n    l = lcs_len(a_n, b_n)\n    denom = (len(a_n) + len(b_n)) / 2 if (len(a_n)+len(b_n))>0 else 1\n    return l/denom\n\ntarget_full = \"أفضل الإيمان الحب في الله والبغض في الله\"\nnormalize_ar(target_full), lcs_ratio(target_full, target_full), token_set_f1(target_full, target_full)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fa4b408196a6468a86f7c4308203c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678faa30c8196a5c5d25a8484f07c03c3a4f537143730",
+      "code": "# Collect all hadith texts\ndef get_texts(entry):\n    texts = []\n    for field in ['hadithTxt', 'Matn']:\n        t = entry.get(field)\n        if t:\n            texts.append(t)\n    # dedup\n    return list(dict.fromkeys(texts))\n\n# Search for substring occurrences after normalization\nneedle_parts = [\n    \"أفضل الإيمان الحب في الله والبغض في الله\",\n    \"أفضل الإيمان أن تحب لله وتبغض لله\",\n    \"أوثق عرى الإيمان الحب في الله والبغض في الله\",\n    \"الحب في الله والبغض في الله\",\n    \"أوثق عرى الإيمان الحب لله والبغض لله\",  # variant\n    \"أوثق عرى الإيمان الحب في الله والبغض في الله\"\n]\ndef find_contains(phrase):\n    ph_n = normalize_ar(phrase)\n    results = []\n    for e in hadiths:\n        for t in get_texts(e):\n            if ph_n in normalize_ar(t):\n                results.append((e, t))\n                break\n    return results\n\nresults = {}\nfor phrase in needle_parts:\n    results[phrase] = find_contains(phrase)\n\n{k: len(v) for k,v in results.items()}",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679349cc08196baeab87e6e88a32903c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967934eb3c8196ad335b421103912003c3a4f537143730",
+      "code": "for e, t in results[\"الحب في الله والبغض في الله\"]:\n    print(\"ID\", e['hadithID'], \"Book\", e['BookID'])\n    print(t)\n    print(\"---\")",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967936da748196b2e9fa5638ed835003c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967939ca208196956022015d7148fa03c3a4f537143730",
+      "code": "candidate = \"أفضل الأعمال الحب في الله والبغض في الله\"\noriginal = \"أفضل الإيمان الحب في الله والبغض في الله\"\nlcs_ratio(original, candidate), token_set_f1(original, candidate), normalize_ar(candidate), normalize_ar(original)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793b94348196b14b73d20aa3aa3703c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793ed0488196a02c7c5e0231147d03c3a4f537143730",
+      "code": "# Let's print the entry with hadithID 95329\nentry_95329 = next(e for e in hadiths if e['hadithID'] == 95329)\nentry_95329.keys(), entry_95329['BookID'], entry_95329['title'][:100], entry_95329['hadithID']",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967941b00881968ca919c1f514e66203c3a4f537143730",
+      "code": "entry_95329['hadithTxt'][:400]",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679435e248196b51899d5d20e00cf03c3a4f537143730",
+      "code": "entry_95329['Matn']",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679450f588196868461b740fd6dfa03c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679499cc08196b7f570737c92171003c3a4f537143730",
+      "code": "# search for اوثق عرى\nmatches_outhaq = []\nfor e in hadiths:\n    for t in get_texts(e):\n        if 'أوثق' in t or 'اوثق' in normalize_ar(t):\n            if normalize_ar('أوثق عرى الإيمان الحب في الله والبغض في الله')[:10] in normalize_ar(t):\n                matches_outhaq.append((e, t))\nlen(matches_outhaq)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967954b80081968e7f389b403ba0f403c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967954dd448196ae923ffc37dd8a9303c3a4f537143730",
+      "code": "def search_text_phrase(phrase):\n    phn = normalize_ar(phrase)\n    res = []\n    for e in hadiths:\n        for t in get_texts(e):\n            if phn in normalize_ar(t):\n                res.append((e, t))\n                break\n    return res\n\nouts = search_text_phrase(\"أوثق عرى الإيمان\")\nlen(outs)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679602f948196b3b9d1df784735c503c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967960c9ec8196a6e7332a94caa99e03c3a4f537143730",
+      "code": "outs = search_text_phrase(\"أفضل الإيمان\")\nlen(outs)",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796aee588196885064f90d50733103c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796b2550819696e1577601f1277403c3a4f537143730",
+      "code": "def search_norm_substring(s):\n    phn = normalize_ar(s)\n    res=[]\n    for e in hadiths:\n        for t in get_texts(e):\n            t_n = normalize_ar(t)\n            if phn in t_n:\n                res.append((e,t))\n                break\n    return res\n\nlen(search_norm_substring(\"افضل الايمان\")), len(search_norm_substring(\"الحب في الله\")), len(search_norm_substring(\"البغض في الله\"))",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679884504819695572ed3f2962b1f03c3a4f537143730",
+      "code": "for e,t in search_norm_substring(\"الحب في الله\"):\n    print(e['hadithID'], e['BookID'])\n    print(t)\n    print(\"----\")",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967992b3408196adf2139cadab88a303c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679a337208196846ddcca51ecb73903c3a4f537143730",
+      "code": "repr(entry_95329['Matn']), entry_95329['Matn']",
+      "container_id": "cntr_689678d492ec8190b2605d7dd9712ac80a73ff608d8ee346",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a52724819682abb7b2614c7de503c3a4f537143730",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679b6baf48196af785ef2e6af0bdb03c3a4f537143730",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"أَفْضَلُ الْأَعْمَالِ الْحُبُّ فِي اللهِ وَالْبُغْضُ فِي اللهِ . \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 96366,
+    "input_tokens_details": {
+      "cached_tokens": 81192
+    },
+    "output_tokens": 5815,
+    "output_tokens_details": {
+      "reasoning_tokens": 5760
+    },
+    "total_tokens": 102181
+  },
+  "user": null,
+  "store": false
+}

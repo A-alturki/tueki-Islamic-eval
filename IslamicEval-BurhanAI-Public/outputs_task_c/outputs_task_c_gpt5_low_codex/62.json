@@ -1,0 +1,168 @@
+{
+  "id": "resp_6896726e015481939e09f7b5348d3c120e016df2c88d6bce",
+  "created_at": 1754690158.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689672748dd88193aad1746a77eb0bb60e016df2c88d6bce",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967274df2c81939f3b1475c396b6490e016df2c88d6bce",
+      "code": "# Load the provided JSON files and search for hadiths similar to the given span.\r\nimport json, re, unicodedata, itertools\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    hadith_data = json.load(f)\r\n\r\nwith open(quran_path, 'r', encoding='utf-8') as f:\r\n    quran_data = json.load(f)\r\n\r\ndef normalize_ar(s):\r\n    if not isinstance(s, str):\r\n        return \"\"\r\n    # remove tashkeel and tatweel\r\n    s = re.sub(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]', '', s)\r\n    s = s.replace('ـ', '')\r\n    # unify hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه')\r\n    # remove punctuation\r\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)\r\n    # normalize spaces\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\nquery_full = \"من قتل في سبيل الله أُجيرته من النار كل يوم وشهر وشهر\"\r\nquery_snip = \"من قتل في ... وشهر وشهر\"\r\n\r\nnorm_query = normalize_ar(query_full)\r\n\r\n# Collect hadith matn fields\r\ntexts = []\r\nfor item in hadith_data:\r\n    for key in ['hadithTxt','Matn']:\r\n        if key in item and isinstance(item[key], str) and item[key].strip():\r\n            texts.append(item[key])\r\n\r\n# Search for direct normalized substring matches\r\nmatches = []\r\nfor t in texts:\r\n    nt = normalize_ar(t)\r\n    if norm_query in nt:\r\n        matches.append(t)\r\n\r\nlen(matches), matches[:5]",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672852f2c81939765f75ea298e4ac0e016df2c88d6bce",
+      "code": "# Let's search for parts of the query: base phrase \"من قتل في سبيل الله\" and \"أجيرته من النار\" and \"كل يوم\" and \"شهر\"\r\nparts = [\"من قتل في سبيل الله\", \"أُجيرته من النار\", \"اجيرته من النار\", \"كل يوم\", \"وشهر\", \"يوم القيامه\", \"اجير من النار\", \"أجير من النار\"]\r\nnorm_parts = [normalize_ar(p) for p in parts]\r\n\r\ncandidates = []\r\nfor t in texts:\r\n    nt = normalize_ar(t)\r\n    score = sum(1 for p in norm_parts if p and p in nt)\r\n    if score>=2:\r\n        candidates.append((score, t))\r\n\r\n# Show top candidates\r\ncandidates_sorted = sorted(candidates, key=lambda x: -x[0])\r\nlen(candidates_sorted), candidates_sorted[:20]",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728d1cf081938f4f4c13f517bc590e016df2c88d6bce",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672902ab88193bddcd0aaef5693f50e016df2c88d6bce",
+      "code": "# Search hadiths containing root 'أجر' or 'أجير' or 'أجرني' and also \"النار\"\r\nkeywords = [\"أجير\", \"أجرني\", \"أجره\", \"أجرها\", \"النار\", \"أُجير\"]\r\nnorm_kws = [normalize_ar(k) for k in keywords]\r\n\r\nhits = []\r\nfor t in texts:\r\n    nt = normalize_ar(t)\r\n    if \"النار\" in nt and any(k in nt for k in [\"اجير\",\"اجرني\",\"اجره\",\"اجار\",\"يجير\"]):\r\n        hits.append(t)\r\n\r\nlen(hits)",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729794fc81938cd1d86f707e675b0e016df2c88d6bce",
+      "code": "# Show hits snippets\r\nfor i, t in enumerate(hits[:50]):\r\n    print(i, t)",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967299c64881938ac5667c85b0642f0e016df2c88d6bce",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729a81148193916d7f4815439a760e016df2c88d6bce",
+      "code": "# Search for \"من قتل في سبيل الله\" in hadith corpus\r\nphrase = normalize_ar(\"من قتل في سبيل الله\")\r\nresults = []\r\nfor t in texts:\r\n    if normalize_ar(phrase) in normalize_ar(t):\r\n        results.append(t)\r\nlen(results)",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672a149e08193ba1bb012a8aec93d0e016df2c88d6bce",
+      "code": "for t in results:\r\n    print(t, \"\\n---\\n\")",
+      "container_id": "cntr_689672711d48819090b9bb835ec637000fac2f1e63729bf9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a34668819385ae9f32f88d5f350e016df2c88d6bce",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672a892c08193b4e39d95fa685a900e016df2c88d6bce",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 64924,
+    "input_tokens_details": {
+      "cached_tokens": 49048
+    },
+    "output_tokens": 1405,
+    "output_tokens_details": {
+      "reasoning_tokens": 448
+    },
+    "total_tokens": 66329
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

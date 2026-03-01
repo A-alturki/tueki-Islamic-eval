@@ -1,0 +1,242 @@
+{
+  "id": "resp_689708a153a081938f9121a280e2e8f30bff82f5eb22e8e7",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5eb5c8193834758849bc67c9d0bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a894d48193af328183c7992b170bff82f5eb22e8e7",
+      "code": "# Load the provided JSON files and inspect structure\r\nimport json, os, re, sys\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\nprint(\"Files exist:\", os.path.exists(qpath), os.path.exists(hpath))\r\n\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\nwith open(hpath, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\n\r\n# Show sizes and sample entries\r\nprint(\"Quranic verses entries:\", len(qdata))\r\nprint(\"First quran entry sample keys:\", list(qdata[0].keys())[:20])\r\nprint(\"Hadith entries:\", len(hdata))\r\nprint(\"Sample hadith keys:\", list(hdata[0].keys())[:50])\r\n\r\n# Print first few hadith entries to inspect structure (but limit output)\r\nfor i, entry in enumerate(hdata[:5]):\r\n    print(\"\\n--- Hadith Entry\", i, \"keys ---\")\r\n    for k in entry.keys():\r\n        print(k, \":\", (entry[k][:120] + '...') if isinstance(entry[k], str) and len(entry[k])>120 else entry[k])\r\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ad0c748193bce7a6dc5a2068270bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b684388193b9a51aa4df3b163e0bff82f5eb22e8e7",
+      "code": "# Build normalization and search functions\r\n\r\nimport re, unicodedata\r\nfrom difflib import SequenceMatcher\r\nfrom collections import Counter, defaultdict\r\ndef strip_tashkeel(text):\r\n    # remove Arabic diacritics - Tashkeel\r\n    # Arabic diacritics unicode range: 0x0610-0x061A, 0x064B-0x065F, 0x06D6-0x06ED etc\r\n    # We'll use regex for known combining marks\r\n    tashkeel_regex = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED\\u0670\\u06E0\\u06E1\\u06E2\\u06E3\\u06E4\\u06E5\\u06E6\\u06E7\\u06E8\\u06E9\\u06EA\\u06EB\\u06EC\\u06ED]')\r\n    return tashkeel_regex.sub('', text)\r\n\r\ndef normalize_arabic(text):\r\n    # remove tashkeel, tatweel (kashida), punctuation, unify hamza variants, remove non-letter digits, lower, collapse spaces\r\n    if text is None:\r\n        return \"\"\r\n    s = text\r\n    s = strip_tashkeel(s)\r\n    # remove tatweel\r\n    s = s.replace('\\u0640','')\r\n    # normalize different hamza forms to bare hamza (ا)? common practice to unify: إأآء to ا or ء? We'll map\r\n    # Map: أ إ آ to ا, ؤ ئ to ء ? but instructions said unify hamza. We'll convert all hamza variants to ا or ء? \r\n    # We'll map 'آ'->'ا', 'أ'->'ا', 'إ'->'ا', 'ٱ'->'ا'\r\n    s = s.replace('آ','ا').replace('أ','ا').replace('إ','ا').replace('ٱ','ا')\r\n    # Map 'ؤ' and 'ئ' and 'ء' to 'ء' (keep hamza sign)\r\n    # But 'ؤ' often used in middle of word; we unify to 'ء'\r\n    s = s.replace('ؤ','ء').replace('ئ','ء')\r\n    # Remove punctuation and diacritics-like characters\r\n    s = re.sub(r'[^\\w\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF\\sء]', ' ', s)\r\n    # remove ASCII underscore and numbers etc via \\w includes underscore and digits, so remove digits and underscore\r\n    s = re.sub(r'[_0-9A-Za-z]', ' ', s)\r\n    # collapse spaces\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    # lower - though Arabic has no case, but apply lower for any Latin\r\n    s = s.lower()\r\n    return s\r\n\r\n# Extract the response_context string\r\nresponse_context = \"\"\" العشرة المبشرون بالجنة هم الصحابة الذين بشرهم رسول الله صلى الله عليه وسلم بدخول الجنة. وقد ورد ذكرهم في حديث واحد رواه الترمذي وابن ماجه عن عبد الرحمن بن عوف رضي الله عنه. قال رسول الله صلى الله عليه وسلم: \"أبو بكر في الجنة، وعمر في الجنة، وعثمان في الجنة، وعلي في الجنة، وطلحة في الجنة، والزبير في الجنة، وعبد الرحمن بن عوف في الجنة، وسعد بن أبي وقاص في الجنة، وسعيد بن زيد في الجنة وأبو عبيدة بن الجراح في الجنة\". (صحيح الترمذي).\nهؤلاء الصحابة هم من أقرب الناس إلى رسول الله صلى الله عليه وسلم، وقد تميزوا بإيمانهم القوي وتفانيهم في خدمة الإسلام والمسلمين. قال الله تعالى في كتابه الكريم: \"وَالَّذِينَ آمَنُوا وَهَاجَرُوا وَجَاهَدُوا فِي سَبِيلِ اللَّهِ وَالَّذِينَ آوَوْا وَنَصَرُوا أُولَٰئِكَ هُمُ الْمُؤْمِنُونَ حَقًّا لَهُم مَّغْفِرَةٌ وَرِزْقٌ كَرِيمٌ\" (الأنفال: 74).\nكما قال رسول الله صلى الله عليه وسلم: \"خير القرون قرني ثم الذين يلونهم ثم الذين يلونهم\" (رواه البخاري ومسلم).\nهؤلاء الصحابة هم من أوائل من أسلموا، وقد ضحوا بالغالي والنفيس في سبيل نشر الإسلام والدفاع عنه. نسأل الله أن يجزيهم خير الجزاء وأن يجعلنا من أتباعهم.\"\"\"\r\n\r\nspan_start = 209\r\nspan_end = 415\r\nspan = response_context[span_start:span_end]\r\nspan, len(response_context), span_start, span_end\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c184fc8193ae195b76fafc7a310bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c41d808193b109811a18d594260bff82f5eb22e8e7",
+      "code": "# Prepare normalized span\r\nnorm_span = normalize_arabic(span)\r\nnorm_span[:200], len(norm_span)\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c81b8c81938605249f6a8126d60bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ccdb5481938ec188351a09e0090bff82f5eb22e8e7",
+      "code": "repr(norm_span)\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ce71f881939ddddec42865b80a0bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d3c65c8193a4cec705e508d0080bff82f5eb22e8e7",
+      "code": "# Improved normalization function\r\nimport unicodedata\r\ndef normalize_arabic2(text):\r\n    if text is None:\r\n        return \"\"\r\n    s = text\r\n    s = strip_tashkeel(s)\r\n    s = s.replace('\\u0640','') # tatweel\r\n    s = s.replace('آ','ا').replace('أ','ا').replace('إ','ا').replace('ٱ','ا')\r\n    s = s.replace('ؤ','ء').replace('ئ','ء')\r\n    # Keep letters and spaces and 'ء'\r\n    out_chars = []\r\n    for ch in s:\r\n        cat = unicodedata.category(ch)\r\n        if ch.isspace():\r\n            out_chars.append(' ')\r\n        elif ch == 'ء':\r\n            out_chars.append(ch)\r\n        elif cat.startswith('L'):\r\n            out_chars.append(ch)\r\n        # else skip\r\n    out = ''.join(out_chars)\r\n    out = re.sub(r'\\s+', ' ', out).strip()\r\n    out = out.lower()\r\n    return out\r\n\r\nnorm_span2 = normalize_arabic2(span)\r\nrepr(norm_span2), len(norm_span2)\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d7d1fc8193a5f9bc580f3cfe4f0bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708da0e008193941c74e81f25562e0bff82f5eb22e8e7",
+      "code": "from difflib import SequenceMatcher\r\ncandidates = []\r\nfor i, entry in enumerate(hdata):\r\n    # choose text: prefer Matn if not None and length > 0 else use hadithTxt\r\n    txt = None\r\n    if entry.get('Matn'):\r\n        txt = entry.get('Matn')\r\n    else:\r\n        txt = entry.get('hadithTxt')\r\n    if not txt:\r\n        continue\r\n    ntxt = normalize_arabic2(txt)\r\n    # compute similarity with norm_span2\r\n    ratio = SequenceMatcher(None, norm_span2, ntxt).ratio()\r\n    if ratio > 0.45:\r\n        candidates.append((ratio, i, entry.get('title'), txt[:90].replace('\\n',' ')))\r\n# sort by ratio desc\r\ncandidates_sorted = sorted(candidates, key=lambda x: -x[0])\r\nlen(candidates_sorted), candidates_sorted[:15]\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708fe0d548193931cbe5378d2fc980bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ff56408193874f02beabe3ccf20bff82f5eb22e8e7",
+      "code": "idx = 30226\r\nentry = hdata[idx]\r\nentry.keys(), entry.get('hadithID'), entry.get('BookID'), entry.get('title'), bool(entry.get('Matn')), len(entry.get('Matn') or \"\")\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68970901a6a4819394a3b55cd356e7b30bff82f5eb22e8e7",
+      "code": "# show the Matn exactly\r\nmatn = entry.get('Matn')\r\nmatn\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709038d648193a5bf8fcfe906b4ff0bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897090af59c8193acb998cf218446970bff82f5eb22e8e7",
+      "code": "# compute token F1 between norm_span2 and normalized candidate\r\ncandidate_norm = normalize_arabic2(matn)\r\ntokens_span = norm_span2.split()\r\ntokens_cand = candidate_norm.split()\r\noverlap = Counter(tokens_span) & Counter(tokens_cand)\r\noverlap_count = sum(overlap.values())\r\nprecision = overlap_count / len(tokens_cand)\r\nrecall = overlap_count / len(tokens_span)\r\nf1 = 2*precision*recall/(precision+recall) if (precision+recall)>0 else 0.0\r\nlen(tokens_span), len(tokens_cand), overlap_count, precision, recall, f1, SequenceMatcher(None, norm_span2, candidate_norm).ratio()\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897090e3e848193abd2da5ed23d74ee0bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970916dd008193b7a3e555a2214cd30bff82f5eb22e8e7",
+      "code": "matn, repr(matn)\n",
+      "container_id": "cntr_689708a34fb88190aafccc8187946e42031c432dfe8468d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970918aa488193af4c75056694cce40bff82f5eb22e8e7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689709235a8c81939d3fccb7c2c11f7c0bff82f5eb22e8e7",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"أَبُو بَكْرٍ فِي الْجَنَّةِ ، وَعُمَرُ فِي الْجَنَّةِ ، وَعُثْمَانُ فِي الْجَنَّةِ ، وَعَلِيٌّ فِي الْجَنَّةِ ، وَطَلْحَةُ فِي الْجَنَّةِ ، وَالزُّبَيْرُ فِي الْجَنَّةِ ، وَعَبْدُ الرَّحْمَنِ بْنُ عَوْفٍ فِي الْجَنَّةِ ، وَسَعْدٌ فِي الْجَنَّةِ ، وَسَعِيدٌ فِي الْجَنَّةِ ، وَأَبُو عُبَيْدَةَ بْنُ الْجَرَّاحِ فِي الْجَنَّةِ \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 74558,
+    "input_tokens_details": {
+      "cached_tokens": 70968
+    },
+    "output_tokens": 6609,
+    "output_tokens_details": {
+      "reasoning_tokens": 6400
+    },
+    "total_tokens": 81167
+  },
+  "user": null,
+  "store": false
+}

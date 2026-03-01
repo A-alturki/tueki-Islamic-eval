@@ -1,0 +1,370 @@
+{
+  "id": "resp_689678d30c9c8197940b7fb83a2a70f10672e35579679341",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d74c408197903f02be2f2dfb230672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e3a51c81979b7c5177599cfaee0672e35579679341",
+      "code": "# Let's load the JSON files and inspect their structure\r\nimport json, re, unicodedata, math, itertools\r\nfrom collections import defaultdict, Counter\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_db = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_db = json.load(f)\r\n\r\ntype(quran_db), type(hadith_db)[:2], len(quran_db) if isinstance(quran_db, list) else None",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e687448197a4409d51c512453a0672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e6ff248197a76aff384c6d6f910672e35579679341",
+      "code": "# Inspect a few hadith entries to know key names\r\nhadith_db[:2]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e8cb448197b42f51381aee30540672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ea822c81979fd562e612960eda0672e35579679341",
+      "code": "import re, unicodedata\r\n\r\n# Arabic diacritics range and tatweel\r\narabic_diacritics = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\ntatweel_re = re.compile(r\"[\\u0640]\")\r\n\r\ndef normalize_ar(s):\r\n    if s is None:\r\n        return \"\"\r\n    # remove diacritics\r\n    s = arabic_diacritics.sub(\"\", s)\r\n    # remove tatweel\r\n    s = tatweel_re.sub(\"\", s)\r\n    # normalize hamza/alef variants\r\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ٱ\",\"ا\")\r\n    s = s.replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ى\",\"ي\")\r\n    s = s.replace(\"ة\",\"ه\")  # maybe unify ta marbuta to ha for matching\r\n    # remove punctuation and bracketlike and quotes\r\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)\r\n    # remove tashkeel leftover marks (redundant?)\r\n    s = arabic_diacritics.sub(\"\", s)\r\n    # collapse spaces\r\n    s = re.sub(r\"\\s+\", \" \", s).strip()\r\n    return s\r\n\r\ndef strip_punct_space(s):\r\n    return re.sub(r\"\\s+\", \" \", re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)).strip()\r\n\r\nsnippet_full = \"لا ربا ولو كان الذهب بالذهب\"\r\nnorm_snippet = normalize_ar(snippet_full)\r\nsnippet_full, norm_snippet",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f72d488197964c7f9277c651b80672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f7f3488197b62fa5e283604b6f0672e35579679341",
+      "code": "# Prepare list of hadith texts with both fields\r\nhadith_texts = []\r\nfor h in hadith_db:\r\n    # choose Matn if present else hadithTxt\r\n    text = (h.get(\"Matn\") or \"\") + \" \" + (h.get(\"hadithTxt\") or \"\")\r\n    hadith_texts.append((h, text))\r\n\r\n# search naive for 'الذهب بالذهب'\r\ncands = []\r\nfor h, text in hadith_texts:\r\n    if \"الذهب بالذهب\" in text:\r\n        cands.append((h, text))\r\nlen(cands)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fbb4a88197b7795f326ec483b40672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678fc0560819782a44c9cd006e8320672e35579679341",
+      "code": "# Show sample candidates and find \"لا ربا ولو كان الذهب بالذهب\"\r\nmatches = []\r\nfor h, text in cands:\r\n    if \"لا ربا\" in text and \"الذهب بالذهب\" in text:\r\n        matches.append((h, text))\r\nlen(matches)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fdee208197b77486b5d756f38f0672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678fe95148197971060527ebeaa490672e35579679341",
+      "code": "# Search for hadith with \"لا ربا\"\r\nno_riba_entries = []\r\nfor h, text in hadith_texts:\r\n    if \"لا ربا\" in text:\r\n        no_riba_entries.append((h, text))\r\nlen(no_riba_entries)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790092688197a76c02f1573ff7940672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967900cf7c8197ad5a5d190e1a110b0672e35579679341",
+      "code": "[(h['hadithID'], h.get('Matn') or h.get('hadithTxt')[:200]) for h, text in no_riba_entries[:10]]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790343cc8197931e87f5381320950672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967912198881978a926d1ce0cb13410672e35579679341",
+      "code": "# Search hadith texts for phrases containing 'الذهب بالذهب' and 'ربا' or patterns\r\ndef search_contains(substr):\r\n    res=[]\r\n    for h, text in hadith_texts:\r\n        if substr in text:\r\n            res.append((h, text))\r\n    return res\r\n\r\nalve = search_contains(\"الذهب بالذهب\")\r\nlen(alve)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967917be708197ade2346f6537fbd60672e35579679341",
+      "code": "# explore some of them to see canonical matn lines\r\nsamples=[]\r\nfor h, text in alve[:30]:\r\n    mt = h.get(\"Matn\")\r\n    if mt and \"الذهب بالذهب\" in mt:\r\n        samples.append((h['hadithID'], mt))\r\nlen(samples), samples[:5]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967919a8848197a3601a5da38bb22c0672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791ee8ac8197adb4380cc7caf98b0672e35579679341",
+      "code": "gold_matn = []\r\nfor h in hadith_db:\r\n    mt = h.get(\"Matn\")\r\n    if mt and \"الذَهَب\" in mt or mt and \"الذهب\" in mt:\r\n        gold_matn.append((h['hadithID'], mt))\r\nlen(gold_matn)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967920bbbc81978f3f20f0e4bb0b4e0672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792bd87c8197a20549641146e0050672e35579679341",
+      "code": "# search \"لا تبيعوا الذهب بالذهب\"\r\nres1 = search_contains(\"لا تبيعوا الذهب بالذهب\")\r\nlen(res1)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792d888c8197842df607d905629b0672e35579679341",
+      "code": "# show a couple of those hadith texts for matn extraction\r\nfor i,(h,text) in enumerate(res1[:5]):\r\n    print(i, h['hadithID'])\r\n    print(text[:500])\r\n    print(\"-----\")",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792ff0f08197b906a9b009f2fbe50672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967940373881979a2a3cee0f37f4c10672e35579679341",
+      "code": "# Build normalized corpus of hadith text (both fields)\r\nnorm_hadith_texts = []\r\nfor h, text in hadith_texts:\r\n    norm = normalize_ar(text)\r\n    norm_hadith_texts.append((h, text, norm))\r\n\r\n# search for normalized phrase exactly\r\nnorm_phrase = normalize_ar(\"لا ربا ولو كان الذهب بالذهب\")\r\nexact = []\r\nfor h,text,norm in norm_hadith_texts:\r\n    if norm_phrase in norm:\r\n        exact.append((h,text))\r\nlen(exact)",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967944e74481979ded26ad62d2ad860672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967946b3288197b4ad4b4b7ec5d9ed0672e35579679341",
+      "code": "# helper functions\r\ndef lcs(a,b):\r\n    # dynamic programming\r\n    na, nb = len(a), len(b)\r\n    dp = [0]*(nb+1)\r\n    for i in range(1, na+1):\r\n        prev = 0\r\n        for j in range(1, nb+1):\r\n            temp = dp[j]\r\n            if a[i-1]==b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                if dp[j] < dp[j-1]:\r\n                    dp[j] = dp[j-1]\r\n            prev = temp\r\n    return dp[nb]\r\n\r\ndef lcs_ratio(a,b):\r\n    # normalized by max length\r\n    l = lcs(a,b)\r\n    return l / max(len(a), len(b)) if max(len(a),len(b))>0 else 0\r\n\r\ndef token_f1(a,b):\r\n    # tokens splitted by space\r\n    ta = a.split()\r\n    tb = b.split()\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    common = sum((ca & cb).values())\r\n    precision = common / sum(cb.values()) if sum(cb.values())>0 else 0\r\n    recall = common / sum(ca.values()) if sum(ca.values())>0 else 0\r\n    if precision+recall==0:\r\n        f1 = 0\r\n    else:\r\n        f1 = 2*precision*recall/(precision+recall)\r\n    return f1\r\n\r\nphrase = norm_phrase\r\ncandidates=[]\r\n# Consider candidate options: beginning of hadithTxt up to first \" - حدثنا \" or chain? But we can just take the first sentence before \"  باب\" or before ' - حدثنا '\r\n# We'll compute for entries containing 'الذهب بالذهب'\r\nfor h,text,norm in norm_hadith_texts:\r\n    if \"الذهب بالذهب\" in text or \"لا ربا\" in text:\r\n        # candidate portion: let's take first 200 chars of text (should include matn if present at start)\r\n        cand_text = text.strip()\r\n        # sometimes hadithTxt begins with the matn; we can extract until \"  باب\" or until a number delim or \" - حدثنا\"\r\n        stop_idx = min([\r\n            idx for idx in [\r\n                cand_text.find(\"  باب\"),\r\n                cand_text.find(\"باب \"),\r\n                cand_text.find(\" - حدث\"),\r\n                cand_text.find(\" - وحدث\"),\r\n                cand_text.find(\"  \"),\r\n            ] if idx!=-1\r\n        ] + [len(cand_text)])\r\n        matn_guess = cand_text[:stop_idx].strip()\r\n        norm_cand = normalize_ar(matn_guess)\r\n        L=lcs_ratio(phrase, norm_cand)\r\n        F=token_f1(phrase, norm_cand)\r\n        candidates.append((L,F,h['hadithID'], matn_guess))\r\n\r\n# sort by LCS ratio descending\r\ncandidates_sorted = sorted(candidates, key=lambda x:(x[0], x[1]), reverse=True)\r\ncandidates_sorted[:10]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794d94848197a86db118efa369a60672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794f5bf48197983a07695e2d7adb0672e35579679341",
+      "code": "# search for \"ولو كان الذهب\"\r\nterms = [\"ولو كان الذهب\", \"لا ربا ولو\", \"ولو كان الذهب بالذهب\"]\r\nfor t in terms:\r\n    matches = [ (h['hadithID'], h.get('Matn') or \"\", h.get('hadithTxt')[:200]) \r\n                for h in hadith_db if t in ((h.get('Matn') or \"\") + \" \" + (h.get('hadithTxt') or \"\")) ]\r\n    print(t, len(matches))",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967951e4b48197876109cd3da85bc20672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795a37308197a726c543b1c2b1740672e35579679341",
+      "code": "res2 = [ (h['hadithID'], h.get('hadithTxt')[:300]) for h in hadith_db if \"الذَّهَبُ بِالذَّهَبِ رِبًا\" in (h.get('hadithTxt') or \"\") or \"الذهب بالذهب ربا\" in (h.get('hadithTxt') or \"\")]\r\nlen(res2), res2[:3]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795e66b88197b15c3a37b43569fc0672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795ed0d081979e0849edd63e90530672e35579679341",
+      "code": "hid = 70456\r\n[h for h in hadith_db if h['hadithID']==hid][:1]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967960d3448197ade24d5162d023980672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967962b33c8197b0c82053f2c522450672e35579679341",
+      "code": "# find Matn entries with \"الذهب بالذهب\" and ربا\r\nmats = []\r\nfor h in hadith_db:\r\n    mt = h.get(\"Matn\") or \"\"\r\n    if \"الذَّهَبُ بِالذَّهَبِ\" in mt or \"الذهب بالذهب\" in mt:\r\n        if \"رِبًا\" in mt or \"ربا\" in mt:\r\n            mats.append((h['hadithID'], mt))\r\nlen(mats), mats[:5]",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967965ba84819797b1d0c35a5264d60672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679676ffc8197b22ac74e12312dbf0672e35579679341",
+      "code": "cand = \"الذَّهَبُ بِالذَّهَبِ رِبًا إِلَّا هَاءَ وَهَاءَ ، وَالْبُرُّ بِالْبُرِّ رِبًا إِلَّا هَاءَ وَهَاءَ ، وَالتَّمْرُ بِالتَّمْرِ رِبًا إِلَّا هَاءَ وَهَاءَ ، وَالشَّعِيرُ بِالشَّعِيرِ رِبًا إِلَّا هَاءَ وَهَاءَ . \"\r\nnorm_cand = normalize_ar(cand)\r\nl = lcs_ratio(norm_phrase, norm_cand)\r\nf1 = token_f1(norm_phrase, norm_cand)\r\nnorm_phrase, norm_cand[:80], l, f1",
+      "container_id": "cntr_689678d49fdc81908f9db18b4281949b0c7b9b7b8c954708",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796a2d208197ae8e7b83b26216b10672e35579679341",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679779b548197bcd0cce9d37409340672e35579679341",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 216294,
+    "input_tokens_details": {
+      "cached_tokens": 167504
+    },
+    "output_tokens": 9045,
+    "output_tokens_details": {
+      "reasoning_tokens": 9024
+    },
+    "total_tokens": 225339
+  },
+  "user": null,
+  "store": false
+}

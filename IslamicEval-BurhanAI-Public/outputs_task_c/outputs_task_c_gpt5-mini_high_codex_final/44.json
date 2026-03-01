@@ -1,0 +1,234 @@
+{
+  "id": "resp_689708a156d4819783663a6ce0ee2b97096c61b16cfd3832",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5e9ac8197aa29e6f57943fc6b096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a9f9008197b2354572b1abb662096c61b16cfd3832",
+      "code": "# Load the provided JSON files to inspect and search for the text.\r\nimport json, os, sys, re\r\n\r\nquran_file = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhadith_file = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\n# Check files exist\r\nprint(\"Quran file exists:\", os.path.exists(quran_file))\r\nprint(\"Hadith file exists:\", os.path.exists(hadith_file))\r\n\r\n# Load them\r\nwith open(quran_file, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\nwith open(hadith_file, \"r\", encoding=\"utf-8\") as f:\r\n    hadith = json.load(f)\r\n\r\n# Print counts and sample entries\r\nprint(\"Quran entries:\", len(quran))\r\nprint(\"Hadith entries:\", len(hadith))\r\n\r\n# Search for exact text in hadith and quran\r\ntarget = \"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّىٰ يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ\"\r\ndef find_in_list(lst, fieldnames):\r\n    hits = []\r\n    for i, item in enumerate(lst):\r\n        for field in fieldnames:\r\n            if field in item:\r\n                if item[field] == target:\r\n                    hits.append((i, field, item[field]))\r\n    return hits\r\n\r\nhits_q = find_in_list(quran, [\"ayah_text\"])\r\nhits_h = find_in_list(hadith, [\"hadithTxt\", \"Matn\"])\r\nlen(hits_q), len(hits_h), hits_q[:5], hits_h[:5]",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b0e63c819785223fa44981ba24096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b912348197b9372696cea9b164096c61b16cfd3832",
+      "code": "# Let's implement normalization and search functions, then search DB for best candidates.\r\n\r\nimport re\r\nfrom collections import Counter\r\n\r\n# Normalization function\r\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED\\u08D3-\\u08E1]\"\"\")\r\n# But to be safe, explicitly list common diacritics:\r\ndiacritics_chars = \"ًٌٍَُِّْٰ\"  # includes shadda, fathatan, dammatan, kasratan, sukun, superscript alif\r\n# Build regex to remove known diacritics and tatweel\r\ndiacritics_re = re.compile(r'[\\u064B-\\u0652\\u0670\\u06D6-\\u06ED\\u0640]')  # include tatweel \\u0640\r\n\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return \"\"\r\n    s = str(text)\r\n    # remove tashkeel (diacritics) and tatweel\r\n    s = diacritics_re.sub(\"\", s)\r\n    # unify hamza forms to bare alif\r\n    s = s.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\r\n    # replace hamza-on-ya and hamza-on-waw with ya/waw for normalization\r\n    s = s.replace(\"ئ\", \"ي\").replace(\"ؤ\", \"و\").replace(\"ء\", \"\")\r\n    # normalize alef maqsura to ya\r\n    s = s.replace(\"ى\", \"ي\")\r\n    # normalize te marbuta to ه? Many use ه for normalization; but that could reduce matches. We'll keep it as is or replace to ه\r\n    s = s.replace(\"ة\", \"ه\")\r\n    # remove punctuation and symbols\r\n    s = re.sub(r'[^\\u0600-\\u06FF\\s]', ' ', s)\r\n    # collapse spaces and strip\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    # lowercase not applicable\r\n    return s\r\n\r\n# testing normalize function\r\nsample = \"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّىٰ يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ\"\r\nprint(\"orig:\", sample)\r\nprint(\"norm:\", normalize_ar(sample))\r\n\r\n# Precompute normalized fields and search\r\ndef prepare_candidates(quran, hadith):\r\n    q_list = []\r\n    for i, item in enumerate(quran):\r\n        text = item.get(\"ayah_text\", \"\")\r\n        norm = normalize_ar(text)\r\n        q_list.append((i, text, norm, item))\r\n    h_list = []\r\n    for i, item in enumerate(hadith):\r\n        # hadith may have hadithTxt or Matn; use both if present\r\n        for field in (\"hadithTxt\", \"Matn\"):\r\n            if field in item and item[field]:\r\n                text = item[field]\r\n                norm = normalize_ar(text)\r\n                h_list.append((i, field, text, norm, item))\r\n    return q_list, h_list\r\n\r\nq_list, h_list = prepare_candidates(quran, hadith)\r\nprint(\"Prepared counts:\", len(q_list), len(h_list))",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c324d88197b4cb38cc9c5f0c25096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c484ac8197b5c2d8713978f6d7096c61b16cfd3832",
+      "code": "# Define similarity functions\r\ndef longest_common_substring(a, b):\r\n    # dynamic programming LCS substring\r\n    m = [[0]*(1+len(b)) for _ in range(1+len(a))]\r\n    longest, x_longest = 0, 0\r\n    for i in range(1, 1+len(a)):\r\n        for j in range(1, 1+len(b)):\r\n            if a[i-1] == b[j-1]:\r\n                m[i][j] = m[i-1][j-1] + 1\r\n                if m[i][j] > longest:\r\n                    longest = m[i][j]\r\n                    x_longest = i\r\n            else:\r\n                m[i][j] = 0\r\n    return a[x_longest-longest: x_longest], longest\r\n\r\ndef token_f1(a, b):\r\n    # tokens\r\n    ta = a.split()\r\n    tb = b.split()\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    common = sum((ca & cb).values())\r\n    if common == 0:\r\n        return 0.0\r\n    prec = common / len(ta)\r\n    rec = common / len(tb)\r\n    return 2*prec*rec / (prec + rec)\r\n\r\ntarget_norm = normalize_ar(target)\r\nprint(\"target_norm:\", target_norm)\r\n\r\n# Search normalized substring containment\r\nsubstr_hits = []\r\nfor i, field, text, norm, item in h_list:\r\n    if target_norm in norm:\r\n        substr_hits.append((i, field, text, norm))\r\nlen(substr_hits)",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c9c72c8197b99a8321382d0cfe096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ca079c8197b48c31c30de100d7096c61b16cfd3832",
+      "code": "# Show matches\r\nsubstr_hits[:10]",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cba8a48197b0dbd19add9f2159096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d210bc8197b358aeb4cc5bfaf7096c61b16cfd3832",
+      "code": "# Collect unique Matn candidate texts for the matches\r\nunique_matns = {}\r\nfor (i, field, text, norm, item) in substr_hits:\r\n    if field == \"Matn\":\r\n        unique_matns[text] = norm\r\nlen(unique_matns), list(unique_matns.keys())[:10]",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d42600819793b726cca733a517096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d48384819785bd12409f80badd096c61b16cfd3832",
+      "code": "unique_matns = {}\r\nfor (i, field, text, norm) in substr_hits:\r\n    if field == \"Matn\":\r\n        unique_matns[text] = norm\r\nlen(unique_matns), list(unique_matns.keys())[:20]",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d6afd48197aa52ee876e1d043d096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708daa1388197ba968c9049c91310096c61b16cfd3832",
+      "code": "# Define similarity measures between two strings using normalization\r\ndef similarity_metrics(candidate_text, original_text):\r\n    cand_norm = normalize_ar(candidate_text)\r\n    orig_norm = normalize_ar(original_text)\r\n    # token f1\r\n    f1 = token_f1(cand_norm, orig_norm)\r\n    # char LCS ratio: longest common substring length / len(orig_norm)\r\n    _, lcs_len = longest_common_substring(cand_norm, orig_norm)\r\n    lcs_ratio = lcs_len / max(len(orig_norm), 1)\r\n    # also compute normalized edit distance ratio (1 - normalized lev distance)\r\n    # implement simple Levenshtein\r\n    def levenshtein(s, t):\r\n        # classic DP\r\n        if s == t:\r\n            return 0\r\n        if len(s) == 0:\r\n            return len(t)\r\n        if len(t) == 0:\r\n            return len(s)\r\n        v0 = list(range(len(t)+1))\r\n        v1 = [0]*(len(t)+1)\r\n        for i in range(len(s)):\r\n            v1[0] = i+1\r\n            for j in range(len(t)):\r\n                cost = 0 if s[i] == t[j] else 1\r\n                v1[j+1] = min(v1[j]+1, v0[j+1]+1, v0[j]+cost)\r\n            v0, v1 = v1, v0\r\n        return v0[len(t)]\r\n    lev = levenshtein(cand_norm, orig_norm)\r\n    lev_ratio = 1 - lev / max(len(orig_norm), len(cand_norm), 1)\r\n    return {\"token_f1\": f1, \"lcs_ratio\": lcs_ratio, \"lev_ratio\": lev_ratio, \"cand_norm\": cand_norm, \"orig_norm\": orig_norm}\r\n\r\norig = \"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّىٰ يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ\"\r\nc1 = list(unique_matns.keys())[0]\r\nc2 = list(unique_matns.keys())[1]\r\nsim1 = similarity_metrics(c1, orig)\r\nsim2 = similarity_metrics(c2, orig)\r\nsim1, sim2",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e02580819781acac48283ab680096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708eadd9881978c275d7d18ee26f5096c61b16cfd3832",
+      "code": "# Find first hadith Matn candidate whose normalized form contains target_norm\r\nchosen = None\r\nfor i, field, text, norm, item in [(i, fld, txt, nrm, itm) for (i, fld, txt, nrm) in substr_hits for itm in [None]]:\r\n    pass",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ec715081978aeb8608f2e4ef48096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ecf4888197881a6ef3ee6a21c2096c61b16cfd3832",
+      "code": "# Search h_list for Matn entries whose normalized field equals target_norm\r\nchosen_texts = []\r\nfor (i, field, text, norm, item) in h_list:\r\n    if field == \"Matn\" and normalize_ar(text) == target_norm:\r\n        chosen_texts.append(text)\r\nlen(chosen_texts), chosen_texts[:5]",
+      "container_id": "cntr_689708a32ef881908de9f1e4b8832ec9092f2cc3ddde69ee",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f0a22c81978525a68a9d99c25b096c61b16cfd3832",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708f4c12c81979c69a1a0f0ff838b096c61b16cfd3832",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 74836,
+    "input_tokens_details": {
+      "cached_tokens": 69904
+    },
+    "output_tokens": 5954,
+    "output_tokens_details": {
+      "reasoning_tokens": 5888
+    },
+    "total_tokens": 80790
+  },
+  "user": null,
+  "store": false
+}

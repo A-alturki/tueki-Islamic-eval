@@ -1,0 +1,174 @@
+{
+  "id": "resp_689708a103fc81959f205f2c4d724786075cc64fd07d6ca3",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a6fa9081958e14ee17894310c5075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ac7bb081958f0edf92119a7c9c075cc64fd07d6ca3",
+      "code": "# Load the quranic_verses.json and inspect structure, search for relevant ayah.\nimport json, re, os, sys\npath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\nwith open(path, 'r', encoding='utf-8') as f:\n    data = json.load(f)\nlen(data)\n",
+      "container_id": "cntr_689708a37250819099332991fd8b0e9201b840c577e27da8",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b3ab788195a2777ce9b1957e94075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b423f081959079832c3bd6a0fb075cc64fd07d6ca3",
+      "code": "# Find entries where ayah_text contains the phrase \"وَكُلُوا وَاشْرَبُوا\"\nhits = []\nfor entry in data:\n    if \"وَكُلُوا وَاشْرَبُوا\" in entry.get(\"ayah_text\",\"\"):\n        hits.append(entry)\nlen(hits), hits[:3]\n",
+      "container_id": "cntr_689708a37250819099332991fd8b0e9201b840c577e27da8",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b6bf708195b93ddc80ee7f257a075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708be19d48195a6513b04c82a7ece075cc64fd07d6ca3",
+      "code": "# Let's do normalization and compute similarity metrics\nimport re\nfrom difflib import SequenceMatcher\n\ndef normalize_ar(text):\n    # lower is not needed for Arabic but keep\n    s = text\n    # remove tashkeel diacritics (U+064B..U+0652 and U+0670 etc)\n    # Arabic tashkeel ranges: \\u064B-\\u0652, plus \\u0670 (dagger alif), \\u0653-\\u0655 maybe maddah? Also \\u06D6-\\u06ED are Arabic small high ligatures - Quranic marks.\n    # Remove diacritics broadly by removing unicode categories 'Mn' maybe. Use regex ranges.\n    # We'll remove combining marks \\u0610-\\u061A \\u064B-\\u065F \\u06D6-\\u06ED\n    s = re.sub(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED\\u0670]', '', s)\n    # remove tatweel\n    s = s.replace('\\u0640','')\n    # unify hamza\n    s = re.sub('[أإآا]', 'ا', s)\n    # maybe unify taa marbuta to ه? no, keep\n    # remove punctuation and symbols e.g., Arabic punctuation marks, diacritics and ornate signs\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', '', s) # remove non-Arabic letters and non-word characters; but \\w includes underscores and digits; keep Arabic letters and numbers\n    # collapse whitespace\n    s = re.sub(r'\\s+',' ', s).strip()\n    return s\n\ncandidate = hits[1]['ayah_text']\nfull_span = \"وَكُلُوا وَاشْرَبُوا وَلَا تُسْرِفُوا إِنَّهُ لَا يُحِ\"  # user's full span\nsnippet = \"وَكُلُوا و...ُ لَا يُحِ\"\n\nprint(\"Candidate:\", candidate)\nprint(\"Normalized candidate:\", normalize_ar(candidate))\nprint(\"Normalized full span:\", normalize_ar(full_span))\nprint(\"Normalized snippet:\", normalize_ar(snippet))\n\ndef seq_ratio(a,b):\n    return SequenceMatcher(None, a, b).ratio()\n\nprint(\"Seq ratio full:\", seq_ratio(normalize_ar(candidate), normalize_ar(full_span)))\nprint(\"Seq ratio snippet:\", seq_ratio(normalize_ar(candidate), normalize_ar(snippet)))\n# token overlap F1\ndef token_f1(a,b):\n    ta = a.split()\n    tb = b.split()\n    seta = ta\n    setb = tb\n    # compute counts for tokens? simple overlap\n    common = 0\n    for t in ta:\n        if t in tb: \n            common += 1\n    if common == 0:\n        return 0.0\n    prec = common / len(ta)\n    rec = common / len(tb)\n    f1 = 2*prec*rec/(prec+rec)\n    return f1\n\nprint(\"Token F1 full:\", token_f1(normalize_ar(candidate), normalize_ar(full_span)))\nprint(\"Token F1 snippet:\", token_f1(normalize_ar(candidate), normalize_ar(snippet)))\n",
+      "container_id": "cntr_689708a37250819099332991fd8b0e9201b840c577e27da8",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c64f5881958a5f2046a1cdfd7d075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cb13ec8195922814ecf5c6ca39075cc64fd07d6ca3",
+      "code": "# compute longest common substring length\ndef longest_common_substring(a,b):\n    # returns length and substring\n    m = len(a)\n    n = len(b)\n    # dynamic programming O(m*n)\n    dp = [[0]*(n+1) for _ in range(m+1)]\n    longest = 0\n    end_pos = 0\n    for i in range(m):\n        for j in range(n):\n            if a[i] == b[j]:\n                dp[i+1][j+1] = dp[i][j] + 1\n                if dp[i+1][j+1] > longest:\n                    longest = dp[i+1][j+1]\n                    end_pos = i+1\n    substr = a[end_pos-longest:end_pos]\n    return longest, substr\n\na = normalize_ar(candidate)\nb = normalize_ar(full_span)\nlongest, substr = longest_common_substring(a,b)\nlongest, substr, len(b), longest / len(b)\n",
+      "container_id": "cntr_689708a37250819099332991fd8b0e9201b840c577e27da8",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cec9e88195b7df77dcdf313deb075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d7a9288195bd21bf254cc6c011075cc64fd07d6ca3",
+      "code": "# Compute LCS ratio for snippet too\nsn = normalize_ar(snippet)\ncand = normalize_ar(candidate)\nlongest_sn, _ = longest_common_substring(cand, sn)\nlongest_sn, len(sn), longest_sn/len(sn)\n",
+      "container_id": "cntr_689708a37250819099332991fd8b0e9201b840c577e27da8",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d9dd44819587e8e31c5b705009075cc64fd07d6ca3",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708dfc0a88195bd26291c9e567acd075cc64fd07d6ca3",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"۞ يَا بَنِي آدَمَ خُذُوا زِينَتَكُمْ عِنْدَ كُلِّ مَسْجِدٍ وَكُلُوا وَاشْرَبُوا وَلَا تُسْرِفُوا ۚ إِنَّهُ لَا يُحِبُّ الْمُسْرِفِينَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 26066,
+    "input_tokens_details": {
+      "cached_tokens": 23920
+    },
+    "output_tokens": 4642,
+    "output_tokens_details": {
+      "reasoning_tokens": 4544
+    },
+    "total_tokens": 30708
+  },
+  "user": null,
+  "store": false
+}

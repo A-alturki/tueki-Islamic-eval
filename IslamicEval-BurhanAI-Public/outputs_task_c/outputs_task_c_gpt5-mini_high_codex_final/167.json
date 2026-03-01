@@ -1,0 +1,204 @@
+{
+  "id": "resp_689708a12df88195ac705a2da4bae953023d5e254d397431",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a576fc8195b22786c4c41c9ef7023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708adeab48195b81c59865e6d1440023d5e254d397431",
+      "code": "# Load the quranic_verses.json and inspect for the relevant ayah.\r\nimport json, sys, os, re, unicodedata\r\n\r\nqpath = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    q = json.load(f)\r\nlen(q)\r\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b59270819587000be9b143cf9f023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b5cdcc819596ea1cf5e6229f81023d5e254d397431",
+      "code": "# search for the exact provided span in ayah_text fields\r\ntarget = \"وَإِذْ قَالَ رَبُّكَ لِلْمَلائِكَةِ إِنِّي خَالِقٌ بَشَرًا مِنْ طِينٍ\"\r\nmatches = []\r\nfor item in q:\r\n    text = item.get('ayah_text','')\r\n    if target in text:\r\n        matches.append(item)\r\nlen(matches)\r\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b9292481959e23e45cae0eca64023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b9bdcc8195b13ae2e125e36110023d5e254d397431",
+      "code": "# search for shorter substrings\r\nsubs = [\"خَالِقٌ بَشَرًا\", \"بَشَرًا مِنْ طِينٍ\", \"رَبُّكَ لِلْمَلائِكَةِ\", \"إِنِّي خَالِقٌ\"]\r\nmatches2 = []\r\nfor s in subs:\r\n    for item in q:\r\n        text = item.get('ayah_text','')\r\n        if s in text:\r\n            matches2.append((s, item))\r\nlen(matches2), matches2[:5]\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708be06488195a1c008d38ba6f926023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c7be808195a3820a95662399e4023d5e254d397431",
+      "code": "# Let's compute similarity between user_full and candidate.\r\nuser_full = \"وَإِذْ قَالَ رَبُّكَ لِلْمَلَائِكَةِ إِنِّي خَالِقٌ بَشَرًا مِنْ طِينٍ\"\r\ncand = None\r\nfor item in q:\r\n    if item.get('surah_name')=='ص' and item.get('ayah_id')==71:\r\n        cand = item.get('ayah_text')\r\ncand\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ca7d2c8195ba1a9c125c40ae34023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cdd8848195be81693c1b131ad9023d5e254d397431",
+      "code": "import re, unicodedata\r\ndef normalize_ar(text):\r\n    # remove tatweel\r\n    text = text.replace('\\u0640','')\r\n    # normalize Hamzas: map various to bare alef? But careful: typical normalization: أ إ آ -> ا, ة->ه? For now: map آ أ إ to ا\r\n    text = re.sub('[إأآا]', 'ا', text) # but this also map bare alef; ensure not to destroy.\r\n    # Map taa marbuta? maybe not.\r\n    # Map ya dotted vs alef maqsura: map 'ى' to 'ي'\r\n    text = text.replace('ى', 'ي')\r\n    # Remove diacritics (harakat) - Arabic diacritics unicode block\r\n    arabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06DC\\u06DF-\\u06E8\\u06EA-\\u06ED]')\r\n    text = re.sub(arabic_diacritics, '', text)\r\n    # Remove punctuation and non letters/digits\r\n    text = re.sub(r'[^\\w\\s\\u0621-\\u063A\\u0641-\\u064A]', '', text)\r\n    # collapse spaces\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    return text\r\n\r\nuser_norm = normalize_ar(user_full)\r\ncand_norm = normalize_ar(cand)\r\nuser_full, cand, user_norm, cand_norm\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d21b648195854786da4b50ac99023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d401f081959b76216914a90898023d5e254d397431",
+      "code": "# compute LCS length\r\ndef lcs_length(a, b):\r\n    # dynamic programming for LCS (characters)\r\n    m, n = len(a), len(b)\r\n    # Use DP with O(m*n) memory maybe fine\r\n    dp = [[0]*(n+1) for _ in range(m+1)]\r\n    for i in range(m-1, -1, -1):\r\n        for j in range(n-1, -1, -1):\r\n            if a[i]==b[j]:\r\n                dp[i][j] = dp[i+1][j+1] + 1\r\n            else:\r\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\r\n    return dp[0][0]\r\n\r\nlcs_len = lcs_length(user_norm, cand_norm)\r\nlcs_len, len(user_norm), len(cand_norm), lcs_len/max(len(user_norm), len(cand_norm))\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d7a4208195b3b551b6e9e5fc1d023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e0cb308195b151d7068b158a2e023d5e254d397431",
+      "code": "# compute token F1\r\ndef token_f1(a,b):\r\n    atoks = a.split()\r\n    btoks = b.split()\r\n    set_a = atoks\r\n    set_b = btoks\r\n    # count overlap considering multiplicity? We'll count multiset intersection\r\n    from collections import Counter\r\n    ca = Counter(set_a)\r\n    cb = Counter(set_b)\r\n    overlap = sum((ca & cb).values())\r\n    prec = overlap / len(set_b) if len(set_b)>0 else 0\r\n    rec = overlap / len(set_a) if len(set_a)>0 else 0\r\n    if prec+rec==0:\r\n        f1 = 0\r\n    else:\r\n        f1 = 2*prec*rec/(prec+rec)\r\n    return overlap, prec, rec, f1\r\n\r\ntoken_overlap = token_f1(user_norm, cand_norm)\r\nlcs_ratio = lcs_len/max(len(user_norm), len(cand_norm))\r\nuser_norm, cand_norm, token_overlap, lcs_ratio\n",
+      "container_id": "cntr_689708a2b8d88190a5ce74ca520254dc04d05d61cb81a1d0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e3e48c81959b5fa0887761e0d6023d5e254d397431",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708ef8140819588b000ed58e4ee63023d5e254d397431",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"إِذْ قَالَ رَبُّكَ لِلْمَلَائِكَةِ إِنِّي خَالِقٌ بَشَرًا مِنْ طِينٍ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 33880,
+    "input_tokens_details": {
+      "cached_tokens": 30016
+    },
+    "output_tokens": 3899,
+    "output_tokens_details": {
+      "reasoning_tokens": 3840
+    },
+    "total_tokens": 37779
+  },
+  "user": null,
+  "store": false
+}

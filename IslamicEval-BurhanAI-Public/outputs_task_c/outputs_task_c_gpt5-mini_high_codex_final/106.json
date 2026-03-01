@@ -1,0 +1,204 @@
+{
+  "id": "resp_689708a160d08190b3970c4629f2add3053e4e7f3d3211c7",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a609cc8190a39dd65f909204a2053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aae5088190ac91e9e13d357e0b053e4e7f3d3211c7",
+      "code": "# Load the Quranic verses DB and inspect structure, and search for the provided span text.\r\nimport json, re, sys, os\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\nprint(\"Files exist:\", os.path.exists(qpath), os.path.exists(hpath))\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    q = json.load(f)\r\nprint(\"Type:\", type(q), \"len:\", len(q))\r\n# print sample first item\r\nq[:3]",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708adffb0819084ff48bc0ef14311053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b1de3881908f87c37fb299a1f8053e4e7f3d3211c7",
+      "code": "# Let's implement normalization and similarity functions, and search for the best matches.\r\nimport unicodedata\r\nfrom collections import Counter\r\ndef normalize_ar(text):\r\n    # remove tatweel\r\n    text = text.replace('\\u0640','')\r\n    # normalize hamza forms to bare alif 'ا'\r\n    text = text.replace('آ','ا').replace('أ','ا').replace('إ','ا').replace('ٱ','ا').replace('ء','ء')\r\n    # remove diacritics (arabic tashkeel)\r\n    # diacritics range \\u064B-\\u0652 and \\u0670, \\u06D6-\\u06ED possibly. We'll remove known ranges.\r\n    # Use regex to remove characters with category Mn (Mark, Nonspacing)\r\n    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')\r\n    # remove punctuation and non arabic letters except space and digits and hamza\r\n    # but keep Arabic letters (\\u0600-\\u06FF) and spaces and digits\r\n    cleaned = []\r\n    for ch in text:\r\n        o = ord(ch)\r\n        if ch.isspace():\r\n            cleaned.append(' ')\r\n        elif 0x0600 <= o <= 0x06FF or 0x0750 <= o <= 0x077F or 0x08A0 <= o <= 0x08FF:\r\n            cleaned.append(ch)\r\n        elif ch.isdigit():\r\n            cleaned.append(ch)\r\n        # else drop punctuation\r\n    # collapse spaces\r\n    s = ''.join(cleaned)\r\n    s = re.sub(r'\\s+',' ',s).strip()\r\n    return s\r\n\r\n# LCS (character level longest common substring) ratio\r\ndef longest_common_substring_ratio(a,b):\r\n    # return ratio = LCS_len / max(len(a),len(b))\r\n    # Using dynamic programming O(n*m) for these lengths small\r\n    n, m = len(a), len(b)\r\n    if n==0 or m==0:\r\n        return 0.0, 0\r\n    dp = [0]*(m+1)\r\n    longest = 0\r\n    for i in range(n):\r\n        newdp = [0]*(m+1)\r\n        for j in range(m):\r\n            if a[i]==b[j]:\r\n                newdp[j+1] = dp[j] + 1\r\n                if newdp[j+1] > longest:\r\n                    longest = newdp[j+1]\r\n        dp = newdp\r\n    ratio = longest / max(n,m)\r\n    return ratio, longest\r\n\r\ndef token_f1(a,b):\r\n    # token-level F1 based on tokens splitting by space\r\n    ta = a.split()\r\n    tb = b.split()\r\n    if not ta or not tb:\r\n        return 0.0,0,0,0\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    common = sum((ca & cb).values())\r\n    prec = common / len(tb)\r\n    rec = common / len(ta)\r\n    if prec+rec == 0:\r\n        f1 = 0.0\r\n    else:\r\n        f1 = 2*prec*rec/(prec+rec)\r\n    return f1, common, len(ta), len(tb)\r\n\r\n# load normalized forms for all ayahs\r\nnorms = []\r\nfor item in q:\r\n    text = item['ayah_text']\r\n    norms.append(normalize_ar(text))\r\n\r\n# Input spans\r\nfull = \"وَإِذْ أَخَذَ رَبُّكَ مِنْ بَنِي آدَمَ مِنْهُمْ إِنَّهُمْ كَفَرُوا وَأَخْبَرَهُمْ بِالْعَذَابِ الْأَخِيرِ وَأَعْتَذَرُوا فَأَخَذَتْهُمْ الْغَمَّةُ فَأَخَذَ رَبُّكَ مِنْهُمْ أَشْرَعَهُمْ فَأَصْبَحُوا أَهْلَ الْفَلَكِ الْمُسْتَقِيمِ\"\r\nsnippet = \"وَإِذْ أَخ...ُسْتَقِيمِ\"\r\n\r\nnorm_full = normalize_ar(full)\r\nnorm_snip = normalize_ar(snippet.replace('...',''))  # remove ellipsis\r\nnorm_full, norm_snip, len(norm_full)",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bb75a48190a98cdfef4732bfdd053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bc50b08190ad50b9d5c6cff639053e4e7f3d3211c7",
+      "code": "# Compute similarity across q for norm_full\r\nscores = []\r\nfor i,item in enumerate(q):\r\n    cand_norm = norms[i]\r\n    lcs_ratio, lcs_len = longest_common_substring_ratio(norm_full, cand_norm)\r\n    f1, common, la, lb = token_f1(norm_full, cand_norm)\r\n    # combine metrics: take max of f1 and lcs_ratio maybe weighted.\r\n    combined = max(f1, lcs_ratio)\r\n    scores.append((combined, f1, lcs_ratio, lcs_len, common, item))\r\n\r\n# sort top 20\r\nscores_sorted = sorted(scores, key=lambda x: x[0], reverse=True)\r\ntop20 = scores_sorted[:20]\r\n[(s[0], s[1], s[2], s[3], s[4], s[5]['surah_name'], s[5]['ayah_id'], s[5]['ayah_text']) for s in top20]",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c6598881908e30c2b109baed14053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ce2b588190b6e105d8a1fa98de053e4e7f3d3211c7",
+      "code": "# Let's search for any ayah that contains key substrings from the full span.\r\nsearch_terms = [\"أَخَذَ رَبُّكَ\", \"أَخَذَ رَبُّكَ\", \"بَنِي آدَمَ\", \"أَهْلَ الْفَلَك\", \"أَهْلَ الْفَلَكِ\", \"أَخْبَرَهُمْ بِالْعَذَابِ\", \"أَشْهَدَهُمْ\", \"أَعْتَذَرُوا\", \"أَخَذَتْهُمْ الْغَمَّةُ\", \"أَشْرَعَهُمْ\"]\r\nmatches = []\r\nfor term in search_terms:\r\n    norm_term = normalize_ar(term)\r\n    for i,item in enumerate(q):\r\n        if norm_term in norms[i]:\r\n            matches.append((term, item['surah_name'], item['ayah_id'], item['ayah_text']))\r\nmatches[:30], len(matches)",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d1b83881909b4a013705165a10053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d472888190b62a20652ce99b73053e4e7f3d3211c7",
+      "code": "# Search for remaining phrases individually across entire quran DB\r\nremaining_terms = [\"أَخْبَرَهُمْ\", \"الْعَذَابِ الْأَخِيرِ\", \"أَعْتَذَرُوا\", \"الْغَمَّةُ\", \"أَشْرَعَهُمْ\", \"أَهْلَ الْفَلَكِ الْمُسْتَقِيمِ\"]\r\nfound = []\r\nfor term in remaining_terms:\r\n    norm_term = normalize_ar(term)\r\n    hits = []\r\n    for i,item in enumerate(q):\r\n        if norm_term in norms[i]:\r\n            hits.append((item['surah_name'], item['ayah_id'], item['ayah_text']))\r\n    found.append((term, len(hits), hits[:5]))\r\nfound",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d774988190a77266c237b2d99c053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d9c2148190a0c59a6d15881880053e4e7f3d3211c7",
+      "code": "# load hadith DB and inspect structure\r\nwith open(hpath, 'r', encoding='utf-8') as f:\r\n    h = json.load(f)\r\nprint(\"hadith type:\", type(h), \"len:\", len(h))\r\n# show first few\r\nh[:3]",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dc57f881908173daddd798a3fc053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708dd42dc81909c92e86f2725c018053e4e7f3d3211c7",
+      "code": "# prepare hadith normalized texts\r\nhadith_norms = []\r\nhadith_texts = []\r\nfor item in h:\r\n    matn = item.get('Matn') or item.get('hadithTxt') or ''\r\n    hadith_texts.append(matn)\r\n    hadith_norms.append(normalize_ar(matn))\r\n\r\n# compute top matches for norm_full\r\nscores_h = []\r\nfor i,text in enumerate(hadith_texts):\r\n    cand_norm = hadith_norms[i]\r\n    if not cand_norm: continue\r\n    lcs_ratio, lcs_len = longest_common_substring_ratio(norm_full, cand_norm)\r\n    f1, common, la, lb = token_f1(norm_full, cand_norm)\r\n    combined = max(f1, lcs_ratio)\r\n    scores_h.append((combined, f1, lcs_ratio, lcs_len, common, h[i]))\r\n\r\nscores_h_sorted = sorted(scores_h, key=lambda x: x[0], reverse=True)\r\nscores_h_sorted[:10]",
+      "container_id": "cntr_689708a339b0819096ecacc6739049f00ed5d1008c010b26",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970958c5048190b793940bb440c37a053e4e7f3d3211c7",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6897095e318c81909dc7e37a4248f346053e4e7f3d3211c7",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 67727,
+    "input_tokens_details": {
+      "cached_tokens": 57024
+    },
+    "output_tokens": 4821,
+    "output_tokens_details": {
+      "reasoning_tokens": 4800
+    },
+    "total_tokens": 72548
+  },
+  "user": null,
+  "store": false
+}

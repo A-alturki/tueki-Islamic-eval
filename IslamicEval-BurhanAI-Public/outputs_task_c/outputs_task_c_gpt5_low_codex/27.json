@@ -1,0 +1,189 @@
+{
+  "id": "resp_6896726d5d6881909cd5d266a1caff2c00c34b0258d1b180",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967272dc488190a4a29927a736fc5900c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672774f2481908d00bf6243e47cf100c34b0258d1b180",
+      "code": "import json, re, unicodedata, sys\r\nfrom difflib import SequenceMatcher\r\n\r\n# Load files\r\nwith open('/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json', 'r', encoding='utf-8') as f:\r\n    hadith = json.load(f)\r\n\r\nwith open('/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json', 'r', encoding='utf-8') as f:\r\n    quran = json.load(f)\r\n\r\n# Helper: remove diacritics and normalize hamza/characters\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\r\ntatweel = '\\u0640'\r\n\r\ndef normalize(s):\r\n    if s is None:\r\n        return ''\r\n    s = s.replace(tatweel, '')\r\n    s = arabic_diacritics.sub('', s)\r\n    # unify hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n    s = s.replace('ؤ','و').replace('ئ','ي').replace('ة','ه')\r\n    # remove punctuation\r\n    s = re.sub(r'[^\\w\\s\\u0621-\\u063A\\u0641-\\u0669]', ' ', s)\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\ntarget = \"لا تَزَوَّجَنَّ شُرَّعَتكَ\"\r\ntarget_norm = normalize(target)\r\n\r\ndef ratio(a,b):\r\n    return SequenceMatcher(None, a, b).ratio()\r\n\r\n# Search Hadith matn fields\r\nhadith_texts = []\r\nfor rec in hadith:\r\n    matn = rec.get('hadithTxt') or rec.get('Matn') or ''\r\n    if matn:\r\n        hadith_texts.append(matn)\r\n\r\n# Search Quran ayah_text\r\nquran_texts = [rec.get('ayah_text','') for rec in quran]\r\n\r\n# Collect candidates with some similarity or containing \"لا تزوج\" etc.\r\ncands = []\r\n\r\ndef add_candidates(texts, source):\r\n    for t in texts:\r\n        tn = normalize(t)\r\n        r = ratio(target_norm, tn)\r\n        if 'تزوج' in tn or 'تنكح' in tn or 'شرع' in tn or r > 0.45:\r\n            cands.append((r, source, t, tn))\r\n\r\nadd_candidates(hadith_texts, 'hadith')\r\nadd_candidates(quran_texts, 'quran')\r\n\r\n# Sort by similarity\r\ncands_sorted = sorted(cands, key=lambda x: x[0], reverse=True)\r\n\r\n# Show top 30 candidates with some filter to reduce noise\r\ntop = []\r\nfor r, src, t, tn in cands_sorted[:200]:\r\n    if any(k in tn for k in ['تزوج','تنكح','نكاح','حرمت عليكم','شرع']):\r\n        top.append((r, src, t))\r\n\r\nlen(top), top[:20]",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967286d820819090a442ab03eebba100c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967288c3708190afa22fe1a678c05200c34b0258d1b180",
+      "code": "# Find hadith containing phrase patterns like \"لا تزوج\" or \"لا تنكح\"\r\npatterns = ['لا تزوج', 'لا تُزوج', 'لا تنكح', 'لا ينكح', 'لا نكاح']\r\nmatches = []\r\nfor t in hadith_texts:\r\n    tn = normalize(t)\r\n    if any(p.replace('لا ', '') in tn for p in ['لا تزوج','لا تنكح','لا ينكح','لا نكاح']):\r\n        matches.append(t)\r\n\r\nlen(matches), matches[:20]",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728e2e148190a12e3b57929a9e2900c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728f46b48190a673779f8ffe834900c34b0258d1b180",
+      "code": "# Search for hadith containing \"لا تُنكح المرأة على عمتها\" exact or normalized\r\nquery = \"لا تُنكَحُ المرأةُ على عمتِها ولا على خالتِها\"\r\nqn = normalize(query)\r\nres = []\r\nfor t in hadith_texts:\r\n    if normalize(t).find(normalize(\"لا تنكح المرأة على عمتها\")) != -1:\r\n        res.append(t)\r\nlen(res), res[:10]",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672948ef48190b54d40621b62afe200c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729a5d008190b2d43406237949f500c34b0258d1b180",
+      "code": "# Search for \"لا تنكح الأيم\" hadith in DB\r\nres2 = []\r\nfor t in hadith_texts:\r\n    if normalize(\"لا تنكح الايم\") in normalize(t):\r\n        res2.append(t)\r\nlen(res2), res2[:5]",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729f589c8190b13fc62e535365a300c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672ac48948190a702fd48bfcaffed00c34b0258d1b180",
+      "code": "# Find entries where the field 'Matn' exists and contains the target phrase cleanly\r\npure_candidates = []\r\nfor rec in hadith:\r\n    matn = rec.get('Matn')\r\n    if matn and normalize(\"لا تنكح المرأة على عمتها\") in normalize(matn):\r\n        pure_candidates.append(matn)\r\nlen(pure_candidates), pure_candidates[:10]",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b18a708190b4e8e503442ffe8300c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672b8068c8190a33d7a84ef6b409800c34b0258d1b180",
+      "code": "for matn in pure_candidates:\r\n    print(repr(matn))",
+      "container_id": "cntr_6896726f26708190a0c18936aaa877190f08780400c82d31",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b9e0c08190a0cfaf94f65cebf000c34b0258d1b180",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672c1f13481908e022c02d12b8ba200c34b0258d1b180",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لَا تُنْكَحُ الْمَرْأَةُ عَلَى عَمَّتِهَا ، وَلَا عَلَى خَالَتِهَا . \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 68911,
+    "input_tokens_details": {
+      "cached_tokens": 58136
+    },
+    "output_tokens": 2890,
+    "output_tokens_details": {
+      "reasoning_tokens": 1728
+    },
+    "total_tokens": 71801
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

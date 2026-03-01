@@ -1,0 +1,185 @@
+{
+  "id": "resp_6896726e02b881958a94c227daa1061d02e8738855816f1c",
+  "created_at": 1754690158.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967272585081958d5a362a1e06a78202e8738855816f1c",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967274d980819584a0a110c88b370702e8738855816f1c",
+      "code": "# Load the provided JSON files and search for candidates related to the user's span.\r\nimport json, re, unicodedata, itertools, math, os, sys, textwrap\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith = json.load(f)\r\n\r\nlen(quran), len(hadith)",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967277bed0819591df2a3cde6fd23602e8738855816f1c",
+      "code": "# Define normalization functions\r\nimport re\r\n\r\narabic_diacritics = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\ntatweel = re.compile(r\"\\u0640\")\r\npunct = re.compile(r\"[^\\w\\s\\u0600-\\u06FF]\")\r\n\r\ndef normalize(s):\r\n    if not isinstance(s, str):\r\n        return \"\"\r\n    s = s.strip()\r\n    s = tatweel.sub(\"\", s)\r\n    s = arabic_diacritics.sub(\"\", s)\r\n    # unify hamza forms\r\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ة\",\"ه\")\r\n    s = punct.sub(\" \", s)\r\n    s = re.sub(r\"\\s+\", \" \", s)\r\n    return s\r\n\r\nprovided_full = \"دعا نوح لقومه 950 سنة، فلما فرغ منها قال: «يَا قَوْمِ، لَئِن لَمْ تُفْعَلْ لَكُمُ مِنَ اللَهِ مِنَ الرِزْقِ، فَاِشَاعُ النَاسَ عَلَى هَذِهِ الْأَرْضِ\"\r\nprovided_snippet = \"دعا نوح لق... الْأَرْضِ\"\r\n\r\nnorm_full = normalize(provided_full)\r\nnorm_full",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727bfd948195831cf7c9a68c77bf02e8738855816f1c",
+      "code": "# Search Quran for related content: look for \"نوح\", \"الف سنه الا خمسين عاما\", etc.\r\ntargets = [\r\n    \"نوح\",\r\n    \"فلبث فيهم ألف سنة إلا خمسين عاما\",\r\n    \"الف سنة الا خمسين عاما\",\r\n    \"يا قوم\",\r\n    \"على هذه الارض\",\r\n]\r\n\r\ndef search_quran(query):\r\n    nq = normalize(query)\r\n    hits = []\r\n    for rec in quran:\r\n        text = rec.get(\"ayah_text\",\"\")\r\n        if not text: \r\n            continue\r\n        nt = normalize(text)\r\n        if nq in nt:\r\n            hits.append(text)\r\n    return hits\r\n\r\nresults = {}\r\nfor t in targets:\r\n    results[t] = search_quran(t)\r\n\r\n{k: len(v) for k,v in results.items()}, results.get(\"الف سنة الا خمسين عاما\")[:3], results.get(\"فلبث فيهم ألف سنة إلا خمسين عاما\")[:3]",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727fb8e88195bd6549a2190d805402e8738855816f1c",
+      "code": "# Search Hadith DB for phrases from the provided span\r\ndef search_hadith(query, limit=10):\r\n    nq = normalize(query)\r\n    hits = []\r\n    for rec in hadith:\r\n        text = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\r\n        if not text:\r\n            continue\r\n        nt = normalize(text)\r\n        if nq in nt:\r\n            hits.append(text)\r\n    return hits\r\n\r\nphrases = [\r\n    \"دعا نوح لقومه\",\r\n    \"يا قوم\",\r\n    \"فلما فرغ\",\r\n    \"على هذه الأرض\",\r\n    \"الرزق\",\r\n    \"الف سنة الا خمسين عاما\",\r\n    \"لبث فيهم\",\r\n]\r\n\r\nhadith_hits = {p: search_hadith(p) for p in phrases}\r\n{k: len(v) for k,v in hadith_hits.items()}",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728bc3a48195b9537d6073238ef302e8738855816f1c",
+      "code": "# Inspect some \"فلما فرغ\" hits to see if any relate to Nuh context (unlikely but check)\r\nhadith_hits_sample = hadith_hits[\"فلما فرغ\"][:20]\r\nhadith_hits_sample",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728ef6148195bdf575eab81b51cf02e8738855816f1c",
+      "code": "# Let's try approximate matching across hadith to find any with \"نوح\" and \"يا قوم\" together, or containing \"نوح\" and \"لبث\" etc.\r\ndef contains_all(text, terms):\r\n    nt = normalize(text)\r\n    return all(normalize(t) in nt for t in terms)\r\n\r\nnooh_hadith = []\r\nfor rec in hadith:\r\n    text = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\r\n    if not text:\r\n        continue\r\n    if contains_all(text, [\"نوح\", \"يا قوم\"]):\r\n        nooh_hadith.append(text)\r\nlen(nooh_hadith), nooh_hadith[:10]",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672947c3c8195b6e4031136422f4a02e8738855816f1c",
+      "code": "# Try broader search for \"نوح\" hadith, to see any matn mentioning his duration or 950 years\r\nnooh_all = []\r\nfor rec in hadith:\r\n    text = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\r\n    if not text: continue\r\n    if \"نوح\" in text:\r\n        nooh_all.append(text)\r\nlen(nooh_all)",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729766708195bdd28466a937e24602e8738855816f1c",
+      "code": "# Check if any of those contain numbers or \"ألف سنة\" or \"خمسين\"\r\ncandidates = [t for t in nooh_all if any(x in t for x in [\"ألف\", \"خمسين\", \"950\", \"تسعمائة\", \"سنة\"])]\r\nlen(candidates), candidates[:20]",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967299d2f081958bf877fc86a15c0c02e8738855816f1c",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a3df248195a102475d90385fcf02e8738855816f1c",
+      "code": "# Retrieve the exact ayah text string programmatically to ensure exact match\r\ntarget_norm = normalize(\"وَلَقَدْ أَرْسَلْنَا نُوحًا إِلَىٰ قَوْمِهِ فَلَبِثَ فِيهِمْ أَلْفَ سَنَةٍ إِلَّا خَمْسِينَ عَامًا فَأَخَذَهُمُ الطُّوفَانُ وَهُمْ ظَالِمُونَ\")\r\nexact_ayahs = []\r\nfor rec in quran:\r\n    text = rec.get(\"ayah_text\",\"\")\r\n    if normalize(text) == target_norm:\r\n        exact_ayahs.append(text)\r\nlen(exact_ayahs), exact_ayahs[:1]",
+      "container_id": "cntr_6896726fc6c48190bda4b64fb8151ac50915f976bc98683a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a8543c8195a7d4e990424015c902e8738855816f1c",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672aa3e3c81959036ac6c3d57e8c902e8738855816f1c",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَلَقَدْ أَرْسَلْنَا نُوحًا إِلَىٰ قَوْمِهِ فَلَبِثَ فِيهِمْ أَلْفَ سَنَةٍ إِلَّا خَمْسِينَ عَامًا فَأَخَذَهُمُ الطُّوفَانُ وَهُمْ ظَالِمُونَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 64187,
+    "input_tokens_details": {
+      "cached_tokens": 42344
+    },
+    "output_tokens": 2193,
+    "output_tokens_details": {
+      "reasoning_tokens": 640
+    },
+    "total_tokens": 66380
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

@@ -1,0 +1,243 @@
+{
+  "id": "resp_68967534b4a88196904b1c05ea0d07ab0735648c8c29bb55",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896753a0bd48196aacad9ef5c90645e0735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754338788196a75ccb971a6b2fa70735648c8c29bb55",
+      "code": "import json, re, os, sys, math, unicodedata, difflib, itertools, numpy as np, pandas as pd",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675465c588196834ea572ea4471590735648c8c29bb55",
+      "code": "import json, codecs, io, os, textwrap, statistics, random",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896754839488196b78c85e50e49cb700735648c8c29bb55",
+      "code": "# Load the provided JSON files\nquran_path = '/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json'\nhadith_path = '/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json'\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\n\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754ccc9c8196a707271ebe2910840735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754dd09c819685218e9b985792930735648c8c29bb55",
+      "code": "# Explore a sample item to see fields\nhadith_data[0]",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754f86c48196ad9a4046adea265b0735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754fea8c8196812c0756817480a70735648c8c29bb55",
+      "code": "# Define normalization functions: strip diacritics, punctuation, tatweel, collapse spaces\nimport re\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\ntatweel = '\\u0640'\npunct_regex = re.compile(r'[\\u0600-\\u06FF]+|[^\\u0600-\\u06FF\\s]')  # We'll handle punctuation separately\n\ndef normalize_ar(s):\n    if s is None:\n        return ''\n    s = re.sub(r'[^\\u0600-\\u06FF\\s]', ' ', s)  # remove non-Arabic letters (keep spaces)\n    s = s.replace(tatweel, '')\n    s = arabic_diacritics.sub('', s)\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef norm_basic(s):\n    # only remove diacritics and tatweel and punctuation\n    s2 = s.replace(tatweel, '')\n    s2 = arabic_diacritics.sub('', s2)\n    # unify hamza etc\n    s2 = s2.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    s2 = re.sub(r'[^\\u0600-\\u06FF\\s]', ' ', s2)\n    s2 = re.sub(r'\\s+', ' ', s2).strip()\n    return s2\n\ndef lcs_len(a, b):\n    # dynamic programming for LCS length; but strings might be long; we can token-based LCS\n    # We'll do on tokens to be robust.\n    ta = a.split()\n    tb = b.split()\n    m, n = len(ta), len(tb)\n    dp = [[0]*(n+1) for _ in range(m+1)]\n    for i in range(m):\n        ai = ta[i]\n        for j in range(n):\n            if ai == tb[j]:\n                dp[i+1][j+1] = dp[i][j] + 1\n            else:\n                dp[i+1][j+1] = max(dp[i][j+1], dp[i+1][j])\n    return dp[m][n], m, n\n\ndef token_f1(a, b):\n    sa = set(a.split())\n    sb = set(b.split())\n    inter = len(sa & sb)\n    prec = inter / (len(sa) if len(sa)>0 else 1)\n    rec = inter / (len(sb) if len(sb)>0 else 1)\n    if prec+rec == 0:\n        f1 = 0.0\n    else:\n        f1 = 2*prec*rec/(prec+rec)\n    return f1\n\ndef sim_score(a, b):\n    # Use combined metrics\n    na = normalize_ar(a)\n    nb = normalize_ar(b)\n    lcs, la, lb = lcs_len(na, nb)\n    lcs_score = lcs / max(1, min(la, lb))\n    f1 = token_f1(na, nb)\n    # combine\n    return max(lcs_score, f1)\n\noriginal_span = \"بينما رجل يجر إزاره إذ خسف به، فهو يتجلجل في الأرض إلى يوم القيامة\"\nnormalize_ar(original_span), norm_basic(original_span)",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896755bd41c81969793a057e50cfc1a0735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896755c3c7481969fbc566e3f58b2360735648c8c29bb55",
+      "code": "# Search for occurrences of \"يتجلجل\" in hadith_data\nmatches = []\nfor rec in hadith_data:\n    text = (rec.get('hadithTxt') or '') + ' ' + (rec.get('Matn') or '')\n    if 'يتجلجل' in text:\n        matches.append(rec)\nlen(matches)",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755f12e8819689b880288bcd9c900735648c8c29bb55",
+      "code": "# Show these matches (shorten) and calculate similarity to original span\ndef snippet(s, width=200):\n    s = s.replace('\\n',' ')\n    return s[:width]\n\ncandidates = []\nfor rec in matches:\n    text = (rec.get('Matn') or rec.get('hadithTxt') or '')\n    text_no_newlines = text.replace('\\n',' ')\n    # We'll extract around 'يتجلجل'\n    idx = text_no_newlines.find('يتجلجل')\n    around = text_no_newlines[max(0, idx-120): idx+120]\n    candidates.append((rec['hadithID'], rec['title'], around, text_no_newlines))\n\nlen(candidates), [c[:3] for c in candidates]",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967563e18c81968f6b1612973e0d250735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967566c76c819682eb87e0d0fda4b40735648c8c29bb55",
+      "code": "# Print the full matn texts for matches\nfor rec in matches:\n    hid = rec['hadithID']\n    title = rec['title']\n    text = (rec.get('Matn') or rec.get('hadithTxt') or '').replace('\\n', ' ')\n    print(hid, title)\n    print(text)\n    print('-'*120)",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675696a248196bce63101830159c90735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967577d3288196b7f3ac4bd59135e40735648c8c29bb55",
+      "code": "original = \"بينما رجل يجر إزاره إذ خسف به، فهو يتجلجل في الأرض إلى يوم القيامة\"\nc_texts = []\nfor rec in matches:\n    text = (rec.get('Matn') or rec.get('hadithTxt') or '').strip()\n    c_texts.append((rec['hadithID'], rec['title'], text, sim_score(original, text)))\nsorted([(hid, round(sc,3), title) for hid, title, text, sc in c_texts], key=lambda x: -x[1])",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757acfec8196ae4ce934b86d01700735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967586ba5c819691dd51c7b8bcafb60735648c8c29bb55",
+      "code": "# Extract the exact text for hadithID 5523\ntarget_rec = next(rec for rec in hadith_data if rec['hadithID'] == 5523)\ntarget_text = (target_rec.get('Matn') or target_rec.get('hadithTxt') or '')\nrepr(target_text), target_text",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758a0e208196bc3cbf6d70cefb590735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758debe88196957fdcfc484e45040735648c8c29bb55",
+      "code": "# Search for 'يجر إزاره إذ خ' with diacritics or plain\ndef search_substring(sub):\n    res = []\n    for rec in hadith_data:\n        text = (rec.get('Matn') or rec.get('hadithTxt') or '')\n        if sub in text:\n            res.append((rec['hadithID'], rec['title'], text))\n    return res\n\nsearch_substring('يَجُرُّ إِزَارَهُ إِذ')[:3], search_substring('يجر إزاره إذ')[:3]",
+      "container_id": "cntr_6896753683988190a7a77b3afff34dc50a96f84484366e47",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967591963081969549f510a887a5600735648c8c29bb55",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689675a00e248196b658288dc61717a90735648c8c29bb55",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"بَيْنَمَا رَجُلٌ يَجُرُّ إِزَارَهُ مِنَ الْخُيَلَاءِ خُسِفَ بِهِ فَهُوَ يَتَجَلْجَلُ فِي الْأَرْضِ إِلَى يَوْمِ الْقِيَامَةِ \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 64585,
+    "input_tokens_details": {
+      "cached_tokens": 56800
+    },
+    "output_tokens": 5537,
+    "output_tokens_details": {
+      "reasoning_tokens": 5440
+    },
+    "total_tokens": 70122
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

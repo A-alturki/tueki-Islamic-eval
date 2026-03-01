@@ -1,0 +1,219 @@
+{
+  "id": "resp_689678d31d30819699ec46ea3ee2f4ef07233616ffe0e051",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d803348196964c115062602ca607233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ff2d4c81968f051e957e6c492907233616ffe0e051",
+      "code": "import json, re, os, sys, unicodedata, difflib, math, itertools, statistics\r\nfrom pathlib import Path\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran = load_json(quran_path)\r\nhadith = load_json(hadith_path)\r\nlen(quran), len(hadith)[:3] if isinstance(hadith, list) else hadith.keys()",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679020cd08196ae2fbd173f30796607233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967902c5b08196a96577a85c1b46e607233616ffe0e051",
+      "code": "type(quran), (list(quran[0].keys()) if isinstance(quran, list) else list(quran.keys())), type(hadith)",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967905cd14819690ccf86a4dfc56c707233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967906291081968773325d3b74ce3d07233616ffe0e051",
+      "code": "len(quran), len(hadith), hadith[0].keys()",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967908a8b48196810c87faad0aee9c07233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967909008481969b7f275ab8c505c307233616ffe0e051",
+      "code": "# Helper normalization\r\nimport re\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return \"\"\r\n    # Remove diacritics\r\n    diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\n    s = diacritics.sub('', s)\r\n    # Remove tatweel\r\n    s = s.replace('ـ', '')\r\n    # unify alef forms\r\n    s = re.sub('[\\u0622\\u0623\\u0625]', 'ا', s)\r\n    # unify yaa/ya alef maksura\r\n    s = s.replace('ى', 'ي')\r\n    # unify taa marbuta to ha? We'll leave it as original to preserve semantics, but for search unify to ه or ة?\r\n    # We'll just keep as is to avoid mismatches; we can add optional alt.\r\n    # unify hamza on waw/ya to hamza? Probably not needed.\r\n    # Remove punctuation and non-Arabic letters\r\n    s = re.sub(r'[^\\u0600-\\u06FF\\s]', ' ', s)\r\n    # collapse spaces\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\ndef approximate_ratio(a, b):\r\n    # compute normalized LCS ratio or SequenceMatcher ratio\r\n    a_norm = normalize_arabic(a)\r\n    b_norm = normalize_arabic(b)\r\n    # Use SequenceMatcher ratio (0-1)\r\n    return difflib.SequenceMatcher(None, a_norm, b_norm).ratio()\r\n\r\ndef longest_common_substring(a, b):\r\n    a_norm = normalize_arabic(a)\r\n    b_norm = normalize_arabic(b)\r\n    m = [[0]*(1+len(b_norm)) for _ in range(1+len(a_norm))]\r\n    longest = 0\r\n    lcs_set = set()\r\n    lcs_end = 0\r\n    for i in range(1, len(a_norm)+1):\r\n        for j in range(1, len(b_norm)+1):\r\n            if a_norm[i-1] == b_norm[j-1]:\r\n                m[i][j] = m[i-1][j-1] + 1\r\n                if m[i][j] > longest:\r\n                    longest = m[i][j]\r\n                    lcs_end = i\r\n            else:\r\n                m[i][j] = 0\r\n    return a_norm[lcs_end-longest:lcs_end], longest, len(a_norm), len(b_norm)\r\n\r\ndef token_overlap_f1(a, b):\r\n    a_norm = normalize_arabic(a)\r\n    b_norm = normalize_arabic(b)\r\n    a_tokens = a_norm.split()\r\n    b_tokens = b_norm.split()\r\n    common = len(set(a_tokens) & set(b_tokens))\r\n    if not a_tokens or not b_tokens:\r\n        return 0.0\r\n    prec = common / len(a_tokens)\r\n    rec = common / len(b_tokens)\r\n    if prec+rec == 0:\r\n        return 0.0\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\norig_full = \"إِنَّ الْمُ善َاتِ تَنْبُتُ مِنَ الْحَسَنَاتِ\"\r\nsnippet = \"إِنَّ الْم...ْحَسَنَاتِ\"  # but we will only use to search heuristically; not compute ratio\r\n# Let's search quran for tokens \"الحسنات\" and \"تنبت\" or diacriticsless forms.\r\nterms = [\"الحسنات\", \"تنبت\", \"الحسنة\", \"سيئات\", \"يذهبن\"]\r\nresult = []\r\nfor v in quran:\r\n    t = v['ayah_text']\r\n    n = normalize_arabic(t)\r\n    if \"الحسنات\" in n or \"الحسنه\" in n or \"سيئات\" in n:\r\n        if \"يذهب\" in n or \"تذهب\" in n or \"تمح\" in n:\r\n            ratio = approximate_ratio(t, \"إِنَّ الْحَسَنَاتِ يُذْهِبْنَ السَّيِّئَاتِ\")\r\n            result.append((ratio, t, v['surah_id'], v['ayah_id']))\r\nlen(result), sorted(result, key=lambda x: -x[0])[:5]",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791122f48196954c9d18e143f09807233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967911c6b481969f18a86d4498caba07233616ffe0e051",
+      "code": "orig = \"إِنَّ الْمُ善َاتِ تَنْبُتُ مِنَ الْحَسَنَاتِ\"\r\ncand = 'إِنَّ الْحَسَنَاتِ يُذْهِبْنَ السَّيِّئَاتِ'\r\napprox_ratio = approximate_ratio(orig, cand)\r\ntoken_f1 = token_overlap_f1(orig, cand)\r\nlcs_str, lcs_len, a_len, b_len = longest_common_substring(orig, cand)\r\napprox_ratio, token_f1, lcs_len/max(a_len,b_len), lcs_str",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679143d8481968ef1b7583edd645a07233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679169b8c81969040637f6b5ddfc907233616ffe0e051",
+      "code": "matches_tanbut = [v for v in quran if \"تَنْبُتُ\" in v['ayah_text'] or \"تنبت\" in normalize_arabic(v['ayah_text'])]\r\n[(v['surah_id'], v['ayah_id'], v['ayah_text']) for v in matches_tanbut][:10], len(matches_tanbut)",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791894ac819686412ab895c11d2c07233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927572481969e57e6edbd0b131107233616ffe0e051",
+      "code": "# Retrieve the verse text hud 11:114\r\nverse_11114 = None\r\nfor v in quran:\r\n    if v['surah_id'] == 11 and v['ayah_id'] == 114:\r\n        verse_11114 = v['ayah_text']\r\n        break\r\nverse_11114",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792938b08196b9ad2d9d258220e407233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792989cc819685420c56347d2a4107233616ffe0e051",
+      "code": "target_phrase = \"إِنَّ الْحَسَنَاتِ يُذْهِبْنَ السَّيِّئَاتِ\"\r\nstart = verse_11114.find(target_phrase)\r\nstart, verse_11114[start:start+len(target_phrase)]",
+      "container_id": "cntr_689678d507e4819097d05776df7e1d4c08c99bcd7a957cef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792b3390819684b337e28fbfb20f07233616ffe0e051",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967944eec081968bb3ff686a32b2ea07233616ffe0e051",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"إِنَّ الْحَسَنَاتِ يُذْهِبْنَ السَّيِّئَاتِ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 63480,
+    "input_tokens_details": {
+      "cached_tokens": 57448
+    },
+    "output_tokens": 8558,
+    "output_tokens_details": {
+      "reasoning_tokens": 8512
+    },
+    "total_tokens": 72038
+  },
+  "user": null,
+  "store": false
+}

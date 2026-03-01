@@ -1,0 +1,189 @@
+{
+  "id": "resp_689708a18f80819487aadc4726d952aa011e1d8ca5e09b70",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5dd6481948b03559724e70479011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bad16881948ce8924fbf98df83011e1d8ca5e09b70",
+      "code": "# Load the JSON files and inspect structure; search for matches to snippet \"وَقَالَ مُوس\"\r\n\r\nimport json, re, os, sys\r\nfrom pathlib import Path\r\n\r\nqfile = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhfile = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\nprint(\"Files exist:\", os.path.exists(qfile), os.path.exists(hfile))\r\n\r\nwith open(qfile, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\nwith open(hfile, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\n\r\n# Check sizes and sample entries\r\nprint(\"Quranic verses count:\", len(qdata))\r\nprint(\"Sample q item keys:\", list(qdata[0].keys())[:20], qdata[0].get('ayah_text')[:120])\r\n\r\nprint(\"Hadith books entries count:\", len(hdata))\r\n# print sample hadith item keys\r\nprint(\"Sample hadith item keys:\", list(hdata[0].keys())[:50])\r\nprint(\"Sample hadith text fields:\", [ (k, hdata[0].get(k)[:120] if isinstance(hdata[0].get(k), str) else None) for k in ('hadithTxt','Matn') ])",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bf94ac81948f5701bc93842113011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c4a2788194a1a44896bfcf4af7011e1d8ca5e09b70",
+      "code": "# Implement normalization and search routines\r\n\r\nimport re\r\nimport unicodedata\r\nfrom collections import Counter\r\n\r\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06DC\\u06DF-\\u06E8\\u06EA-\\u06ED\\u0670\\u06E0]\"\"\")\r\ntatweel = '\\u0640'\r\npunc_regex = re.compile(r'[\\u060C\\u061B\\u061F\\u066A-\\u066D\\u06D4\\.,:؛؟!\"\\(\\)\\[\\]\\{\\}«»‹›“”ـ\\-–—…\\/\\\\\\|;\\'\\u200f\\u200e]')\r\nwhitespace_norm = re.compile(r'\\s+')\r\n\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return \"\"\r\n    # normalize unicode\r\n    text = unicodedata.normalize('NFC', text)\r\n    # remove tashkeel\r\n    text = arabic_diacritics.sub('', text)\r\n    # remove tatweel\r\n    text = text.replace(tatweel, '')\r\n    # remove punctuation\r\n    text = punc_regex.sub(' ', text)\r\n    # replace different alef forms with bare alef\r\n    text = re.sub('[إأآاٱ]', 'ا', text)\r\n    # replace alif maqsura with ya\r\n    text = re.sub('ى', 'ي', text)\r\n    # replace taa marbuta with ه? We will keep it as is for now (تبديله قد change meaning)\r\n    # unify hamza on waw/yeh to hamza\r\n    text = re.sub('[ؤئ]', 'ء', text)\r\n    # remove shadda maybe left after removing diacritics? already removed.\r\n    # collapse whitespace\r\n    text = whitespace_norm.sub(' ', text).strip()\r\n    # lowercase not applicable\r\n    return text\r\n\r\ndef tokenize_ar(text):\r\n    # simple split by spaces\r\n    return text.split()\r\n\r\nsnippet = \"وَقَالَ مُوس\"\r\nnorm_snippet = normalize_ar(snippet)\r\nsnippet, norm_snippet, tokenize_ar(norm_snippet)[:10]",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ca65c081948b341b538c6291fa011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ceaf1c8194b1576c96c3471052011e1d8ca5e09b70",
+      "code": "# Search quranic verses for substring matches\r\ndef longest_common_substring(a,b):\r\n    # returns length of longest common substring\r\n    # dynamic programming\r\n    m = len(a)\r\n    n = len(b)\r\n    if m==0 or n==0:\r\n        return 0\r\n    # use a rolling array for memory efficiency\r\n    prev = [0]*(n+1)\r\n    maxlen = 0\r\n    for i in range(1,m+1):\r\n        cur = [0]*(n+1)\r\n        for j in range(1,n+1):\r\n            if a[i-1]==b[j-1]:\r\n                cur[j] = prev[j-1]+1\r\n                if cur[j]>maxlen:\r\n                    maxlen = cur[j]\r\n            else:\r\n                cur[j] = 0\r\n        prev = cur\r\n    return maxlen\r\n\r\ndef token_f1(a,b):\r\n    # tokens lists\r\n    ta = a.split()\r\n    tb = b.split()\r\n    if len(ta)==0 and len(tb)==0:\r\n        return 1.0\r\n    if len(ta)==0 or len(tb)==0:\r\n        return 0.0\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    # overlap count\r\n    overlap = sum((ca & cb).values())\r\n    if overlap==0:\r\n        return 0.0\r\n    precision = overlap / len(tb)  # overlap relative to candidate?\r\n    recall = overlap / len(ta)     # relative to snippet?\r\n    if precision+recall == 0:\r\n        return 0.0\r\n    return 2*precision*recall/(precision+recall), precision, recall\r\n\r\ncandidates = []\r\nfor item in qdata:\r\n    ayah_text = item.get('ayah_text','')\r\n    norm_ayah = normalize_ar(ayah_text)\r\n    if norm_snippet in norm_ayah:\r\n        lcs_len = longest_common_substring(norm_snippet, norm_ayah)\r\n        tf1, prec, rec = token_f1(norm_snippet, norm_ayah)\r\n        candidates.append((item, norm_ayah, lcs_len, tf1, prec, rec))\r\n\r\nlen(candidates)",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d482d481948f0e2ce4dad03028011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d4d2f08194aa351e2099167a46011e1d8ca5e09b70",
+      "code": "# Print candidate details\r\nfor item, norm_ayah, lcs_len, tf1, prec, rec in candidates:\r\n    print(\"Surah\", item.get('surah_id'), item.get('surah_name'), \"Ayah\", item.get('ayah_id'))\r\n    print(\"Original:\", item.get('ayah_text'))\r\n    print(\"Norm:\", norm_ayah)\r\n    print(\"LCS_len:\", lcs_len, \"token_f1:\", tf1, \"prec:\", prec, \"rec:\", rec)\r\n    print('-'*80)",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d755ac819481164e42319cbea1011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d89c808194b1b8d69d135b53b7011e1d8ca5e09b70",
+      "code": "for item, norm_ayah, lcs_len, tf1, prec, rec in candidates:\r\n    print(item.get('surah_id'), item.get('ayah_id'), \"norm_snippet_len\", len(norm_snippet), \"lcs_len\", lcs_len, \"ratio\", lcs_len/len(norm_snippet))",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708da9b28819496399bfa9abfc11a011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e69a34819480b4efe6f34c167f011e1d8ca5e09b70",
+      "code": "# Find the exact entry for surah 40 ayah 27 in qdata\r\ntarget = None\r\nfor item in qdata:\r\n    if item.get('surah_id')==40 and item.get('ayah_id')==27:\r\n        target = item\r\n        break\r\ntarget, target and target.get('ayah_text')[:200]",
+      "container_id": "cntr_689708a3807081909cc25cd7281bd6ce0f5a7d986d1b8ba0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e8a7c48194be7d8ce655f248da011e1d8ca5e09b70",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708ede78481948f12e9d106803a3f011e1d8ca5e09b70",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَقَالَ مُوسَىٰ إِنِّي عُذْتُ بِرَبِّي وَرَبِّكُمْ مِنْ كُلِّ مُتَكَبِّرٍ لَا يُؤْمِنُ بِيَوْمِ الْحِسَابِ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 50871,
+    "input_tokens_details": {
+      "cached_tokens": 45848
+    },
+    "output_tokens": 6544,
+    "output_tokens_details": {
+      "reasoning_tokens": 6464
+    },
+    "total_tokens": 57415
+  },
+  "user": null,
+  "store": false
+}

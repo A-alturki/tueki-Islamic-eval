@@ -1,0 +1,237 @@
+{
+  "id": "resp_689678d3156c819782571b775ca7348104c3d3378cfc91c2",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d8169481979ec07d52cb2f498004c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e4c75c819786cfb227986e98ca04c3d3378cfc91c2",
+      "code": "import json, re, unicodedata, os, textwrap, math, difflib, statistics, itertools, string, sys, pprint",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e778748197bce9d3078cfd0b5704c3d3378cfc91c2",
+      "code": "import json, os, re, unicodedata, sys, pprint, math, difflib",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e92da481978306d45cf040a0d304c3d3378cfc91c2",
+      "code": "quran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\nprint(os.path.exists(quran_path), os.path.exists(hadith_path))",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ebb9e48197b72e3442b9d6bcb504c3d3378cfc91c2",
+      "code": "with open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\nlen(quran), type(quran)",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ee03ac8197b819d19bd7ebf40504c3d3378cfc91c2",
+      "code": "# Inspect sample\nquran[0]",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f01c848197b640fda6ac99f20604c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f13670819796c908f4f678e55504c3d3378cfc91c2",
+      "code": "import regex as re\n\n# Arabic diacritics unicode block\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\ntatweel = '\\u0640'\n\ndef normalize_ar(s):\n    if s is None:\n        return ''\n    s = str(s)\n    # unify hamza forms to bare alif? We'll map all hamza-on to alif; ya/wa?\n    # Per instruction unify hamza: map alef with hamza above/below, madda, wasla to alif.\n    mapping = {\n        '\\u0622':'ا', '\\u0623':'ا', '\\u0625':'ا', '\\u0671':'ا', # alif variants to alif\n        '\\u0624':'و', '\\u0626':'ي', # hamza on waw to waw, hamza on ya to ya (or remove hamza)\n        'ؤ':'و', 'ئ':'ي',\n        'أ':'ا','إ':'ا','آ':'ا','ٱ':'ا',\n    }\n    s = ''.join(mapping.get(ch, ch) for ch in s)\n    # remove diacritics\n    s = arabic_diacritics.sub('', s)\n    # remove tatweel\n    s = s.replace(tatweel, '')\n    # remove punctuation including Arabic punctuation\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)\n    # collapse spaces\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef search_quran(snippet_norm, quran):\n    # Return list of matches with score\n    results = []\n    for a in quran:\n        t = a['ayah_text']\n        tn = normalize_ar(t)\n        # substring or token overlap\n        # compute ratio using difflib SequenceMatcher with normalized\n        ratio = difflib.SequenceMatcher(a=snippet_norm, b=tn).ratio()\n        # containment\n        contains = snippet_norm in tn\n        # word overlap jaccard\n        sset = set(snippet_norm.split())\n        tset = set(tn.split())\n        if sset:\n            jacc = len(sset & tset) / len(sset | tset)\n        else:\n            jacc = 0\n        results.append((ratio, contains, jacc, a))\n    # sort primarily by contains True then ratio & jacc\n    results.sort(key=lambda x: (x[1], x[0]+x[2]), reverse=True)\n    return results\n\noriginal_full = \"يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاط\"\nsnippet = \"يَا أَيُّه... بِالْبَاط\"\nnorm_orig = normalize_ar(original_full)\nnorm_snip = normalize_ar(snippet)\nnorm_orig, norm_snip[:50]",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678fa29a48197aebfc262a1c616f704c3d3378cfc91c2",
+      "code": "results = search_quran(norm_orig, quran)\nresults[:5]",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fe2f908197b8b4c36e1144fe0d04c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678fedcf08197b8407ae48752c5d604c3d3378cfc91c2",
+      "code": "with open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith = json.load(f)\nlen(hadith), type(hadith)",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967901f3ac8197be4fbdad8d3d226404c3d3378cfc91c2",
+      "code": "def extract_hadith_text(entry):\n    # try hadithTxt or Matn fields\n    for k in ['hadithTxt', 'Matn', 'matn', 'HadithText', 'arabic_text']:\n        if k in entry and entry[k]:\n            return entry[k]\n    # search other fields heuristically\n    for k,v in entry.items():\n        if isinstance(v,str) and len(v)>30 and re.search(r'[\\u0600-\\u06FF]', v):\n            return v\n    return None\n\ndef search_hadith(snippet_norm, hadith):\n    results = []\n    for e in hadith:\n        t = extract_hadith_text(e)\n        if not t:\n            continue\n        tn = normalize_ar(t)\n        ratio = difflib.SequenceMatcher(a=snippet_norm, b=tn).ratio()\n        contains = snippet_norm in tn\n        sset = set(snippet_norm.split())\n        tset = set(tn.split())\n        if sset: \n            jacc = len(sset & tset) / len(sset | tset)\n        else: \n            jacc = 0\n        results.append((ratio, contains, jacc, t))\n    results.sort(key=lambda x: (x[1], x[0]+x[2]), reverse=True)\n    return results\n\nhadith_results = search_hadith(norm_orig, hadith)\nhadith_results[:3]",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679135248819785fe030c4ad8d56f04c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791c2c548197b2e0e562a6a4320104c3d3378cfc91c2",
+      "code": "# find entries where normalized candidate contains Norm original\nmatching = [a for (ratio, contains, jacc, a) in results if contains]\nlen(matching), matching[:3]",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791fc49481979f8463764e30197a04c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967923ec98819785006bc7ea4d640704c3d3378cfc91c2",
+      "code": "# Find surah 4:29\nfor a in quran:\n    if a['surah_id'] == 4 and a['ayah_id'] == 29:\n        print(a['ayah_text'])\n        break",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967928235c8197821a7e7ab9b7b73804c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793586b081979d6fb911e01a6e4b04c3d3378cfc91c2",
+      "code": "def lcs_length(a, b):\n    # compute LCS length for sequences; dynamic programming O(n*m)\n    # Since strings length might be large but manageable\n    n, m = len(a), len(b)\n    # optimize memory\n    prev = [0]*(m+1)\n    for i in range(1, n+1):\n        curr = [0]*(m+1)\n        ai = a[i-1]\n        for j in range(1, m+1):\n            bj = b[j-1]\n            if ai == bj:\n                curr[j] = prev[j-1]+1\n            else:\n                if prev[j] >= curr[j-1]:\n                    curr[j] = prev[j]\n                else:\n                    curr[j] = curr[j-1]\n        prev = curr\n    return prev[m]\n\ncandidate = matching[0]['ayah_text']\nnorm_candidate = normalize_ar(candidate)\nlcs = lcs_length(norm_orig, norm_candidate)\nlcs_shorter_ratio = lcs / max(1, len(norm_orig))\nlcs_shorter_ratio, len(norm_orig), len(norm_candidate)",
+      "container_id": "cntr_689678d4b24c81908837cffb4e7b288f00ab293c6fe1adf1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679399f6c8197a0bbae529b0d1ab604c3d3378cfc91c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896799bb6a08197a1b1e61458eb69e004c3d3378cfc91c2",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"يَا أَيُّهَا الَّذِينَ آمَنُوا لَا تَأْكُلُوا أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاطِلِ إِلَّا أَنْ تَكُونَ تِجَارَةً عَنْ تَرَاضٍ مِنْكُمْ ۚ وَلَا تَقْتُلُوا أَنْفُسَكُمْ ۚ إِنَّ اللَّهَ كَانَ بِكُمْ رَحِيمًا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 59068,
+    "input_tokens_details": {
+      "cached_tokens": 42336
+    },
+    "output_tokens": 5637,
+    "output_tokens_details": {
+      "reasoning_tokens": 5504
+    },
+    "total_tokens": 64705
+  },
+  "user": null,
+  "store": false
+}

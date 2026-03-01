@@ -1,0 +1,234 @@
+{
+  "id": "resp_689708a153e8819384c4c976562be4830487c80e75323e40",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5b0ec81938487f2b2e10daf900487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aba2a48193be1e95d04b03eae50487c80e75323e40",
+      "code": "# Let's load the two JSON files from the given paths.\r\nimport json, os, sys, re\r\nqpath = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\r\nhpath = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\r\nprint(os.path.exists(qpath), os.path.exists(hpath))\r\nwith open(qpath, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\nlen_q = len(qdata)\r\nprint(\"quranic verses entries:\", len_q)\r\n# Peek first entry\r\nqdata[:2]",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708aeed888193b01bab50428493a10487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b0d20c8193b1e1ea5a36aef48e0487c80e75323e40",
+      "code": "# search for candidates in qdata by normalized matching methods\r\nimport unicodedata, math\r\ndef normalize_ar(text):\r\n    # lowercase (not relevant for Arabic), remove tatweel, punctuation, diacritics, unify hamza forms\r\n    text = str(text)\r\n    # remove tatweel\r\n    text = text.replace('\\u0640', '')\r\n    # normalize different alef forms to bare alef\r\n    text = re.sub('[إأآا]', 'ا', text)\r\n    # normalise hamza on waw/ya? maybe convert ؤ ئ to و ي? Better unify hamzas to basic hamza 'ء'\r\n    # but instruction says unify hamza; we'll map ؤ ئ to ا? Hmm better to replace with ء \r\n    text = re.sub('[ؤئإأآ]', 'ء', text)\r\n    # remove diacritics (tashkeel)\r\n    arabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\"\"\")\r\n    text = re.sub(arabic_diacritics, '', text)\r\n    # remove punctuation and non letters/digits\r\n    text = re.sub(r'[^\\w\\u0621-\\u064A\\s]', ' ', text)\r\n    # replace underscores\r\n    text = text.replace('_',' ')\r\n    # collapse spaces and lowercase\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    return text\r\n\r\nquery_full = \"الرجال قوامون على النساء بما فضل الله بعضهم على بعض وبما أنفقوا من أموالهم\"\r\nqnorm = normalize_ar(query_full)\r\nqnorm\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b574788193abfea037675affc00487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b6ce4481938a4e9769a1e5593b0487c80e75323e40",
+      "code": "from difflib import SequenceMatcher\r\ndef token_f1(a,b):\r\n    a_tokens = a.split()\r\n    b_tokens = b.split()\r\n    if not a_tokens or not b_tokens:\r\n        return 0.0\r\n    a_counts = {}\r\n    for t in a_tokens:\r\n        a_counts[t] = a_counts.get(t,0)+1\r\n    overlap=0\r\n    for t in b_tokens:\r\n        if a_counts.get(t,0)>0:\r\n            overlap += 1\r\n            a_counts[t] -= 1\r\n    prec = overlap/len(b_tokens)\r\n    rec = overlap/len(a_tokens)\r\n    if prec+rec==0:\r\n        return 0.0\r\n    return 2*prec*rec/(prec+rec)\r\n\r\ndef seq_ratio(a,b):\r\n    return SequenceMatcher(None,a,b).ratio()\r\n\r\n# search through qdata\r\ncandidates = []\r\nfor entry in qdata:\r\n    ayah = entry['ayah_text']\r\n    anorm = normalize_ar(ayah)\r\n    # compute metrics\r\n    f1 = token_f1(qnorm, anorm)\r\n    sratio = seq_ratio(qnorm, anorm)\r\n    # Also longest common substring length ratio relative to query length\r\n    def lcs_len(a,b):\r\n        # dynamic programming for LCS (longest common substring) might be expensive; use SequenceMatcher.find_longest_match\r\n        m = SequenceMatcher(None, a, b).find_longest_match(0, len(a), 0, len(b))\r\n        return m.size\r\n    lcs = lcs_len(qnorm, anorm)\r\n    lcs_ratio = lcs/len(qnorm)\r\n    score = (f1*0.6 + sratio*0.3 + lcs_ratio*0.1)\r\n    if f1>0 or sratio>0.3 or lcs_ratio>0.2:\r\n        candidates.append((score, f1, sratio, lcs_ratio, entry))\r\n# sort candidates\r\ncandidates_sorted = sorted(candidates, key=lambda x: x[0], reverse=True)\r\nlen(candidates_sorted), candidates_sorted[:10]\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708be7e1c819380e596cfe3332bb30487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ceebd08193b47606079dd64ef50487c80e75323e40",
+      "code": "# find the exact DB entry for surah 4 ayah 34\r\ncandidate_entry = None\r\nfor entry in qdata:\r\n    if entry['surah_id']==4 and entry['ayah_id']==34:\r\n        candidate_entry = entry\r\n        break\r\ncandidate_entry\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d119308193b39092264cc8157d0487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d2f2988193a2b08c0c1f3d928c0487c80e75323e40",
+      "code": "# define functions for metrics again\r\nfrom difflib import SequenceMatcher\r\ndef normalized_lcs_ratio(a,b):\r\n    a_norm = normalize_ar(a)\r\n    b_norm = normalize_ar(b)\r\n    m = SequenceMatcher(None,a_norm,b_norm).find_longest_match(0,len(a_norm),0,len(b_norm))\r\n    return m.size / max(1, len(a_norm)), m.size, a_norm, b_norm\r\n\r\n# For token_f1, compute between normalized forms a->candidate? But we want similarity between candidate and FULL substring.\r\n# We'll compute f1 as earlier token_f1(normalized_query, normalized_candidate)\r\nnorm_candidate = normalize_ar(candidate_entry['ayah_text'])\r\n\r\nfull = query_full\r\nfull_norm = normalize_ar(full)\r\nlcs_ratio, lcs_size, a_norm, b_norm = normalized_lcs_ratio(full, candidate_entry['ayah_text'])\r\nf1_full = token_f1(full_norm, norm_candidate)\r\nseq_full = SequenceMatcher(None, full_norm, norm_candidate).ratio()\r\n\r\nsnippet = \"الرجال قوا...من أموالهم\"\r\nsnip_processed = snippet.replace('...',' ')\r\nsnip_norm = normalize_ar(snip_processed)\r\n\r\nlcs_ratio_snip, lcs_size_snip, a_norm_snip, b_norm_snip = normalized_lcs_ratio(snip_processed, candidate_entry['ayah_text'])\r\nf1_snip = token_f1(snip_norm, norm_candidate)\r\nseq_snip = SequenceMatcher(None, snip_norm, norm_candidate).ratio()\r\n\r\nfull_norm, norm_candidate, {\r\n    'lcs_ratio_full': lcs_ratio,\r\n    'lcs_size_full': lcs_size,\r\n    'f1_full': f1_full,\r\n    'seq_full': seq_full,\r\n    'snip_norm': snip_norm,\r\n    'lcs_ratio_snip': lcs_ratio_snip,\r\n    'lcs_size_snip': lcs_size_snip,\r\n    'f1_snip': f1_snip,\r\n    'seq_snip': seq_snip\r\n}\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d91858819387236d88e692ded80487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708db71d88193a8ce5d849c84ae970487c80e75323e40",
+      "code": "with open(hpath, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\nlen_h = len(hdata)\r\nlen_h\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dd792c81938cc61e21aff3ffa00487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708de0c488193a7945790cd37ba7c0487c80e75323e40",
+      "code": "hdata[:3]\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dfbf148193b66f83b09d77aba60487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e1db0081938c8fd85e23f875dd0487c80e75323e40",
+      "code": "# search hadith DB for any entries where normalized hadith text contains normalized query_full as substring\r\nqnorm = normalize_ar(query_full)\r\nmatches = []\r\nfor i, entry in enumerate(hdata):\r\n    for field in ('Matn','hadithTxt'):\r\n        txt = entry.get(field)\r\n        if not txt:\r\n            continue\r\n        tnorm = normalize_ar(txt)\r\n        if qnorm in tnorm:\r\n            matches.append((i, field, entry))\r\n            break\r\nlen(matches)\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e92ae08193aa5e2fba596ef7590487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e9c404819381a6b3aba0c02a2b0487c80e75323e40",
+      "code": "# compute similarity (sequence ratio) for hadith Matn/hadithTxt fields and get top matches\r\nfrom heapq import nlargest\r\ntop = []\r\nfor entry in hdata:\r\n    best_ratio = 0.0\r\n    best_field = None\r\n    for field in ('Matn','hadithTxt'):\r\n        txt = entry.get(field)\r\n        if not txt:\r\n            continue\r\n        tnorm = normalize_ar(txt)\r\n        ratio = SequenceMatcher(None, qnorm, tnorm).ratio()\r\n        if ratio > best_ratio:\r\n            best_ratio = ratio\r\n            best_field = field\r\n    if best_ratio > 0.2: # threshold to reduce results\r\n        top.append((best_ratio, best_field, entry))\r\ntop_sorted = sorted(top, key=lambda x: x[0], reverse=True)\r\ntop_sorted[:10]\n",
+      "container_id": "cntr_689708a2f9348190b8769704b507779e016daec4fa09d476",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970906036c8193a4673e8a049df8420487c80e75323e40",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6897090d62f881939d74f9b4fb211faf0487c80e75323e40",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"الرِّجَالُ قَوَّامُونَ عَلَى النِّسَاءِ بِمَا فَضَّلَ اللَّهُ بَعْضَهُمْ عَلَىٰ بَعْضٍ وَبِمَا أَنْفَقُوا مِنْ أَمْوَالِهِمْ ۚ فَالصَّالِحَاتُ قَانِتَاتٌ حَافِظَاتٌ لِلْغَيْبِ بِمَا حَفِظَ اللَّهُ ۚ وَاللَّاتِي تَخَافُونَ نُشُوزَهُنَّ فَعِظُوهُنَّ وَاهْجُرُوهُنَّ فِي الْمَضَاجِعِ وَاضْرِبُوهُنَّ ۖ فَإِنْ أَطَعْنَكُمْ فَلَا تَبْغُوا عَلَيْهِنَّ سَبِيلًا ۗ إِنَّ اللَّهَ كَانَ عَلِيًّا كَبِيرًا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 80545,
+    "input_tokens_details": {
+      "cached_tokens": 72848
+    },
+    "output_tokens": 5556,
+    "output_tokens_details": {
+      "reasoning_tokens": 5312
+    },
+    "total_tokens": 86101
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,354 @@
+{
+  "id": "resp_689678d2f91c8194925ef1806a4bad630e6232f4a60e43c2",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7eeb481949b8cc88891e3c1650e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678fac4f08194801acb06618c1fff0e6232f4a60e43c2",
+      "code": "import json, re, unicodedata, os, math, itertools, statistics\r\n\r\nquran_path = '/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json'\r\nhadith_path = '/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json'\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran = load_json(quran_path)\r\nhadith = load_json(hadith_path)\r\n\r\nlen(quran), len(hadith[:2]), type(quran[0])",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ff89a08194a3f3348e5fa982580e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790043fc8194b6ea6dbff1c923a00e6232f4a60e43c2",
+      "code": "quran[0].keys()",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967902e9048194b5fb50dd722b68ce0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790320a08194a01ee125584a50f60e6232f4a60e43c2",
+      "code": "type(hadith), len(hadith), hadith[0].keys()",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790579bc81949e80b37617048a180e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679063fbc8194842c9b628e588c110e6232f4a60e43c2",
+      "code": "def strip_diacritics(s):\r\n    # remove Arabic diacritics\r\n    # Arabic diacritic unicode ranges: 064B-065F, 0670, 06D6-06ED\r\n    diacritics = re.compile(r'[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\n    return diacritics.sub('', s)\r\n\r\ndef normalize_ar(s):\r\n    if s is None:\r\n        return None\r\n    s = s.strip()\r\n    s = strip_diacritics(s)\r\n    # normalize alef forms\r\n    s = re.sub('[\\u0622\\u0623\\u0625\\u0671]', 'ا', s)  # different alifs to alef\r\n    # normalize ta marbuta to ha? Usually not necessary; keep\r\n    # normalize ya and alif maqsura\r\n    s = s.replace('ى', 'ي')\r\n    # unify hamza on ya/waw? not replaced\r\n    # remove tatweel\r\n    s = s.replace('ـ', '')\r\n    # remove punctuation and non-letters\r\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]+', ' ', s)\r\n    # collapse spaces\r\n    s = re.sub(r'\\s+', ' ', s)\r\n    return s.lower()\r\n\r\ndef search_quran_substring(query):\r\n    norm_q = normalize_ar(query)\r\n    hits = []\r\n    for i, v in enumerate(quran):\r\n        text = v['ayah_text']\r\n        if norm_q in normalize_ar(text):\r\n            hits.append((i, v))\r\n    return hits\r\n\r\ndef search_quran_contains_any(tokens, min_count=1):\r\n    # tokens list of token strings normalized\r\n    hits = []\r\n    for v in quran:\r\n        norm_text = normalize_ar(v['ayah_text'])\r\n        count = sum(1 for t in tokens if t in norm_text)\r\n        if count >= min_count:\r\n            hits.append((count, v))\r\n    hits.sort(key=lambda x: (-x[0], x[1]['surah_id'], x[1]['ayah_id']))\r\n    return hits\r\n\r\ndef lcs(a,b):\r\n    # normalized for similarity ratio length / max len\r\n    # do char-level LCS\r\n    m, n = len(a), len(b)\r\n    dp = [0]*(n+1)\r\n    for i in range(1, m+1):\r\n        prev=0\r\n        for j in range(1, n+1):\r\n            tmp=dp[j]\r\n            if a[i-1]==b[j-1]:\r\n                dp[j]=prev+1\r\n            else:\r\n                dp[j]=max(dp[j], dp[j-1])\r\n            prev=tmp\r\n    return dp[n]\r\n\r\ndef sim_ratio(a,b):\r\n    # normalized lcs over max len\r\n    a2 = normalize_ar(a)\r\n    b2 = normalize_ar(b)\r\n    if not a2 and not b2:\r\n        return 1.0\r\n    L = lcs(a2, b2)\r\n    return L / max(len(a2), len(b2))\r\n\r\nquery1 = \"وليمحص ما في قلوبكم\"\r\nhits = search_quran_substring(query1)\r\nlen(hits), hits[:5]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790eca888194992bdeecf2d3a2680e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790efa0c8194be70679fdb3739c40e6232f4a60e43c2",
+      "code": "hits2 = search_quran_substring(\"ولنبلونكم بشيء مما كسبتم\")\r\nlen(hits2), hits2[:3]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679110abc81948f8340a8934e44e50e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791148688194965e434f32d322c30e6232f4a60e43c2",
+      "code": "hits3 = search_quran_substring(\"ولنبلونكم بشيء\")\r\nlen(hits3), [(v['surah_id'], v['ayah_id'], v['ayah_text']) for _, v in hits3]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967913801c8194a8caccd2d88cc51b0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967920f0d4819489561f56cf4fa28a0e6232f4a60e43c2",
+      "code": "orig = \"ولنبلونكم بشيء مما كسبتم وليمحص ما في قلوبكم\"\r\ncand1 = \"وَلِيَبْتَلِيَ اللَّهُ مَا فِي صُدُورِكُمْ وَلِيُمَحِّصَ مَا فِي قُلُوبِكُمْ\"\r\ncand2 = \"وَلَنَبْلُوَنَّكُمْ بِشَيْءٍ مِنَ الْخَوْفِ وَالْجُوعِ وَنَقْصٍ مِنَ الْأَمْوَالِ وَالْأَنْفُسِ وَالثَّمَرَاتِ ۗ وَبَشِّرِ الصَّابِرِينَ\"\r\ncand3 = \"وَلَنَبْلُوَنَّكُمْ حَتَّىٰ نَعْلَمَ الْمُجَاهِدِينَ مِنْكُمْ وَالصَّابِرِينَ وَنَبْلُوَ أَخْبَارَكُمْ\"\r\n\r\nfor i,c in enumerate([cand1,cand2,cand3], start=1):\r\n    print(i, sim_ratio(orig, c))",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967924bc988194ba7953ca075473cd0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967926cbec8194a08f5b2e19d950530e6232f4a60e43c2",
+      "code": "cand_combined = cand2 + \" \" + cand1\r\nsim_ratio(orig, cand_combined)",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792b7dc48194b1fdbe665317c0050e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793081548194a9d17287c0df1d310e6232f4a60e43c2",
+      "code": "def token_f1(a,b):\r\n    a_tokens = normalize_ar(a).split()\r\n    b_tokens = normalize_ar(b).split()\r\n    # count overlap with multiset? We'll use set intersection to be generous\r\n    from collections import Counter\r\n    ca = Counter(a_tokens)\r\n    cb = Counter(b_tokens)\r\n    common = sum((ca & cb).values())\r\n    if common == 0:\r\n        return 0.0\r\n    precision = common / len(b_tokens)  # how much of candidate covered by orig\r\n    recall = common / len(a_tokens)     # how much of orig covered by candidate\r\n    # However compute harmonic mean\r\n    f1 = 2*precision*recall/(precision+recall)\r\n    return f1, precision, recall, common, len(a_tokens), len(b_tokens), a_tokens, b_tokens\r\n\r\nfor i, c in enumerate([cand1, cand2, cand3, cand_combined], 1):\r\n    f1, p, r, common, la, lb, at, bt = token_f1(orig, c)\r\n    print(i, f1, p, r, common, la, lb, at, bt)",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793451d081949c1a2774fe411b600e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793e58ac8194a5b30a7db8f7caf50e6232f4a60e43c2",
+      "code": "hits_mimma_kasabtum = [v for v in quran if \"مِمَّا كَسَبْتُمْ\" in v['ayah_text'] or \"مما كسبتم\" in v['ayah_text']]\r\n[(v['surah_id'], v['ayah_id'], v['ayah_text']) for v in hits_mimma_kasabtum][:10], len(hits_mimma_kasabtum)",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794082c48194b38bd25088d90e2d0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794110a881948ec07373328e228a0e6232f4a60e43c2",
+      "code": "hits_kasabtum = [v for v in quran if 'كَسَبْتُمْ' in v['ayah_text'] or 'كسبتم' in v['ayah_text']]\r\nlen(hits_kasabtum), [(v['surah_id'], v['ayah_id']) for v in hits_kasabtum[:10]]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679467ac48194b455c6f4ee9bad900e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967946bec88194a5e2f19337c98ea40e6232f4a60e43c2",
+      "code": "[(v['surah_id'], v['ayah_id'], v['ayah_text']) for v in hits_kasabtum]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967948c8cc8194a0183dbc6d1b03df0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679528a3481948599290071d7ac6c0e6232f4a60e43c2",
+      "code": "ayah_3154 = hits[0][1]['ayah_text']\r\nayah_3154",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967954b6b481949ccbb7b5760584b70e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967954e96c81948a14c87d91f4cc020e6232f4a60e43c2",
+      "code": "start = ayah_3154.find(\"وَلِيَبْتَلِيَ اللَّهُ مَا فِي صُدُورِكُمْ\")\r\nend = ayah_3154.find(\"وَلِيُمَحِّصَ مَا فِي قُلُوبِكُمْ\") + len(\"وَلِيُمَحِّصَ مَا فِي قُلُوبِكُمْ\")\r\nstart, end, ayah_3154[start:end]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967957c31881949aaa616dd9df450e0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795b2df48194903f23aebe507a210e6232f4a60e43c2",
+      "code": "hits_limahhis = [v for v in quran if 'لِيُمَحِّصَ' in v['ayah_text'] or 'ليمحص' in v['ayah_text']]\r\n[(v['surah_id'], v['ayah_id'], v['ayah_text']) for v in hits_limahhis]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795e57148194b7ae42f08a6690390e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796baf148194be7b29a9edce85da0e6232f4a60e43c2",
+      "code": "def search_hadith_substring(query):\r\n    norm_q = normalize_ar(query)\r\n    hits = []\r\n    for i, v in enumerate(hadith):\r\n        text = v.get('hadithTxt') or '' \r\n        matn = v.get('Matn') or ''\r\n        if norm_q in normalize_ar(text) or norm_q in normalize_ar(matn):\r\n            hits.append((i, v))\r\n    return hits\r\n\r\nh1 = search_hadith_substring(\"وليمحص ما في قلوبكم\")\r\nlen(h1)",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797430e88194a00291b0d0fc8e3b0e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797474408194b9a18a687b0ab5130e6232f4a60e43c2",
+      "code": "h1[:1]",
+      "container_id": "cntr_689678d4b4dc8190bdb94e294c5a8c700010ea9585e7fe8a",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967976929c81948478b70569db3ef40e6232f4a60e43c2",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967992c0d88194824627b26e1cfdb90e6232f4a60e43c2",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَلِيَبْتَلِيَ اللَّهُ مَا فِي صُدُورِكُمْ وَلِيُمَحِّصَ مَا فِي قُلُوبِكُمْ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 143796,
+    "input_tokens_details": {
+      "cached_tokens": 131408
+    },
+    "output_tokens": 9342,
+    "output_tokens_details": {
+      "reasoning_tokens": 9280
+    },
+    "total_tokens": 153138
+  },
+  "user": null,
+  "store": false
+}

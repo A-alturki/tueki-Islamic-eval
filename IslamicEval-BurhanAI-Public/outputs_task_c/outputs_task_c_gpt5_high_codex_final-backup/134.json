@@ -1,0 +1,305 @@
+{
+  "id": "resp_689678d3299c8190bb9bb267a6ad4d180d28d147abf8583a",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678dabb1c8190ab619dff0f363a3a0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678e9b0dc819096ce795c3211676f0d28d147abf8583a",
+      "code": "import json, re, unicodedata, os, sys, math, difflib, itertools, statistics, textwrap, random",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ebedbc819094dd18293b9e5abf0d28d147abf8583a",
+      "code": "import json, os, pathlib, sys, re, unicodedata, math, difflib",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ee1a4c81909c9675cd094772a00d28d147abf8583a",
+      "code": "from pathlib import Path\nquran_path = Path('/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json')\nhadith_path = Path('/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json')\nquran_path.exists(), hadith_path.exists(), quran_path.stat().st_size, hadith_path.stat().st_size",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f0a240819091f97b797ce4028e0d28d147abf8583a",
+      "code": "import json, gzip, io, sys, os, math, re, unicodedata",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f288148190976401a286e320f90d28d147abf8583a",
+      "code": "with open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\ntype(hadith_data)",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f5275c8190b238469a703d987e0d28d147abf8583a",
+      "code": "len(hadith_data), hadith_data[0].keys()",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f88da08190abeff3e421f698f00d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790294448190b956137984e4bebc0d28d147abf8583a",
+      "code": "import re, unicodedata, json, math, difflib, itertools, statistics",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967904a6dc8190bb26f824d700eef30d28d147abf8583a",
+      "code": "AR_DIACRITICS = ''.join(chr(c) for c in range(0x0610, 0x061A+1)) + ''.join(chr(c) for c in range(0x064B, 0x065F+1)) + ''.join(chr(c) for c in range(0x06D6, 0x06ED+1))\ndef strip_diacritics(s):\n    return ''.join(ch for ch in s if ch not in AR_DIACRITICS and unicodedata.category(ch) != 'Mn')\n\ndef normalize_ar(s):\n    # Lowercase\n    s = s.strip()\n    # Remove tatweel\n    s = s.replace('ـ', '')\n    # normalize hamza forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ة','ه').replace('ى','ي')\n    # remove diacritics\n    s = strip_diacritics(s)\n    # Remove punctuation\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)\n    # Collapse multiple spaces\n    s = re.sub(r'\\s+', ' ', s)\n    return s.lower()\n\ndef norm_tokens(s):\n    return normalize_ar(s).split()\n\ndef token_f1(a, b):\n    ta, tb = norm_tokens(a), norm_tokens(b)\n    from collections import Counter\n    ca, cb = Counter(ta), Counter(tb)\n    inter = sum((ca & cb).values())\n    if inter == 0:\n        return 0.0\n    prec = inter / (sum(cb.values()) if sum(cb.values()) else 1)\n    rec = inter / (sum(ca.values()) if sum(ca.values()) else 1)\n    if prec+rec==0:\n        return 0.0\n    f1 = 2*prec*rec/(prec+rec)\n    return f1\n\ndef char_lcs(a,b):\n    # normalized char-level LCS similarity\n    na, nb = normalize_ar(a), normalize_ar(b)\n    # compute LCS length\n    m, n = len(na), len(nb)\n    dp = [0]*(n+1)\n    for i in range(1,m+1):\n        prev = 0\n        for j in range(1,n+1):\n            tmp = dp[j]\n            if na[i-1]==nb[j-1]:\n                dp[j]=prev+1\n            else:\n                dp[j]=max(dp[j], dp[j-1])\n            prev = tmp\n    l = dp[n]\n    # normalize by max length\n    if max(m,n)==0:\n        return 0.0\n    return l/max(m,n)\n\ndef combined_similarity(a,b):\n    # combine token F1 and LCS\n    tf1 = token_f1(a,b)\n    lcs = char_lcs(a,b)\n    # Weighted average\n    return 0.6*lcs + 0.4*tf1, tf1, lcs\n\noriginal_span = \"لا تَزالُ طَائِفَةٌ مِن أُمَّتِي مُقِيمَةٌ في الجَنَّةِ لا يَضُرُّهُم مَنَخُصُ في الأَرضِ\"\nsnippet = \"لا تَزالُ ...في الأَرضِ\"\n\nnormalize_ar(original_span), norm_tokens(original_span)[:20]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790efbe48190a202827e9f3eb1520d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790f83cc8190b5309074a28215150d28d147abf8583a",
+      "code": "def search_hadith_by_substring(substring, max_results=50):\n    res=[]\n    ns=normalize_ar(substring)\n    for rec in hadith_data:\n        for field in ('hadithTxt','Matn'):\n            txt=rec.get(field) or ''\n            if not txt:\n                continue\n            nt=normalize_ar(txt)\n            if ns in nt:\n                res.append((rec['hadithID'], field, txt))\n                break\n        if len(res)>=max_results:\n            break\n    return res\n\nsearch_phrase = \"لا تزال طائفة من أمتي\"\nres = search_hadith_by_substring(search_phrase, max_results=200)\nlen(res)",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791e1ec081909cda31819dfcfa4e0d28d147abf8583a",
+      "code": "res[:5]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679200ee08190b7be9b2195bae8da0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792363408190b62b0c2a079a391a0d28d147abf8583a",
+      "code": "def get_rec_by_id(hid):\n    for r in hadith_data:\n        if r['hadithID']==hid:\n            return r\n    return None\n\nhid = 17474\nrec = get_rec_by_id(hid)\nrec['Matn'][:400]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792bff2c81908f87b6920163490b0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792cc8748190b901f284758aaed70d28d147abf8583a",
+      "code": "cand_text = rec['Matn']\nsim, tf1, lcs = combined_similarity(original_span, cand_text)\nsim, tf1, lcs, cand_text",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792efed88190bdef748f52bf20aa0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679303bec8190a9853c49a66407c70d28d147abf8583a",
+      "code": "cands = [get_rec_by_id(hid)['Matn'] for hid,field,txt in res if get_rec_by_id(hid)['Matn']]\n# Compute similarity for each\nsims = []\nfor hid, field, txt in res:\n    rec = get_rec_by_id(hid)\n    matn = rec.get('Matn') or ''\n    if not matn.strip():\n        continue\n    sim, tf1, lcs = combined_similarity(original_span, matn)\n    sims.append((sim, tf1, lcs, rec['hadithID'], matn))\n# sort by sim\nsims_sorted = sorted(sims, key=lambda x: -x[0])\nlen(sims_sorted), sims_sorted[:5]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793411cc8190980672410aa4b0eb0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793bc038819089d0421e6e52f9470d28d147abf8583a",
+      "code": "# search for hadiths that contain both \"لا تزال طائفة من أمتي\" and \"لا يضرهم\"\nres2=[]\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    if not matn:\n        continue\n    n = normalize_ar(matn)\n    if all(term in n for term in [\"لا تزال طائفه من امتي\".replace('طائفه','طايفه'), \"لا يضرهم\".replace('ي','ي')]): # Already no change\n        res2.append((rec['hadithID'], matn))\nlen(res2), res2[:5]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679450d0881908ffae34ec147421a0d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794c647881908ef41ede55d5b8fc0d28d147abf8583a",
+      "code": "matches=[]\nfor rec in hadith_data:\n    matn = rec.get('Matn') or ''\n    n = normalize_ar(matn)\n    if \"لا تزال طائفه من امتي\" in n and \"في الارض\" in n:\n        matches.append((rec['hadithID'], matn))\nlen(matches), matches[:5]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967952b674819089bec5901e3d4b010d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967965b74c8190a825a558de19bc740d28d147abf8583a",
+      "code": "def top_similar_hadiths(query, topn=20, min_len=10):\n    sims=[]\n    qnorm = normalize_ar(query)\n    for rec in hadith_data:\n        matn = rec.get('Matn') or ''\n        if not matn:\n            continue\n        # optionally skip too short matn\n        sim, tf1, lcs = combined_similarity(query, matn)\n        sims.append((sim, tf1, lcs, rec['hadithID'], matn))\n    sims.sort(key=lambda x: -x[0])\n    return sims[:topn]\n\ntop = top_similar_hadiths(original_span, 20)\n[(s, hid) for s,tf,lcs,hid,matn in top[:10]], top[0][3]",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a341c6c8190a94c0b70c9b59bc10d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967a39b37081908f3f7b5e1e42b2260d28d147abf8583a",
+      "code": "for hid in [107944, 107945, 17478, 17474, 107948, 17479, 11233, 100115]:\n    rec=get_rec_by_id(hid)\n    print(hid, rec['Matn'])",
+      "container_id": "cntr_689678d569b08190b5103100c0d6e88c0d1992494ec4ee98",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a4154dc819099929d1a4d910bd70d28d147abf8583a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967a4989608190b7ae32bbf7a0c8560d28d147abf8583a",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 106053,
+    "input_tokens_details": {
+      "cached_tokens": 87208
+    },
+    "output_tokens": 6485,
+    "output_tokens_details": {
+      "reasoning_tokens": 6464
+    },
+    "total_tokens": 112538
+  },
+  "user": null,
+  "store": false
+}

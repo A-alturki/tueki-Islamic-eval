@@ -1,0 +1,312 @@
+{
+  "id": "resp_689675340d488194866f2213569673e6049567b4bd5f1f2d",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896753887a48194bfd87a5aa1f8d91f049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896755125c481948d6ecea8f4613645049567b4bd5f1f2d",
+      "code": "import json, re, os, unicodedata, math, itertools, statistics, sys, textwrap, random",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967553b4ac8194bee326e5d69a691d049567b4bd5f1f2d",
+      "code": "# Load the files\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_data = json.load(f)\n\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967556e3b481948e77767e0778b650049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896755711048194920326f9f8c29865049567b4bd5f1f2d",
+      "code": "# Inspect a sample entry from hadith_data\nhadith_data[0].keys(), hadith_data[0]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967558e794819486368e4a1becce5e049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967559c0908194a9349e0bac5d7958049567b4bd5f1f2d",
+      "code": "import re\nimport unicodedata\n\nAR_DIACRITICS = ''.join(chr(c) for c in range(0x0610, 0x061A+1)) \\\n               + ''.join(chr(c) for c in range(0x064B, 0x065F+1)) \\\n               + chr(0x0670) + chr(0x06D6) + chr(0x06D7) + chr(0x06D8) + chr(0x06D9) + chr(0x06DA) + chr(0x06DB) + chr(0x06DC) + chr(0x06DF) + chr(0x06E0) + chr(0x06E1) + chr(0x06E2) + chr(0x06E3) + chr(0x06E4) + chr(0x06E7) + chr(0x06E8) + chr(0x06EA) + chr(0x06EB) + chr(0x06EC) + chr(0x06ED)\n\ndef strip_tashkeel(s):\n    return ''.join(ch for ch in s if ch not in AR_DIACRITICS)\n\ndef normalize_ar(s):\n    if s is None:\n        return ''\n    s = s.replace('\\u0640','')  # tatweel\n    s = strip_tashkeel(s)\n    # unify hamza forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا')\n    s = s.replace('ؤ','و').replace('ئ','ي')\n    # normalize alef maqsurah and ta marbuta\n    s = s.replace('ى','ي')\n    # maybe unify taa marbuta to ه? Usually no; keep it as ة for now\n    # punctuation removal\n    s = re.sub(r'[^\\w\\s\\u0621-\\u064A]+',' ', s)\n    # remove extra spaces\n    s = re.sub(r'\\s+',' ', s).strip()\n    return s\n\ndef token_f1(a,b):\n    # compute token-level F1\n    ta = normalize_ar(a).split()\n    tb = normalize_ar(b).split()\n    if not ta or not tb:\n        return 0.0\n    from collections import Counter\n    ca = Counter(ta); cb = Counter(tb)\n    overlap = sum((ca & cb).values())\n    prec = overlap / len(ta)\n    rec = overlap / len(tb)\n    if prec + rec == 0:\n        return 0.0\n    return 2*prec*rec/(prec+rec)\n\ndef lcs_length(a,b):\n    # normalized LCS length / shorter length\n    sa = normalize_ar(a)\n    sb = normalize_ar(b)\n    n,m = len(sa), len(sb)\n    if n==0 or m==0:\n        return 0.0\n    # If extremely long, approximate\n    # But here strings are short; we'll do DP but cap to 5k\n    if n*m > 5_000_000:\n        return token_f1(sa, sb)\n    dp = [0]*(m+1)\n    for i in range(1,n+1):\n        prev=0\n        for j in range(1,m+1):\n            temp = dp[j]\n            if sa[i-1]==sb[j-1]:\n                dp[j] = prev+1\n            else:\n                if dp[j] < dp[j-1]:\n                    dp[j] = dp[j-1]\n            prev = temp\n    lcs = dp[m]\n    denom = min(n,m)\n    return lcs/denom\n\ndef robust_sim(a,b):\n    return max(token_f1(a,b), lcs_length(a,b))\n\norig_full = \"من عمل عملاً جنسياً مثلياً فقد ارتكب خطيئة كبيرة\"\nsnippet = \"من عمل عمل...طيئة كبيرة\"\nprint(normalize_ar(orig_full))\nprint(normalize_ar(snippet), robust_sim(orig_full, snippet))",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756565648194989f5ff1c6b3bf3a049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896756ef6908194b16eb1e49ded11d5049567b4bd5f1f2d",
+      "code": "def search_hadith(query):\n    nq = normalize_ar(query)\n    results = []\n    for h in hadith_data:\n        text = h.get('Matn') or h.get('hadithTxt') or ''\n        nt = normalize_ar(text)\n        if nq in nt:\n            results.append(h)\n    return results\n\ncandidates = search_hadith(\"عمل قوم لوط\")\nlen(candidates)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967573ad6481948647070643ec805a049567b4bd5f1f2d",
+      "code": "[(c['hadithID'], c['BookID'], c['title'], (c['Matn'] or c['hadithTxt'])[:180]) for c in candidates]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675761f2081948ff7439ab15f2850049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675774ce48194a2b0d146be23f489049567b4bd5f1f2d",
+      "code": "orig_full = \"من عمل عملاً جنسياً مثلياً فقد ارتكب خطيئة كبيرة\"\ndef get_text(h):\n    return h.get('Matn') or h.get('hadithTxt') or ''\n\nfor c in candidates:\n    text = get_text(c)\n    sim = robust_sim(text, orig_full)\n    print(c['hadithID'], c['title'], sim, text)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757962b88194ac3eb66d65fd6a7e049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757bda348194a51879cfbf1d4f1f049567b4bd5f1f2d",
+      "code": "cand2 = search_hadith(\"لعن الله من عمل عمل قوم لوط\")\nlen(cand2), [(c['hadithID'], c['title'], (get_text(c))[:150]) for c in cand2[:10]]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967580eef08194bc7ef902dc3dc02f049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675818a548194991a98ba8c0a3d2c049567b4bd5f1f2d",
+      "code": "# Get all hadiths containing \"لوط\"\nall_lut = search_hadith(\"لوط\")\nlen(all_lut)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967586f5908194a20eb4c19bb4190b049567b4bd5f1f2d",
+      "code": "[(h['hadithID'], h['title'], get_text(h)) for h in all_lut[:20]]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675898c40819486e33ff01dcfa2a9049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675a1f43881948b920b7a815c2ef2049567b4bd5f1f2d",
+      "code": "cands3 = search_hadith(\"من عمل عملا\")\nlen(cands3)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675a79d2c8194beeeca1876a0a208049567b4bd5f1f2d",
+      "code": "[(c['hadithID'], c['title'], get_text(c)) for c in cands3]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675a9872c8194b740a4109f08415e049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675a9da4881949f6cb352ca63f2e4049567b4bd5f1f2d",
+      "code": "for c in cands3:\n    sim = robust_sim(get_text(c), orig_full)\n    print(c['hadithID'], sim, get_text(c))",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675ac689c8194adca572b5706fba8049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675b9afe08194b9cf121677eeb219049567b4bd5f1f2d",
+      "code": "# Search for occurrences of \"خطيئة\" or \"خطيئه\" in hadith DB\ncands_khatiah = search_hadith(\"خطيئة\")\nlen(cands_khatiah)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675be4e6081949650991d66aae39d049567b4bd5f1f2d",
+      "code": "# Look at some samples\n[(h['hadithID'], h['title'], get_text(h)[:200]) for h in cands_khatiah[:5]]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675c06c488194b29715b4f0ddc746049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675c281288194aeb924f595339f70049567b4bd5f1f2d",
+      "code": "def search_quran(query):\n    nq = normalize_ar(query)\n    results = []\n    for v in quran_data:\n        text = v.get('ayah_text') or ''\n        nt = normalize_ar(text)\n        if nq in nt:\n            results.append(v)\n    return results\n\nq_cands = search_quran(\"لوط\")\nlen(q_cands)",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675c60148819485a41818b1214669049567b4bd5f1f2d",
+      "code": "q_cands[:3]",
+      "container_id": "cntr_68967535b18c81909121c425b38a5296063deeeac53722a2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675c8a4608194829c7f2e50705201049567b4bd5f1f2d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689675ca51f08194b84e9a50a02b8e7b049567b4bd5f1f2d",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 168149,
+    "input_tokens_details": {
+      "cached_tokens": 127912
+    },
+    "output_tokens": 5781,
+    "output_tokens_details": {
+      "reasoning_tokens": 5760
+    },
+    "total_tokens": 173930
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

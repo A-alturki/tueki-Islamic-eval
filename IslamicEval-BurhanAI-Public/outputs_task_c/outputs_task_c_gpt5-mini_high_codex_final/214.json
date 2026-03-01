@@ -1,0 +1,234 @@
+{
+  "id": "resp_689708a0dcf081938810d850192969e9018d332ca2d91754",
+  "created_at": 1754728608.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5426c81938b8c59c35e3457a1018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a871e88193901ce2cccaabcbfd018d332ca2d91754",
+      "code": "# Load the provided JSON files\r\nimport json, os, sys, re, unicodedata\r\n\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\nwith open(qpath, \"r\", encoding=\"utf-8\") as f:\r\n    qdata = json.load(f)\r\nwith open(hpath, \"r\", encoding=\"utf-8\") as f:\r\n    hdata = json.load(f)\r\n\r\nlen(qdata), len(hdata)",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708adb9f881939f876009c19707de018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aea790819387f815873e8ccdef018d332ca2d91754",
+      "code": "# show first few hadith entries keys\r\nimport itertools, pprint\r\nfor i in range(5):\r\n    pprint.pprint(hdata[i])\r\n    print(\"----\")",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b0687c819395e3576b03d87d5c018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b22a088193a122e275db3207eb018d332ca2d91754",
+      "code": "# Search hadith entries for the phrase\r\ndef normalize_search(s):\r\n    return s\r\n\r\nhits = []\r\nfor i,entry in enumerate(hdata):\r\n    txts = []\r\n    if entry.get('Matn'):\r\n        txts.append(entry['Matn'])\r\n    if entry.get('hadithTxt'):\r\n        txts.append(entry['hadithTxt'])\r\n    combined = \" \".join([t for t in txts if t])\r\n    if \"مفاتيح\" in combined or \"مفتاح\" in combined:\r\n        hits.append((i, entry['hadithID'], combined[:300]))\r\nlen(hits), hits[:10]",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b4e930819380472223dd556f27018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b5a9b88193beb586c783aa602a018d332ca2d91754",
+      "code": "entry = hdata[1033]\r\nentry.keys(), entry.get('Matn'), entry.get('hadithTxt')[:800]",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b79244819381ee847c0d825dbf018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bc8c5c819398ed680ef6b317ba018d332ca2d91754",
+      "code": "# define normalization functions for Arabic per instructions\r\nimport re\r\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\"\"\")\r\ntatweel = re.compile(r'ـ+')\r\npunct = re.compile(r'[^\\w\\s\\u0600-\\u06FF]')  # remove punctuation except Arabic letters and digits and underscore? but punctuation removed\r\n\r\ndef unify_hamza(s):\r\n    # unify hamza variants: map أإآ to ا and ء maybe? The instruction says unify hamza; we'll replace أإآى with ا and end-of-word ى to ي??\r\n    # More appropriate: replace 'أ' 'إ' 'آ' with 'ا', and 'ؤ' 'ئ' with 'ء' ? But unify hamza often means replace ؤ ئ with و and ي? It's ambiguous.\r\n    # We'll perform common mapping: replace 'أ' 'إ' 'آ' -> 'ا'; replace 'ى' -> 'ي'; replace 'ة' -> 'ه'?? Not safe. We'll only normalize hamzas and alef maqsurah.\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا').replace('ى','ي')\r\n    return s\r\n\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return \"\"\r\n    s = str(s)\r\n    s = s.strip()\r\n    # remove tatweel\r\n    s = tatweel.sub('', s)\r\n    # remove tashkeel/diacritics\r\n    s = arabic_diacritics.sub('', s)\r\n    # unify hamza\r\n    s = unify_hamza(s)\r\n    # remove punctuation characters, but keep Arabic letters and spaces and digits\r\n    s = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', s)\r\n    # collapse whitespace and lowercase (no lower in Arabic)\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\n# test normalization\r\norig = \"مِفْتَاحُ الْغَيْبِ خَمْسٌ لَا يَعْلَمُهَا إِلَّا اللهُ: لَا يَعْلَمُ أَحَدٌ مَا يَكُونُ فِي غَدٍ ، وَلَا يَعْلَمُ أَحَدٌ مَا يَكُونُ فِي الْأَرْحَامِ ، وَلَا تَعْلَمُ نَفْسٌ مَاذَا تَكْسِبُ غَدًا ، وَمَا تَدْرِي نَفْسٌ بِأَيِّ أَرْضٍ تَمُوتُ ، وَمَا يَدْرِي أَحَدٌ مَتَى يَجِيءُ الْمَطَرُ \"\r\nsnippet = \"مفاتيح الغيب خمس لا يعلمهن إلا الله\"\r\nprint(normalize_arabic(orig))\r\nprint(normalize_arabic(snippet))",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c42d788193a44228d8e7fb8054018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c6809481938aa54a52f2beb782018d332ca2d91754",
+      "code": "# define similarity functions\r\ndef token_f1(a, b):\r\n    # tokens from normalized strings\r\n    ta = a.split()\r\n    tb = b.split()\r\n    set_a = ta\r\n    set_b = tb\r\n    # count overlap as multiset intersection? Use token counts.\r\n    from collections import Counter\r\n    ca = Counter(set_a)\r\n    cb = Counter(set_b)\r\n    overlap = sum(min(ca[t], cb.get(t,0)) for t in ca)\r\n    if overlap == 0:\r\n        return 0.0, 0.0, 0.0\r\n    precision = overlap / len(set_a)\r\n    recall = overlap / len(set_b)\r\n    if precision+recall == 0:\r\n        f1 = 0.0\r\n    else:\r\n        f1 = 2*precision*recall/(precision+recall)\r\n    return precision, recall, f1\r\n\r\ndef lcs_length(a, b):\r\n    # compute longest common subsequence length (characters)\r\n    # dynamic programming O(n*m)\r\n    n = len(a); m = len(b)\r\n    # convert to lists\r\n    A = list(a); B = list(b)\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    for i in range(n-1, -1, -1):\r\n        for j in range(m-1, -1, -1):\r\n            if A[i]==B[j]:\r\n                dp[i][j] = dp[i+1][j+1] + 1\r\n            else:\r\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\r\n    return dp[0][0]\r\n\r\ndef lcs_ratio(a,b):\r\n    L = lcs_length(a,b)\r\n    # ratio normalized by max length of a and b maybe\r\n    denom = max(len(a), len(b))\r\n    if denom==0:\r\n        return 1.0\r\n    return L/denom\r\n\r\ncandidate = entry['Matn']\r\nfull_sub = \"مفاتيح الغيب خمس لا يعلمهن إلا الله\"\r\nnorm_cand = normalize_arabic(candidate)\r\nnorm_full = normalize_arabic(full_sub)\r\nprec, rec, f1 = token_f1(norm_cand, norm_full)\r\nlratio = lcs_ratio(norm_cand, norm_full)\r\nnorm_cand, norm_full, prec, rec, f1, lratio, len(norm_cand), len(norm_full)",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cd02a88193b4ce7b4a4f0d6edc018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d2d32c819381ce7e44f09421d6018d332ca2d91754",
+      "code": "# Extract the first sentence/clause from candidate up to colon or full stop\r\nimport re\r\nm = re.split(r'[:\\u061B\\u060C\\.\\n]|،', entry['Matn'], maxsplit=1)\r\nfirst_clause = m[0].strip()\r\nfirst_clause, entry['Matn'][:200]",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d47bf08193bdbd7192bbebd654018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d4aca081939bec10bee9a2a93e018d332ca2d91754",
+      "code": "norm_clause = normalize_arabic(first_clause)\r\nnorm_snippet = normalize_arabic(\"مفاتيح الغيب خمس لا يعلمهن إلا الله\")\r\nprec, rec, f1 = token_f1(norm_clause, norm_snippet)\r\nlratio = lcs_ratio(norm_clause, norm_snippet)\r\nnorm_clause, norm_snippet, prec, rec, f1, lratio, len(norm_clause), len(norm_snippet)",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d7096081938952a86451b4457a018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708df9224819396cea0a34d1d8a78018d332ca2d91754",
+      "code": "s = hdata[1033]['Matn']\r\nprint(\"LEN:\", len(s))\r\nprint(repr(s))",
+      "container_id": "cntr_689708a295c0819096e2fa87440763d50dcd0586c417d631",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e1bad48193a7d913f750032062018d332ca2d91754",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708e61dec8193b7954e3008555059018d332ca2d91754",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"مِفْتَاحُ الْغَيْبِ خَمْسٌ لَا يَعْلَمُهَا إِلَّا اللهُ: لَا يَعْلَمُ أَحَدٌ مَا يَكُونُ فِي غَدٍ ، وَلَا يَعْلَمُ أَحَدٌ مَا يَكُونُ فِي الْأَرْحَامِ ، وَلَا تَعْلَمُ نَفْسٌ مَاذَا تَكْسِبُ غَدًا ، وَمَا تَدْرِي نَفْسٌ بِأَيِّ أَرْضٍ تَمُوتُ ، وَمَا يَدْرِي أَحَدٌ مَتَى يَجِيءُ الْمَطَرُ \"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 98262,
+    "input_tokens_details": {
+      "cached_tokens": 89104
+    },
+    "output_tokens": 5065,
+    "output_tokens_details": {
+      "reasoning_tokens": 4864
+    },
+    "total_tokens": 103327
+  },
+  "user": null,
+  "store": false
+}

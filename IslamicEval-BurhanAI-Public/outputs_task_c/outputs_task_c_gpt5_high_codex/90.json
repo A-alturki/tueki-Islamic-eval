@@ -1,0 +1,336 @@
+{
+  "id": "resp_6896753436348196adad0691aace440a001b6cf5e18b2652",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967542345c819686f32d94641a0c2e001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754acca08196b496905078cb833c001b6cf5e18b2652",
+      "code": "import json, re, unicodedata, os, textwrap, math, itertools, sys, statistics, collections, difflib, numpy as np",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755256b881968fd1718178e55989001b6cf5e18b2652",
+      "code": "import json, re, unicodedata, os, textwrap, math, itertools, sys",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755734ec8196af6577a15d8891a1001b6cf5e18b2652",
+      "code": "# Load JSON files\r\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\r\nwith open(quran_path, 'r', encoding='utf-8') as f:\r\n    quran_data = json.load(f)\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    hadith_data = json.load(f)\r\ntype(quran_data), type(hadith_data)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755f7e9c8196a5a7668d86e818a7001b6cf5e18b2652",
+      "code": "# Inspect a sample of the structure\r\nquran_data[0], hadith_data[0].keys()",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675646e1c8196803ddc9163887c16001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675673c148196af3a88ecab7aaa30001b6cf5e18b2652",
+      "code": "import re, unicodedata\r\n\r\ndef strip_diacritics(s):\r\n    # Remove Arabic diacritics\r\n    # combine marks include Arabic vowel marks\r\n    return ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')\r\n\r\ndef normalize_arabic(s):\r\n    s = s.replace('\\u0640', '')  # tatweel\r\n    # Normalize Alif variants\r\n    s = re.sub('[\\u0622\\u0623\\u0625\\u0671]', '\\u0627', s)  # alif with hamza/khaira -> alif\r\n    s = s.replace('\\u0649', '\\u064a')  # alif maqsura to ya\r\n    s = s.replace('\\u0629', '\\u0647')  # taa marbuta to ha? hmm sometimes; but might degrade matching; let's not.\r\n    # Actually many matchers keep taa marbuta as is. Let's comment:\r\n    # s = s.replace('\\u0629', '\\u0647')\r\n    # unify waw hamza? no necessary\r\n    # Remove punctuation\r\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)\r\n    # collapse whitespace\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\ndef normalize_all(s):\r\n    return normalize_arabic(strip_diacritics(s))\r\n\r\nquery = \"وإسرافيل وملك الموت\"\r\nquery_norm = normalize_all(query)\r\nquery_norm",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896756f13f48196850b62afba239ea6001b6cf5e18b2652",
+      "code": "# Build concatenated texts with indices from hadith_data to search\r\ncandidates = []\r\n\r\nfor i, h in enumerate(hadith_data):\r\n    text = h.get('hadithTxt') or \"\"\r\n    if text is None: text = \"\"\r\n    matn = h.get('Matn') or \"\"\r\n    # Combine fields if both exist? We'll search each separately with mapping to which field and index\r\n    for field_name, content in [('hadithTxt', text), ('Matn', matn)]:\r\n        if not content:\r\n            continue\r\n        norm = normalize_all(content)\r\n        candidates.append((i, field_name, content, norm))\r\n\r\nlen(candidates)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675843a94819691af21924304940f001b6cf5e18b2652",
+      "code": "# Search for \"إسرافيل\" and \"ملك الموت\" within same content\r\nhits_both = []\r\nfor idx, field, content, norm in candidates:\r\n    if \"اسرافيل\" in norm and \"ملك الموت\" in norm:\r\n        hits_both.append((idx, field, content))\r\nlen(hits_both)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967589d5dc819681f9983289e869bc001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758ace5881969af359f0d73754e3001b6cf5e18b2652",
+      "code": "# search for \"ملك الموت\" alone\r\nhits_malak = [(i, field, content) for i, field, content, norm in candidates if \"ملك الموت\" in content]\r\nlen(hits_malak), hits_malak[:3]",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675916b888196b81b69520333eee2001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675a80dd4819694c9d7e4653fa0c9001b6cf5e18b2652",
+      "code": "# Search both DBs for 'إسرافيل'\r\ndef search_texts(term, data_list, field):\r\n    term_norm = normalize_all(term)\r\n    results = []\r\n    for d in data_list:\r\n        text = d.get(field, \"\")\r\n        if not text: continue\r\n        if term in text or term_norm in normalize_all(text):\r\n            results.append(text)\r\n    return results\r\n\r\nisra_q = []\r\nfor d in quran_data:\r\n    t = d.get('ayah_text', '')\r\n    if 'إسرافيل' in t or 'اسرافيل' in t or 'إسراف' in t:\r\n        isra_q.append(t)\r\nlen(isra_q), isra_q[:5]",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675aff9e881968cf12280c1e30ed1001b6cf5e18b2652",
+      "code": "# search hadith for سياسة\r\nisra_h = []\r\nfor d in hadith_data:\r\n    for field in ['hadithTxt', 'Matn']:\r\n        text = d.get(field) or \"\"\r\n        if not text: continue\r\n        if 'إسرافيل' in text or 'اسرافيل' in text:\r\n            isra_h.append(text)\r\nlen(isra_h)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675b47a4c8196ac3115ceae355e80001b6cf5e18b2652",
+      "code": "isra_h[:5]",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675bb2b248196ba6176c803a7d4f0001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675bc1458819690be37eb31efec50001b6cf5e18b2652",
+      "code": "mm_verses = [d for d in quran_data if 'ملك الموت' in d['ayah_text'] or 'مَلَكُ الْمَوْتِ' in d['ayah_text']]\r\nlen(mm_verses), mm_verses",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675bd470481969cd242963c12a252001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675be2f688196b9328ed24ae6dde0001b6cf5e18b2652",
+      "code": "import json, re, unicodedata\r\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\r\nquran_data = json.load(open(quran_path, 'r', encoding='utf-8'))\r\nhadith_data = json.load(open(hadith_path, 'r', encoding='utf-8'))\r\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675c62d448196aaba8fc552ec7965001b6cf5e18b2652",
+      "code": "# Search for \"ملك الموت\" in quran verses\r\nverses_mm = [d for d in quran_data if 'ملك الموت' in d['ayah_text'] or 'مَلَكُ الْمَوْتِ' in d['ayah_text']]\r\nverses_mm",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675ccf38081969909212958f89ec4001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675cd95b48196940710ed182ffd04001b6cf5e18b2652",
+      "code": "def normalized_lcs(a, b):\r\n    # compute LCS length\r\n    # dynamic programming O(n*m) fine for small strings\r\n    n, m = len(a), len(b)\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    for i in range(n):\r\n        for j in range(m):\r\n            if a[i] == b[j]:\r\n                dp[i+1][j+1] = dp[i][j] + 1\r\n            else:\r\n                dp[i+1][j+1] = max(dp[i+1][j], dp[i][j+1])\r\n    lcs_len = dp[n][m]\r\n    return lcs_len / max(n, m) if max(n,m) else 0.0\r\n\r\ndef token_f1(a, b):\r\n    ta = a.split()\r\n    tb = b.split()\r\n    set_a = set(ta)\r\n    set_b = set(tb)\r\n    inter = set_a & set_b\r\n    if not set_a or not set_b:\r\n        return 0.0\r\n    prec = len(inter)/len(set_a)\r\n    rec = len(inter)/len(set_b)\r\n    if prec+rec == 0:\r\n        return 0.0\r\n    return 2*prec*rec/(prec+rec)\r\n\r\ndef combined_sim(a, b):\r\n    return 0.5*normalized_lcs(a, b) + 0.5*token_f1(a, b)\r\n\r\nquery = \"وإسرافيل وملك الموت\"\r\ndef norm(s): \r\n    # normalize approximate: remove diacritics, tatweel, unify alif, remove punctuation, collapse spaces \r\n    import re, unicodedata\r\n    s = ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')\r\n    s = s.replace('\\u0640', '')\r\n    s = re.sub('[\\u0622\\u0623\\u0625\\u0671]', '\\u0627', s)\r\n    s = s.replace('\\u0649', '\\u064a')\r\n    # s = s.replace('\\u0629', '\\u0647')\r\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\ncand = verses_mm[0]['ayah_text']\r\nsim = combined_sim(norm(query), norm(cand))\r\nnorm(query), norm(cand), sim",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675d7c34481968eb04ecb1987288e001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675d95010819684f2b79239b10dc6001b6cf5e18b2652",
+      "code": "jibril_verses = [d for d in quran_data if 'جِبْرِيلَ' in d['ayah_text'] or 'جِبْرِيلُ' in d['ayah_text'] or 'جبر' in d['ayah_text']]\r\n[(d['surah_id'], d['ayah_id'], d['ayah_text']) for d in jibril_verses]",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675e0d7848196a805a3c3a0ca68ed001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675e1333c8196801c41cc17b51587001b6cf5e18b2652",
+      "code": "cand2 = jibril_verses[1]['ayah_text']\r\ncombined_sim(norm(query), norm(cand2))",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675e913088196ac13880795545d95001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896760e52348196985860df157f93c3001b6cf5e18b2652",
+      "code": "def generate_candidates_texts():\r\n    for d in quran_data:\r\n        text = d['ayah_text']\r\n        yield ('quran', d['surah_id'], d['ayah_id'], text)\r\n    for d in hadith_data:\r\n        for field in ['hadithTxt', 'Matn']:\r\n            text = d.get(field)\r\n            if text:\r\n                yield ('hadith', d.get('BookID'), d.get('hadithID'), text)\r\n\r\ndef compute_sim_to_query(text, query=\"وإسرافيل وملك الموت\"):\r\n    # compute combined similarity using normalized forms\r\n    a = norm(query)\r\n    b = norm(text)\r\n    return combined_sim(a, b)\r\n\r\nquery_norm = norm(query)\r\ntoken_set = set(query_norm.split())\r\nlen(token_set), token_set",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967615cfa881969a9259e97e8deaa1001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967617f424819689ac8904ce4b86d9001b6cf5e18b2652",
+      "code": "def contains_terms(text):\r\n    n = norm(text)\r\n    return ('اسرافيل' in n) or ('ملك الموت' in n) or ('الملَك الموت' in n)\r\n\r\nprefiltered = []\r\nfor src, id1, id2, text in generate_candidates_texts():\r\n    if contains_terms(text):\r\n        sim = compute_sim_to_query(text, query)\r\n        prefiltered.append((sim, src, id1, id2, text))\r\n\r\nlen(prefiltered)",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896762f5ee88196baff4b03dfb18b8d001b6cf5e18b2652",
+      "code": "sorted_pref = sorted(prefiltered, reverse=True)[:10]\r\n[(round(sim,3), src, id1, id2, text[:120]) for sim, src, id1, id2, text in sorted_pref]",
+      "container_id": "cntr_6896753cf0a0819099c6cd3576064e9a0f4e5510ad2640a3",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896763531e481969ca34a5bee69491b001b6cf5e18b2652",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896764935e88196a1359230d3682f10001b6cf5e18b2652",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 138475,
+    "input_tokens_details": {
+      "cached_tokens": 123080
+    },
+    "output_tokens": 5461,
+    "output_tokens_details": {
+      "reasoning_tokens": 5440
+    },
+    "total_tokens": 143936
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

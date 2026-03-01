@@ -1,0 +1,265 @@
+{
+  "id": "resp_689675342efc8196af6d5ae0a7ad27ef092e314255461f2e",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967538ad208196a18e14780cddc1c8092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967551fa208196bf598b707bed6a99092e314255461f2e",
+      "code": "import json, re, os, sys, math, unicodedata, itertools, statistics",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896755403b48196a7f00d269dfa266f092e314255461f2e",
+      "code": "# Load the given files\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_data = json.load(f)\n\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675590c6c8196ac75c21ee7c5ad62092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967559b49c819686e5d54713e9f3d6092e314255461f2e",
+      "code": "# Show keys of first few quran entries\nquran_data[0].keys(), quran_data[0]",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896755bc10c81969fd51fc0eaabe95f092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896755ca9a48196bf4bb74e9d88fb0d092e314255461f2e",
+      "code": "# Define normalization: strip diacritics, tatweel, punctuation, unify hamza, alef forms, yaa alif maqsura.\nAR_DIACRITICS = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]\")\ndef normalize_ar(s):\n    if s is None:\n        return \"\"\n    # remove diacritics\n    s = AR_DIACRITICS.sub(\"\", s)\n    # remove tatweel\n    s = s.replace(\"ـ\", \"\")\n    # unify hamza/alef variants\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\")\n    s = s.replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ى\",\"ي\")\n    # normalize ta marbuta to ha for search? maybe leave as ta marbuta to avoid mismatch\n    # remove punctuation and ellipsis\n    s = re.sub(r\"[^\\w\\s\\u0621-\\u064A]\", \" \", s)  # keep Arabic letters/digits/underscore/space\n    # collapse spaces\n    s = re.sub(r\"\\s+\", \" \", s).strip()\n    return s\n\nfull_substring = \"إنه لقول رسول كريم ذي قوة عند ذي العرش مكين مطاع ثم أمين\"\nsnippet = \"إنه لقول ر...اع ثم أمين\"\nnorm_full = normalize_ar(full_substring)\nnorm_snip = normalize_ar(snippet)\nnorm_full, norm_snip",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967560ef84819685300c6fa14e448c092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967561b7088196bef35d87f0fc5971092e314255461f2e",
+      "code": "# Find candidate verses whose normalized text contains a substring of the target\nmatches = []\nfor i, v in enumerate(quran_data):\n    ayah = v[\"ayah_text\"]\n    norm_ayah = normalize_ar(ayah)\n    if \"انه لقول رسول كريم\" in norm_full and \"انه لقول رسول كريم\" in norm_ayah:\n        matches.append((i, v))\nlen(matches), matches[:3]",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756406fc8196a5bd972362b8054a092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967566208481969e687c8663d96d43092e314255461f2e",
+      "code": "# Extract 81:19-21\n# Find index of surah 81 ayah 19\ncandidate_sequence = []\nfor i, v in enumerate(quran_data):\n    if v[\"surah_id\"] == 81 and v[\"ayah_id\"] in (19,20,21):\n        candidate_sequence.append(v)\ncandidate_sequence",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756879b48196a4fbbad6c45be178092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967569dde081968162a24196d9fa43092e314255461f2e",
+      "code": "def combine_text(entries):\n    return \" \".join(e[\"ayah_text\"] for e in sorted(entries, key=lambda x: x[\"ayah_id\"]))\n\ncombined_text = combine_text(candidate_sequence)\nnorm_combined = normalize_ar(combined_text)\nnorm_full, norm_combined",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756bc1788196a0903c9acbe11c9a092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896756c594c81969f5b614f0aa2caea092e314255461f2e",
+      "code": "def lcs_length(a, b):\n    # O(n*m) dynamic programming - but strings are short\n    n, m = len(a), len(b)\n    dp = [0]*(m+1)\n    for i in range(1, n+1):\n        prev = 0\n        ai = a[i-1]\n        for j in range(1, m+1):\n            temp = dp[j]\n            if ai == b[j-1]:\n                dp[j] = prev + 1\n            else:\n                if dp[j] < dp[j-1]:\n                    dp[j] = dp[j-1]\n            prev = temp\n    return dp[m]\n\ndef lcs_similarity(a, b):\n    L = lcs_length(a, b)\n    return (2*L) / (len(a) + len(b)) if (len(a)+len(b))>0 else 0.0\n\nsim_full = lcs_similarity(norm_full, norm_combined)\nsim_full",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756f2cdc81968b82c1eeb9bf7fec092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757046c881969169f3abf63986bd092e314255461f2e",
+      "code": "sim_snip = lcs_similarity(norm_snip, norm_combined)\nnorm_snip, sim_snip",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967571c4a08196a6351bbd68c0a758092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757c32808196bf2aa7302d4e4389092e314255461f2e",
+      "code": "combined_text",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757dfd108196ab6972f97e41651d092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758050788196b1c24250cb81e9c8092e314255461f2e",
+      "code": "# Search hadith for snippet ngrams maybe just exact inclusion of 'انه لقول' or 'مطاع ثم امين'\ncand_hadith = []\nfor h in hadith_data:\n    # The hadith file may have either 'hadithTxt' or 'Matn' fields.\n    text = h.get(\"hadithTxt\") or h.get(\"Matn\") or \"\"\n    norm = normalize_ar(text)\n    if \"مطاع ثم امين\" in norm or \"انه لقول رسول\" in norm:\n        cand_hadith.append(text[:120])\nlen(cand_hadith)",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967583c03c8196b28617a0eb7763b2092e314255461f2e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758920688196852045c09beea16f092e314255461f2e",
+      "code": "print(combined_text)",
+      "container_id": "cntr_68967535c14c81908bedceb6c4dfb8fe0dc38a1100bf21fd",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "msg_6896758b0fc8819680074b88ca0ade85092e314255461f2e",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"إِنَّهُ لَقَوْلُ رَسُولٍ كَرِيمٍ ذِي قُوَّةٍ عِنْدَ ذِي الْعَرْشِ مَكِينٍ مُطَاعٍ ثَمَّ أَمِينٍ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 87772,
+    "input_tokens_details": {
+      "cached_tokens": 75872
+    },
+    "output_tokens": 5516,
+    "output_tokens_details": {
+      "reasoning_tokens": 5440
+    },
+    "total_tokens": 93288
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

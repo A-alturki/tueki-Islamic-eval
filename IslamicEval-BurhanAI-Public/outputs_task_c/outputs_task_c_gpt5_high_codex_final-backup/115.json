@@ -1,0 +1,633 @@
+{
+  "id": "resp_689678d314408195924c63468306950e0a7a2dcb63902ac6",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d78e788195802deb6722c269de0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678eb0b0481959ffa642e6a03b97f0a7a2dcb63902ac6",
+      "code": "import json, re, os, sys, math, unicodedata, itertools, difflib, textwrap, statistics",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678ed8bec81958e406793f268f0690a7a2dcb63902ac6",
+      "code": "# Load the files\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_data = json.load(f)\n\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f0653081958ac905118ea19dab0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f098388195933955d53dffd51f0a7a2dcb63902ac6",
+      "code": "# Inspect sample entries\nquran_data[0]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f29a8881958ec5ef3c70c62a790a7a2dcb63902ac6",
+      "code": "hadith_data[0].keys(), hadith_data[0]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f4520481959e7f32e5812e763a0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f6b69081958f66a121ff0c81760a7a2dcb63902ac6",
+      "code": "import re\nimport unicodedata\n\n# Arabic diacritics range: 0610-061A, 064B-065F, etc.\nDIACRITICS_PATTERN = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\nTATWEEL = '\\u0640'\n\ndef normalize_arabic(s):\n    if s is None:\n        return None\n    # Normalize unicode\n    s = unicodedata.normalize('NFKC', s)\n    # Remove diacritics\n    s = DIACRITICS_PATTERN.sub('', s)\n    # Remove tatweel\n    s = s.replace(TATWEEL, '')\n    # Normalize hamza and alef forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا')\n    s = s.replace('ؤ','و').replace('ئ','ي').replace('ى','ي')\n    # Teh marbuta to heh? maybe keep it? Many normalizations map ة to ه. We'll map for search.\n    s = s.replace('ة','ه')\n    # Remove punctuation and symbols\n    s = re.sub(r'[^\\w\\s]', ' ', s, flags=re.UNICODE)\n    # Arabic-Indic digits to Arabic digits, then remove digits\n    digits_map = {ord(c): ord('0')+i for i,c in enumerate('٠١٢٣٤٥٦٧٨٩')}\n    s = s.translate(digits_map)\n    s = re.sub(r'\\d+', ' ', s)\n    # lowercase (though arabic unaffected)\n    s = s.lower()\n    # Collapse whitespace\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef lcs(a,b):\n    # simple LCS length\n    n,m=len(a),len(b)\n    dp=[0]*(m+1)\n    for i in range(1,n+1):\n        prev=0\n        for j in range(1,m+1):\n            cur=dp[j]\n            if a[i-1]==b[j-1]:\n                dp[j]=prev+1\n            else:\n                dp[j]=max(dp[j],dp[j-1])\n            prev=cur\n    return dp[m]\n\ndef similarity_ratio(a,b):\n    # normalized LCS ratio\n    if not a or not b:\n        return 0.0\n    ln=lcs(a,b)\n    return ln/max(len(a),len(b))\n\n# Let's set the original span and snippet\norig_span = \"من مشى مع أخيه المسلم في حاجة حتى تتهيأ له، أثبت الله قدمه يوم تزول الأقدام\"\nsnippet = \"من مشى مع ...ول الأقدام\"\n\nnorm_orig = normalize_arabic(orig_span)\nnorm_snip = normalize_arabic(snippet)\nnorm_orig, norm_snip",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967903619c8195b21bdd9a1dd36cde0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790baac88195be71ae05ec5f9c550a7a2dcb63902ac6",
+      "code": "# Prepare normalized hadith texts\ndef get_hadith_text(entry):\n    txts=[]\n    if entry.get('Matn'):\n        txts.append(entry['Matn'])\n    if entry.get('hadithTxt'):\n        txts.append(entry['hadithTxt'])\n    # Combine\n    return \"\\n\".join([t for t in txts if t])\n\nnorm_hadiths=[]\nfor idx, h in enumerate(hadith_data):\n    raw = get_hadith_text(h)\n    if not raw:\n        norm=None\n    else:\n        norm = normalize_arabic(raw)\n    norm_hadiths.append((idx, raw, norm))\n\n# Search for occurrences of phrases like 'تزول (الاقدام|الاقدام)' or 'تزل الاقدام'\nmatches_phrase = []\nfor idx, raw, norm in norm_hadiths:\n    if not norm: \n        continue\n    if 'تزول الاقدام' in norm or 'تزل الاقدام' in norm:\n        matches_phrase.append((idx, raw, norm))\n\nlen(matches_phrase)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793001148195898a15c25a453bcb0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967930845c819591dd9bd73f1a9d480a7a2dcb63902ac6",
+      "code": "# search for 'تزول' and 'تزل' and 'الصراط' 'قدم' etc.\ndef search_norm_contains(term):\n    term_norm=normalize_arabic(term)\n    res=[]\n    for idx, raw, norm in norm_hadiths:\n        if not norm: continue\n        if term_norm in norm:\n            res.append((idx, raw, norm))\n    return res\n\nlen(search_norm_contains(\"تزول\")), len(search_norm_contains(\"تزل\")), len(search_norm_contains(\"الصراط\")), len(search_norm_contains(\"قدم\")), len(search_norm_contains(\"اخيه في حاجه\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679338b688195bed2c17cfb7a9e4f0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679360efc8195838d152c8c47677d0a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"من مشى\")), len(search_norm_contains(\"من مشي\")), len(search_norm_contains(\"مشَى\")), len(search_norm_contains(\"مشى مع\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793821cc8195a9d6b53f783888500a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793864408195957af9071f494a9d0a7a2dcb63902ac6",
+      "code": "results_mn_masha = search_norm_contains(\"من مشى\")\n[(i, hadith_data[i]['title']) for i,_,_ in results_mn_masha[:10]]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896793a71548195b92f9fb906832ca20a7a2dcb63902ac6",
+      "code": "for i,_,norm in results_mn_masha:\n    # print small snippet that has 'من مشى'\n    idx = norm.find(normalize_arabic(\"من مشى\"))\n    print(i, hadith_data[i]['title'])\n    print(\"...\", norm[max(0,idx-50): idx+100])\n    print()",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793d13bc8195b81bb5aeca35abda0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793dc01881959bd11ef42252db000a7a2dcb63902ac6",
+      "code": "res_haja = search_norm_contains(\"في حاجة أخيه\")\nlen(res_haja), [(i, hadith_data[i]['title']) for i,_,_ in res_haja[:5]]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679401a5881959d1d87a639252db10a7a2dcb63902ac6",
+      "code": "# Let's print snippets to see\nfor i,_,norm in res_haja:\n    idx = norm.find(normalize_arabic(\"في حاجة أخيه\"))\n    print(i, hadith_data[i]['title'])\n    print(\"...\", norm[max(0,idx-80): idx+120])\n    print()",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794239488195af8de1bdd8d884c10a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967942f18c8195873a1851cc0c06aa0a7a2dcb63902ac6",
+      "code": "res_thabat = search_norm_contains(\"ثبت الله قدمه\")\nlen(res_thabat)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967944ce388195becb4995566c92d60a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679451e008195a502017d88281bc20a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"ثبت قدمه\")), len(search_norm_contains(\"اثبت الله قدمه\")), len(search_norm_contains(\"اثبت قدمه\")), len(search_norm_contains(\"ثبّت الله قدمه\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679471bf48195b5e91f3c582fbb150a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679475b708195a511b325c36924e70a7a2dcb63902ac6",
+      "code": "res_yawm_tazul = search_norm_contains(\"يوم تزول\")\nres_yawm_tazil = search_norm_contains(\"يوم تزل\")\nlen(res_yawm_tazul), len(res_yawm_tazil)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679494f4c8195af4aa8bba4ddee490a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794a176c8195bf6e85b4b0e0eb1a0a7a2dcb63902ac6",
+      "code": "def search_quran_contains(term):\n    term_norm = normalize_arabic(term)\n    res=[]\n    for a in quran_data:\n        norm = normalize_arabic(a['ayah_text'])\n        if term_norm in norm:\n            res.append(a)\n    return res\n\nlen(search_quran_contains(\"تزول الأقدام\")), len(search_quran_contains(\"تزل قدم\")), [ (a['surah_name'], a['ayah_id']) for a in search_quran_contains(\"تزل قدم\")[:5]]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896794e05548195b98fa9709a7463ad0a7a2dcb63902ac6",
+      "code": "search_quran_contains(\"تزل قدم\")[0]['ayah_text']",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794fe8cc8195a9dba6c2774b51d00a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967952db888195b691c32109effcf70a7a2dcb63902ac6",
+      "code": "results_masha_ma = search_norm_contains(\"مشى مع\")\nlen(results_masha_ma)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967954b9fc8195a4938c83264858a50a7a2dcb63902ac6",
+      "code": "# Show some results to inspect varieties\ndef snippet_around(norm_text, term, width=120):\n    term_n = normalize_arabic(term)\n    idx = norm_text.find(term_n)\n    if idx == -1:\n        return norm_text[:width]\n    return norm_text[max(0, idx-60): idx+len(term_n)+60]\n\nfor i,raw,norm in results_masha_ma[:20]:\n    print(i, hadith_data[i]['title'])\n    print(snippet_around(norm, 'مشى مع'))\n    print('---')",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967957579881958f96c9c00882a8dc0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679580b708195aa0c032f7f4264370a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"حتى تتهيأ له\")), len(search_norm_contains(\"حتي تتهيا له\")), len(search_norm_contains(\"تتهيا له\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795a31f48195827237549782b33c0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795b4794819587c7cfade29931300a7a2dcb63902ac6",
+      "code": "res_mazlum = search_norm_contains(\"مظلوم\")\nlen(res_mazlum), [(i, hadith_data[i]['title']) for i,_,_ in res_mazlum[:10]]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896795d22bc8195a1dec6e9b1291da60a7a2dcb63902ac6",
+      "code": "# Let's inspect for phrases \"حتى يثبت له حقه\"\nres_phrase = search_norm_contains(\"حتى يثبت له حقه\")\nlen(res_phrase)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795fef6c8195a08b26850a5cfdb50a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795ffd588195b57ca450f85e3e830a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"يثبت له حقه\")), len(search_norm_contains(\"يجب له حقه\")), len(search_norm_contains(\"حتى يثبت\")), len(search_norm_contains(\"ثبت قدمه\")), len(search_norm_contains(\"على الصراط\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896796222b481959d2f34ae123de22b0a7a2dcb63902ac6",
+      "code": "search_norm_contains(\"على الصراط\")[:3]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679641368819594c08e7b435619570a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796d812481959504e125fdeed7c50a7a2dcb63902ac6",
+      "code": "# Candidate: From Bukhari hadith with \"المسلم أخو المسلم...\"\ncandidate_indices = [2384, 6822, 14085, 25733, 27616]  # from earlier\n# Let's pick e.g., 2384 (Bukhari Book of mظالم)\ncand_text = get_hadith_text(hadith_data[candidate_indices[0]])\ncand_text_norm = normalize_arabic(cand_text)\nsim = similarity_ratio(norm_orig, cand_text_norm)\nsim",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967970a8e08195a61091c6b0e9cae10a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679743f908195a5dc6505af35684e0a7a2dcb63902ac6",
+      "code": "# search in Quran for 'تزول الاقدام' 'تزول' 'تزل' 'قدم' etc.\nlen(search_quran_contains(\"تزول الأقدام\")), len(search_quran_contains(\"تزول\")), len(search_quran_contains(\"تزل\")), len(search_quran_contains(\"يوم تزل\")), len(search_quran_contains(\"قدم\")), search_quran_contains(\"يوم تزول\")[:3]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967979f74c81958792ca91b8009b920a7a2dcb63902ac6",
+      "code": "[(a['surah_name'], a['ayah_id'], a['ayah_text']) for a in search_quran_contains(\"تزول\")[:10]]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797d143c81958a6ead5d597d36290a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896799959308195a8e37223a81f73c00a7a2dcb63902ac6",
+      "code": "# Additional thorough search for keywords combination in one hadith entry\nkeywords = [normalize_arabic(w) for w in [\"من\", \"مشى\", \"أخيه\", \"المسلم\", \"في\", \"حاجة\", \"حتى\", \"تتهيأ\", \"له\", \"أثبت\", \"الله\", \"قدمه\", \"يوم\", \"تزول\", \"الأقدام\"]]\nkeywords",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896799c53788195b6853fc49aca7a9a0a7a2dcb63902ac6",
+      "code": "# find entries that contain at least some subset of these keywords\ndef contains_keywords(norm_text, terms):\n    return all(t in norm_text for t in terms)\n\n# Try to search for entries that contain the unique rare tokens: 'تزول' + 'الاقدام'\nrare_terms = ['تزول','الاقدام']\ncands = []\nfor idx, raw, norm in norm_hadiths:\n    if not norm: continue\n    if contains_keywords(norm, rare_terms):\n        cands.append((idx, raw))\nlen(cands)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896799fd9008195b9c63b886880b2c00a7a2dcb63902ac6",
+      "code": "# Search for 'تزل' + 'الاقدام'\nrare_terms2 = ['تزل','الاقدام']\ncands2 = []\nfor idx, raw, norm in norm_hadiths:\n    if not norm: continue\n    if contains_keywords(norm, rare_terms2):\n        cands2.append((idx, raw))\nlen(cands2)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679a233988195b91421c29a0f47fe0a7a2dcb63902ac6",
+      "code": "# Search for 'تزول' + 'قدم'\nrare_terms3 = ['تزول','قدم']\ncands3=[]\nfor idx, raw, norm in norm_hadiths:\n    if not norm: continue\n    if contains_keywords(norm, rare_terms3):\n        cands3.append((idx, raw))\nlen(cands3)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679a4d020819599320ad166e2e4d10a7a2dcb63902ac6",
+      "code": "for i, raw in cands3:\n    print(i, hadith_data[i]['title'])\n    print(get_hadith_text(hadith_data[i])[:300])\n    print()",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a70d508195b82823ae75c355d70a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b1e7dc8195bcaa2d3c53b70c640a7a2dcb63902ac6",
+      "code": "# compute similarity to candidate \"لا تزول قدما ابن آدم يوم القيامة...\"\ncand_idx = 28726\ncand_text2 = get_hadith_text(hadith_data[cand_idx])  # this has the text with diacritics maybe\nnorm_cand2 = normalize_arabic(cand_text2)\nsimilarity_ratio(norm_orig, norm_cand2)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b47e448195b1c0058c98d20dc80a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b7dbd48195876f5b7c69dc37ba0a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"اخيه المسلم\")), len(search_norm_contains(\"اخيه\")), len(search_norm_contains(\"مشي مع اخيه\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679ba685081958946840da44059590a7a2dcb63902ac6",
+      "code": "# Show the entries with \"اخيه المسلم\"\nres = search_norm_contains(\"أَخِيهِ الْمُسْلِمِ\")\nlen(res), [(i, hadith_data[i]['title']) for i,_,_ in res]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679bcfd38819581180b14bc5158210a7a2dcb63902ac6",
+      "code": "for i,_,norm in res:\n    print(i, hadith_data[i]['title'])\n    print(snippet_around(norm, 'اخيه المسلم'))\n    print()",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679bf36f881958f0bdae79c069e150a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679c0b4bc8195aefa68b2857536aa0a7a2dcb63902ac6",
+      "code": "res_masha_fi_haja = search_norm_contains(\"من مشى في حاجة\")\nlen(res_masha_fi_haja)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679c350bc8195b6da98e3c9131faa0a7a2dcb63902ac6",
+      "code": "len(search_norm_contains(\"من مشي في حاجه\")), len(search_norm_contains(\"في حاجه حتي\")), len(search_norm_contains(\"من كان في حاجه\")), len(search_norm_contains(\"من كان في حاجة\"))",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679c6e3c0819599bf144665b282480a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679cb26f08195831cd07afa047fbb0a7a2dcb63902ac6",
+      "code": "def search_raw_contains(term):\n    res=[]\n    for idx, h in enumerate(hadith_data):\n        if (h.get('hadithTxt') and term in h['hadithTxt']) or (h.get('Matn') and term in h['Matn']):\n            res.append(idx)\n    return res\n\nsearch_raw_contains(\"الأقدام\"), search_raw_contains(\"الاقدام\")[:10]",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679cdb25c819593c6f97ef669af8c0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679d0a73c8195b26cc3f54697d1b60a7a2dcb63902ac6",
+      "code": "search_raw_contains(\"تزول الأقدام\"), search_raw_contains(\"تزل الأقدام\")",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679d2bf588195ada9fb2f6e6819340a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679d59c7c8195afe459689105a1f20a7a2dcb63902ac6",
+      "code": "orig_tokens = set(norm_orig.split())\n# We'll find hadiths with at least 5 tokens overlap\ncandidates = []\nfor idx, raw, norm in norm_hadiths:\n    if not norm: continue\n    tokens = set(norm.split())\n    overlap = orig_tokens & tokens\n    if len(overlap) >= 5:\n        candidates.append((idx, raw, norm, len(overlap)))\nlen(candidates)",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679d8c4fc81958a2e871af30ae7e10a7a2dcb63902ac6",
+      "code": "# Compute similarity ratio for these and take top 10\nsims=[]\nfor idx, raw, norm, ovl in candidates:\n    sim = similarity_ratio(norm_orig, norm)\n    sims.append((sim, idx, ovl))\nsims_sorted = sorted(sims, reverse=True)[:10]\nsims_sorted",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967a264f0481959ad2810bb358e1400a7a2dcb63902ac6",
+      "code": "# show snippets of these top matches\nfor sim, idx, ovl in sims_sorted:\n    print(sim, idx, hadith_data[idx]['title'])\n    raw = get_hadith_text(hadith_data[idx])\n    print(raw[:300])\n    print('---')",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a2942e88195b4091bb82159f1be0a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967a2c2450819594e7d93bd94fb4240a7a2dcb63902ac6",
+      "code": "search_raw_contains(\"أثبت الله قدمه\"), search_raw_contains(\"ثبت الله قدمه\"), search_raw_contains(\"أثبت قدمه\"), search_raw_contains(\"ثبت قدمه\")",
+      "container_id": "cntr_689678d4e37881908c0682d68fa9e49d0ff0ca2d97c2c832",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a2eae808195826d1494180a5b770a7a2dcb63902ac6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967a2ef55c8195ad91ac00e0bda33e0a7a2dcb63902ac6",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 560392,
+    "input_tokens_details": {
+      "cached_tokens": 514528
+    },
+    "output_tokens": 8149,
+    "output_tokens_details": {
+      "reasoning_tokens": 8128
+    },
+    "total_tokens": 568541
+  },
+  "user": null,
+  "store": false
+}

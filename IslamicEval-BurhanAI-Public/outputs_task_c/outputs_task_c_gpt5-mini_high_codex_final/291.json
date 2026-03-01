@@ -1,0 +1,414 @@
+{
+  "id": "resp_689708a160c48193aada01e6498fc696014235fcaa79c9ca",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a59b6c8193bda106d1824a581b014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a96a848193957e3ebd7e5008c1014235fcaa79c9ca",
+      "code": "# Load the JSON files\nimport json, os, sys, re, unicodedata\n\nquran_path = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\n\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\nlen(quran)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ac15cc8193b360485b4435afe3014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ac3f38819394b9dbf6912fc5d6014235fcaa79c9ca",
+      "code": "with open(hadith_path, 'r', encoding='utf-8') as f:\n    hadiths = json.load(f)\nlen(hadiths)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ae47dc81938320ed83b6f57b86014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aff22881938f07dcca954389a9014235fcaa79c9ca",
+      "code": "# inspect structure\nhadiths[0]\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b192d0819382db2892873021ed014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b54aa08193bda0d23bc30c00ec014235fcaa79c9ca",
+      "code": "# Build normalization functions and search\nimport re, unicodedata\ndef normalize_ar(text):\n    if text is None:\n        return \"\"\n    s = str(text)\n    # remove tatweel\n    s = s.replace('\\u0640','')\n    # unify hamza: map أ إ آ to ا, and ء stays\n    s = re.sub('[أإآ]', 'ا', s)\n    # replace ة with ه? no. keep ة\n    # remove diacritics (tashkeel)\n    # Arabic diacritics ranges: 0x064B-0x0652 and additional 0x0670 etc\n    # Use unicode category Mn to remove marks\n    s = ''.join(ch for ch in s if unicodedata.category(ch) != 'Mn')\n    # remove punctuation and symbols (Latin too)\n    s = re.sub(r'[^\\w\\s\\u0600-\\u06FF]', ' ', s)  # keep Arabic letters, digits, underscore, whitespace\n    # collapse whitespace, lower - Arabic no case\n    s = re.sub(r'\\s+',' ', s).strip()\n    return s\n\nsnippet = \"التوبة تجب ما قبلها\"\nprint(\"normalized snippet:\", normalize_ar(snippet)[:200])\n# Search hadiths\nnorm_snip = normalize_ar(snippet)\ncandidates = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            norm_field = normalize_ar(h[field])\n            if norm_snip in norm_field:\n                candidates.append((h, field, h[field]))\nlen(candidates)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c0dee48193a5ba6eb741226fb2014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c1bab88193bad57c485a02aaa9014235fcaa79c9ca",
+      "code": "from collections import Counter\ntokens = norm_snip.split()\ntokens\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c34f788193a577cc6599db2ec4014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c3f1448193a5832936bf4759bd014235fcaa79c9ca",
+      "code": "# find hadiths containing 'التوبة'\nhits_toba = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            if 'التوبة' in nf or 'توبة' in nf:\n                hits_toba.append((h, field, h[field], nf))\nlen(hits_toba)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ccf91481939ffd9b477a831c96014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cd5ee88193bb3c7c17b58f3259014235fcaa79c9ca",
+      "code": "cands = []\nfor h, field, txt, nf in hits_toba:\n    if 'قبل' in nf:\n        cands.append((h, field, txt, nf))\nlen(cands)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cf49788193809ad59f3f96d151014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d6602081939ecd3731c4ca97f9014235fcaa79c9ca",
+      "code": "# search occurrences containing both 'تجب' or 'توجب' and 'قبل' or 'ما قبلها' etc\ndef contains_tokens(nf, toks):\n    return all(tok in nf for tok in toks)\n\ntoks_sets = [\n    ['تجب','قبل'], \n    ['تج','قبل'], \n    ['توجب','قبل'],\n    ['تجِب','قبل'],\n    ['توبة','تجب','قبل'],\n]\nmatches = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            for toks in toks_sets:\n                if contains_tokens(nf, toks):\n                    matches.append((h,field,h[field], nf))\n                    break\nlen(matches)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e0e00881939ea88303a7d5d0d9014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e218108193b8cbc97e81b6b4a8014235fcaa79c9ca",
+      "code": "seq_tokens = norm_snip.split()\nordered_matches = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            idx = 0\n            found = True\n            start_pos = -1\n            prev_pos = -1\n            for tok in seq_tokens:\n                pos = nf.find(tok, prev_pos+1)\n                if pos == -1:\n                    found = False\n                    break\n                if prev_pos == -1:\n                    start_pos = pos\n                prev_pos = pos\n            if found:\n                ordered_matches.append((h,field,h[field], nf[start_pos:prev_pos+len(seq_tokens[-1])]))\nlen(ordered_matches)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ec104481939fc58e2dba66c527014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ec899881938f5575e6d15dfff0014235fcaa79c9ca",
+      "code": "# Search for \"ما قبلها\"\nmatches2 = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            if 'ما قبلها' in nf or 'ماقبلها' in nf or 'قبلها' in nf:\n                matches2.append((h,field,h[field], nf))\nlen(matches2)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f5b99081939dc2ecaf1d429701014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708f699608193a5e291f697671377014235fcaa79c9ca",
+      "code": "# Search quran DB for snippet\nq_candidates = []\nfor v in quran:\n    ay = v.get('ayah_text','')\n    if ay:\n        if norm_snip in normalize_ar(ay):\n            q_candidates.append(ay)\nlen(q_candidates)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f894a08193bbbda1dd71d8333e014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708fa48708193acefc0ff6fa93019014235fcaa79c9ca",
+      "code": "variants = ['تكفر','تمحو','تكفرُ','تُكْفِرُ','تجُب','تجِب','توجب','تغفر','تجُبُ','تُجِبُ']\ncandidates_variants = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            if 'ما قبلها' in nf or 'قبلها' in nf:\n                for var in variants:\n                    if var in nf:\n                        candidates_variants.append((h,field,h[field], nf))\n                        break\nlen(candidates_variants)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897090435f881939fdb65043b9ebd0f014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897090497a4819389642f6187298484014235fcaa79c9ca",
+      "code": "for (h,field,txt,nf) in candidates_variants:\n    print(\"----\")\n    print(\"BookID:\", h.get('BookID'), \"hadithID:\", h.get('hadithID'))\n    print(\"field:\", field)\n    print(\"normalized excerpt:\", nf[:200])\n    print(\"original snippet:\", txt[:200])\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970906dd3081939b106709e4519ee0014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709095ae48193be026fb06a18a59f014235fcaa79c9ca",
+      "code": "# compute LCS ratio between normalized snippet and normalized candidate (character-level)\ndef lcs_length(a,b):\n    # a,b strings; compute length of LCS\n    # dynamic programming\n    la, lb = len(a), len(b)\n    if la==0 or lb==0:\n        return 0\n    # optimize: use only two rows\n    prev = [0]*(lb+1)\n    for i in range(1, la+1):\n        cur = [0]*(lb+1)\n        ai = a[i-1]\n        for j in range(1, lb+1):\n            if ai == b[j-1]:\n                cur[j] = prev[j-1]+1\n            else:\n                cur[j] = max(prev[j], cur[j-1])\n        prev = cur\n    return prev[lb]\n\ndef token_f1(a,b):\n    # tokens are split by spaces\n    ta = a.split()\n    tb = b.split()\n    ca = Counter(ta)\n    cb = Counter(tb)\n    common = 0\n    for k in ca:\n        if k in cb:\n            common += min(ca[k], cb[k])\n    if len(ta)+len(tb)==0:\n        return 1.0\n    return 2*common/(len(ta)+len(tb))\n\nnorm_snip = normalize_ar(snippet)\n# iterate hadiths and compute best similarity across fields\nbest = []\nfor idx, h in enumerate(hadiths):\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            # compute lcs ratio = lcs_length(norm_snip, nf)/len(norm_snip)\n            lcs_len = lcs_length(norm_snip, nf)\n            lcs_ratio = lcs_len / max(1, len(norm_snip))\n            tf1 = token_f1(norm_snip, nf)\n            # consider a combined score maybe average\n            score = max(lcs_ratio, tf1)\n            best.append((score, lcs_ratio, tf1, h, field, h[field], nf))\n# sort by score desc\nbest_sorted = sorted(best, key=lambda x: x[0], reverse=True)\ntop20 = best_sorted[:20]\nfor sc, lcsr, tf1, h, field, txt, nf in top20:\n    print(\"score:\", sc, \"lcsr:\", lcsr, \"tf1:\", tf1, \"BookID:\", h.get('BookID'), \"hadithID:\", h.get('hadithID'))\n    # show snippet of original text\n    print(txt[:200])\n    print(\"normalized excerpt:\", nf[:200])\n    print(\"----\")\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897097c7b4c8193912016832ec92040014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897097ef2d481938ddb564e25be6cfb014235fcaa79c9ca",
+      "code": "# find best by token F1\nbest_tf1 = []\nfor idx, h in enumerate(hadiths):\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            tf1 = token_f1(norm_snip, nf)\n            if tf1 > 0:\n                best_tf1.append((tf1, h, field, h[field], nf))\nbest_tf1_sorted = sorted(best_tf1, key=lambda x: x[0], reverse=True)\nbest_tf1_sorted[:30]\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970989e038819398d4ca005a481e9e014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897098c57a081938aed45141b3daf35014235fcaa79c9ca",
+      "code": "verbs = ['تكفر','تجِب','تجِبّ','تُجِبُ','تجِب','تجِبُ','تجِبّ','تجب','توجب','تمحو','تمحى','تذهب','تمح','تمحى','تنهي']\nresults = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            if 'توبة' in nf or 'التوبة' in nf:\n                for v in verbs:\n                    if v in nf:\n                        results.append((h,field,h[field],nf))\n                        break\n\nlen(results)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709960f388193b892a098c4719868014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897099672a4819393dc96d6bb874a3a014235fcaa79c9ca",
+      "code": "# search for 'تجب' in hadiths\nhits_tajb = []\nfor h in hadiths:\n    for field in ('hadithTxt','Matn'):\n        if field in h and h[field]:\n            nf = normalize_ar(h[field])\n            if 'تجب' in nf or 'تجب' in nf:\n                hits_tajb.append((h,field,h[field],nf))\nlen(hits_tajb)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897099fa4c08193b0a1773a46f91093014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897099fe2a0819395df13975497ee95014235fcaa79c9ca",
+      "code": "for i,(h, field, txt, nf) in enumerate(hits_tajb[:40]):\n    print(i, \"BookID:\", h.get('BookID'), \"hadithID:\", h.get('hadithID'))\n    print(nf[:200])\n    print(\"orig:\", txt[:160])\n    print(\"----\")\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709a297b48193920a5406be314ad4014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709a516a48193879d9a84851116e9014235fcaa79c9ca",
+      "code": "response_context = \"\"\" كلمة \"أواب\" في القرآن الكريم تعني الشخص الذي يتوب ويرجع إلى الله تعالى بعد ارتكاب الذنوب والمعاصي. وقد وردت هذه الكلمة في عدة مواضع من القرآن الكريم، منها قوله تعالى: \"إِنَّهُ كَانَ تَوَّابًا\" (سورة النصر، الآية 3).\nكما قال الله تعالى في سورة ص: \"وَالرُّجْزَ فَاهْجُرْ * وَلَا تَحْزَنْ عَلَيْهِمْ وَلَا تَكُن فِي ضَيْقٍ مِمَّا يَمْكُرُونَ * وَالْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ * إِنَّ رَبَّكَ هُوَ الْخَلَّاقُ الْعَلِيمُ * إِنَّ رَبَّكَ هُوَ يَفْصِلُ بَيْنَهُمْ يَوْمَ الْقِيَامَةِ فِيمَا كَانُوا فِيهِ يَخْتَلِفُونَ * أَوَلَمْ يَرَوْا أَنَّا نَأْتِي الْأَرْضَ نَنْقُصُهَا مِنْ أَطْرَافِهَا وَاللَّهُ يَحْكُمُ لَا مُعَقِّبَ لِحُكْمِهِ وَهُوَ سَرِيعُ الْحِسَابِ\" (سورة ص، الآيات 16-21).\nوفي الحديث الشريف، قال النبي محمد صلى الله عليه وسلم: \"التوبة تجب ما قبلها\" (رواه أحمد).\nهذه الآيات والأحاديث تبين أن التوبة والرجوع إلى الله تعالى هي من صفات المؤمنين الأوابين، الذين يسعون دائمًا للتقرب من الله والعمل بطاعته. \"\"\"\nlen(response_context)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709aadc1081939075566ef8dc2e3a014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709ab80948193b2e7d1d49701224e014235fcaa79c9ca",
+      "code": "full_sub = response_context[746:765]\nfull_sub, len(full_sub)\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709ad961c8193829b9f3345d2a052014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709aefd0481939f6c71421f103479014235fcaa79c9ca",
+      "code": "# compute best token f1 against quranic verses\nbest_q = []\nfor v in quran:\n    ay = v.get('ayah_text','')\n    if ay:\n        nf = normalize_ar(ay)\n        tf1 = token_f1(norm_snip, nf)\n        if tf1>0:\n            best_q.append((tf1, v))\nbest_q_sorted = sorted(best_q, key=lambda x: x[0], reverse=True)\nbest_q_sorted[:10]\n",
+      "container_id": "cntr_689708a32c6c8190acd29abc63b36b1203f5dbccf79e6225",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709b200ec8193a5201e3f8ec2ff91014235fcaa79c9ca",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689709b504a48193ba20472b82d23f0b014235fcaa79c9ca",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 243262,
+    "input_tokens_details": {
+      "cached_tokens": 221552
+    },
+    "output_tokens": 5845,
+    "output_tokens_details": {
+      "reasoning_tokens": 5824
+    },
+    "total_tokens": 249107
+  },
+  "user": null,
+  "store": false
+}

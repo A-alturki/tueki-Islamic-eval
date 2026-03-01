@@ -1,0 +1,324 @@
+{
+  "id": "resp_689708a156748196b84a454df9d40928090519eab93d16e8",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5e4608196bdfdac9f805ed743090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a8078c8196a01de1ef74e68c39090519eab93d16e8",
+      "code": "# Load the provided JSON files to search for hadith or ayah matching the snippet.\r\nimport json, re, unicodedata, sys, os, math\r\nfrom pathlib import Path\r\n\r\n# Paths known from system messages\r\nquran_path = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\n# Load files\r\nwith open(quran_path, 'r', encoding='utf-8') as f:\r\n    quran = json.load(f)\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    hadiths = json.load(f)\r\n\r\nlen(quran), len(hadiths)[:2] if isinstance(hadiths, list) else (\"hadiths not list\", type(hadiths))[:2]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ae8c408196b27d8b3a9007b8d9090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aecb8c81968681a364c0c0a624090519eab93d16e8",
+      "code": "print(\"Quran entries:\", len(quran))\r\nprint(\"Type hadiths:\", type(hadiths))\r\nif isinstance(hadiths, list):\r\n    print(\"Hadith entries:\", len(hadiths))\r\n    # show first few keys of first entry\r\n    import itertools, json\r\n    for i in range(min(3,len(hadiths))):\r\n        print(i, hadiths[i].keys())\r\nelse:\r\n    print(\"Hadiths not list, keys:\", hadiths.keys() if isinstance(hadiths, dict) else \"unknown\")",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b20a908196b601871f3b0357ff090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b707cc81969076a35e95b0fa58090519eab93d16e8",
+      "code": "# Prepare normalization functions and search tools\r\n\r\nimport re, unicodedata\r\nfrom collections import Counter\r\n\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06DC\\u06DF-\\u06E8\\u06EA-\\u06ED\\u0670]')\r\ntatweel = '\\u0640'\r\n# Additional punctuation regex\r\npunctuation = re.compile(r'[^\\w\\s\\u0600-\\u06FF]')  # remove non-Arabic word chars\r\n# but \\w includes underscore and digits including Arabic digits; we'll handle\r\n# define translit/normalization mapping\r\nnorm_map = {\r\n    'أ':'ا','إ':'ا','آ':'ا','ى':'ي','ؤ':'و','ئ':'ي','ٰ':'ا','ٱ':'ا'\r\n}\r\n\r\ndef normalize_arabic(text):\r\n    if text is None:\r\n        return \"\"\r\n    # ensure str\r\n    text = str(text)\r\n    # 1. remove diacritics\r\n    text = arabic_diacritics.sub('', text)\r\n    # 2. remove tatweel\r\n    text = text.replace(tatweel, '')\r\n    # 3. map characters\r\n    for k,v in norm_map.items():\r\n        text = text.replace(k,v)\r\n    # 4. remove punctuation and extra marks (but keep Arabic letters and spaces)\r\n    # Keep Arabic letters, Latin letters/numbers? We'll restrict to Arabic letters and numbers and spaces.\r\n    text = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', '', text)\r\n    # 5. collapse spaces and lowercase\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    return text\r\n\r\ndef lcs_length(a,b):\r\n    # simple DP for longest common subsequence length (on characters)\r\n    n,m = len(a), len(b)\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    for i in range(n-1,-1,-1):\r\n        for j in range(m-1,-1,-1):\r\n            if a[i]==b[j]:\r\n                dp[i][j] = 1+dp[i+1][j+1]\r\n            else:\r\n                dp[i][j] = max(dp[i+1][j], dp[i][j+1])\r\n    return dp[0][0]\r\n\r\ndef similarity_score(a,b):\r\n    # normalized LCS ratio relative to avg length\r\n    if not a or not b:\r\n        return 0.0\r\n    a_n = normalize_arabic(a)\r\n    b_n = normalize_arabic(b)\r\n    lcs = lcs_length(a_n, b_n)\r\n    # ratio = 2*lcs/(len(a_n)+len(b_n))\r\n    if (len(a_n)+len(b_n))==0:\r\n        return 0.0\r\n    ratio = 2*lcs/(len(a_n)+len(b_n))\r\n    return ratio\r\n\r\n# Quick test\r\nprint(normalize_arabic(\"التجارة تُشجع على الخير\"))\r\nprint(similarity_score(\"التجارة تُشجع على الخير\", \"التجارة تشجع على الخير\"))",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708bff2a88196bbb4e2d041b8fb81090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c2a93c8196b81656e4130d4085090519eab93d16e8",
+      "code": "response_context = \"\"\"البيع ليس مثل الربا، بل هو من الأعمال المسموح بها في الإسلام، بينما الربا ممنوع بحسب ما ورد في القرآن الكريم والسنة النبوية. إليك التوضيح:\n### **الفرق بين البيع والربا:**\n1. **البيع**:\n - هو تبادل مال أو سلعة بمال أو سلعة أخرى، مع تحديد السعر مسبقًا، وهو من أركان التجارة المسموح بها في الشريعة الإسلامية.\n - يُعد من الأعمال الصالحة التي تُشجع عليها، إذ يُعتبر من مصالح الناس وزيادة في الاقتصاد.\n - يُذكَر في القرآن الكريم أن الله يشجع على التجارة، مثل آية: \n **\"وَتَقَرَّبُوا إِلَى اللَّهِ بِالْعِلْمِ وَالْعِبَادَةِ وَالْمَجْهُدِ فِي سَبِيلِاللَّهِ وَتَقَرَّبُوا إِلَى اللَّهِ وَأَنْتُمْ تُسَارِعُونَ إِلَى الْخَيْرِ\"** (الحج: 77). \n كما قال النبي ﷺ: **\"التجارة تُشجع على الخير\"** (رواه ابن ماجه).\n2. **الربا**:\n - هو زيادة غير مبررة على المال المُقَدَّم كقروض، وهو ممنوع شرعًا، لأنه يُعتبر من أسباب الظلم والجشع.\n - يُذكر في القرآن الكريم أن الربا يُحرَّم، مثل آية: \n **\"يَا أَيُّهَا الَّذِينَ آمَنُوا إِن\"\"\"  # truncated as in user message maybe\r\n# Let's get substring positions\r\ns_start = 658\r\ns_end = 681\r\nprint(\"len response:\", len(response_context))\r\nprint(\"substring:\", response_context[s_start:s_end])\r\n",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c8be388196a5625ff4c5e15a8e090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cadf1081969d8994590fe85992090519eab93d16e8",
+      "code": "sub = response_context[s_start:s_end]\r\nprint(repr(sub))\r\nprint(sub)",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ccaa248196b4b838b29c28b3ef090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cfee2c81969a902de8bceb70ae090519eab93d16e8",
+      "code": "# Prepare inputs\r\nfull_sub = response_context[s_start:s_end]  # includes extra punctuation\r\nuser_snippet = \"التجارة تُشجع على الخير\"\r\n\r\n# normalize them for printing\r\nprint(\"Full_sub repr:\", repr(full_sub))\r\nprint(\"User snippet:\", user_snippet)\r\nprint(\"Normalized full_sub:\", normalize_arabic(full_sub))\r\nprint(\"Normalized user_snippet:\", normalize_arabic(user_snippet))\r\n\r\n\r\n# Search hadiths for high similarity with either field\r\nbest = []\r\nfor i, h in enumerate(hadiths):\r\n    texts = []\r\n    if h.get('hadithTxt'):\r\n        texts.append(('hadithTxt', h['hadithTxt']))\r\n    if h.get('Matn'):\r\n        texts.append(('Matn', h['Matn']))\r\n    for field, text in texts:\r\n        sim_full = similarity_score(full_sub, text)\r\n        sim_user = similarity_score(user_snippet, text)\r\n        # store if sim > 0.6 to limit storage\r\n        if sim_full >= 0.6 or sim_user >= 0.6:\r\n            best.append((sim_full, sim_user, i, field, text, h.get('hadithID'), h.get('BookID'), h.get('title')))\r\n\r\n# sort descending by max(sim_full, sim_user)\r\nbest_sorted = sorted(best, key=lambda x: max(x[0], x[1]), reverse=True)\r\nlen(best_sorted), best_sorted[:10]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709e532d0819680ec7d2ff441de8b090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709e562d481968c44b01fda6dfd22090519eab93d16e8",
+      "code": "for entry in best_sorted[:20]:\r\n    sim_full, sim_user, idx, field, text, hid, bid, title = entry\r\n    print(\"Index:\", idx, \"Field:\", field, \"hadithID:\", hid, \"BookID:\", bid, \"title:\", title)\r\n    print(\"sim_full:\", sim_full, \"sim_user:\", sim_user)\r\n    # show snippet of text (first 200 chars)\r\n    print(\"Text sample:\", text[:200])\r\n    print(\"-\"*80)",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709f597c88196b1cd0d2b06d4803f090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709f603888196ad7e8ccad73d4e3e090519eab93d16e8",
+      "code": "for entry in best_sorted[:100]:\r\n    sim_full, sim_user, idx, field, text, hid, bid, title = entry\r\n    if max(sim_full, sim_user) >= 0.7:\r\n        print(\"Index:\", idx, \"sim_full:\", sim_full, \"sim_user:\", sim_user, \"title:\", title)\r\n        print(text)\r\n        print(\"-\"*80)\r\n# show max similarity\r\nmax_entry = max(best_sorted, key=lambda x: max(x[0], x[1])) if best_sorted else None\r\nmax_entry[:4] if max_entry else None",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709f8ad408196aa79e6372482394c090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709f9f2c0819692170cec87291916090519eab93d16e8",
+      "code": "# Search quran for token presence similar to snippet\r\nq_best = []\r\nfor i, entry in enumerate(quran):\r\n    ayah = entry.get('ayah_text') or entry.get('text') or \"\"\r\n    sim_full_q = similarity_score(full_sub, ayah)\r\n    sim_user_q = similarity_score(user_snippet, ayah)\r\n    if sim_full_q >= 0.6 or sim_user_q >= 0.6:\r\n        q_best.append((sim_full_q, sim_user_q, i, ayah, entry.get('surah', entry.get('sura', '')), entry.get('ayah_num', entry.get('ayah', ''))))\r\n\r\nq_best_sorted = sorted(q_best, key=lambda x: max(x[0], x[1]), reverse=True)\r\nlen(q_best_sorted), q_best_sorted[:10]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a02dff48196b6f14581ecae7428090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a05cb8881968ff1f09a6742a311090519eab93d16e8",
+      "code": "# find hadith entries containing the substring 'تجارة' or 'تجار' in normalized form\r\ndef contains_token(text, token):\r\n    return token in normalize_arabic(text)\r\n\r\ncandidates_trading = []\r\nfor i,h in enumerate(hadiths):\r\n    text = h.get('Matn') or h.get('hadithTxt') or \"\"\r\n    if contains_token(text, 'تجارة') or contains_token(text, 'تجار'):\r\n        candidates_trading.append((i, h.get('hadithID'), h.get('BookID'), h.get('title'), text[:200]))\r\nlen(candidates_trading), candidates_trading[:20]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a0c346c8196a4ab963f6c14bf8e090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a0ccce88196bc3cf9afa4858518090519eab93d16e8",
+      "code": "matches_chaja = []\r\nfor idx,hid,bid,title,text in candidates_trading:\r\n    # full text from hadith entry; find 'تشجع' or 'تشجع' stem in normalized text\r\n    full_text = hadiths[idx].get('Matn') or hadiths[idx].get('hadithTxt') or \"\"\r\n    if 'تشجع' in normalize_arabic(full_text) or 'تشج' in normalize_arabic(full_text):\r\n        matches_chaja.append((idx, hid, bid, title, full_text[:200]))\r\nlen(matches_chaja), matches_chaja[:20]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a0f307c8196ac6e77111bbd658b090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a11d3f08196bdac16f023a31f3f090519eab93d16e8",
+      "code": "ibn_majah_entries = [ (i,h) for i,h in enumerate(hadiths) if 'ابن ماجه' in (h.get('title') or '') or 'ابن ماجه' in (h.get('title') or '') ]\r\nlen(ibn_majah_entries)",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a13f43c81968d4cc173622599e9090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a14393881969ab548147b25e69e090519eab93d16e8",
+      "code": "ibn_matches = []\r\nfor i,h in ibn_majah_entries:\r\n    text = h.get('Matn') or h.get('hadithTxt') or \"\"\r\n    if contains_token(text, 'تجارة') or contains_token(text, 'تجار') or contains_token(text, 'بيع') or contains_token(text, 'خير'):\r\n        ibn_matches.append((i, h.get('hadithID'), h.get('title'), normalize_arabic(text)[:150]))\r\nlen(ibn_matches), ibn_matches[:20]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a17229c819699f0f59c713788a5090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a1ad7ac8196900ed4554aa1bfea090519eab93d16e8",
+      "code": "# Search for hadiths containing both 'تج' token and 'خير' token in normalized text\r\ncandidates = []\r\nfor i,h in enumerate(hadiths):\r\n    text = h.get('Matn') or h.get('hadithTxt') or \"\"\r\n    ntext = normalize_arabic(text)\r\n    if 'تجار' in ntext or 'تج' in ntext or 'تجارة' in ntext or 'بيع' in ntext:\r\n        if 'خير' in ntext or 'خیر' in ntext:\r\n            candidates.append((i, h.get('hadithID'), h.get('BookID'), h.get('title'), text[:200], ntext[:200]))\r\nlen(candidates)",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a2054488196aabea5b36cdf2f96090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a2090f48196a86c8985b059ce99090519eab93d16e8",
+      "code": "cand_sims = []\r\nfor (i,hid,bid,title, text, ntext) in candidates:\r\n    text_full = hadiths[i].get('Matn') or hadiths[i].get('hadithTxt') or \"\"\r\n    sim_full = similarity_score(full_sub, text_full)\r\n    sim_user = similarity_score(user_snippet, text_full)\r\n    cand_sims.append((sim_full, sim_user, i, hid, bid, title, text_full[:200]))\r\ncand_sorted = sorted(cand_sims, key=lambda x: max(x[0], x[1]), reverse=True)\r\ncand_sorted[:20]",
+      "container_id": "cntr_689708a33800819096c448f6bd64b3af0bb44b98350412fb",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a25f9908196b018baf171c144b7090519eab93d16e8",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68970a2832908196b06eaa340b1e5024090519eab93d16e8",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 114206,
+    "input_tokens_details": {
+      "cached_tokens": 103680
+    },
+    "output_tokens": 5269,
+    "output_tokens_details": {
+      "reasoning_tokens": 5248
+    },
+    "total_tokens": 119475
+  },
+  "user": null,
+  "store": false
+}

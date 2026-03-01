@@ -1,0 +1,482 @@
+{
+  "id": "resp_689708a1636081908435bf40b59407f502bc7c972c34692f",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a4fd688190bcc3531055cf633f02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a9e0008190abfc0afe5a52bc7102bc7c972c34692f",
+      "code": "# Let's load the six_hadith_books.json file and inspect structure and search for the snippet.\r\nimport json, sys, os, re\r\np = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\nwith open(p, \"r\", encoding=\"utf-8\") as f:\r\n    data = json.load(f)\r\nlen(data)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708adf6dc8190b906064f9528726b02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ae87088190a7ade1ad5c2a224302bc7c972c34692f",
+      "code": "matches = []\r\nfor i, entry in enumerate(data):\r\n    # check hadithTxt or Matn\r\n    txt = None\r\n    if 'hadithTxt' in entry:\r\n        txt = entry.get('hadithTxt')\r\n    elif 'Matn' in entry:\r\n        txt = entry.get('Matn')\r\n    if not txt:\r\n        continue\r\n    if \"لما كان يوم العقبة\" in txt:\r\n        matches.append((i, entry))\r\nlen(matches)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b0b2608190825871d72b8b70ad02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b19ca08190836991a6880df49502bc7c972c34692f",
+      "code": "# define normalization: remove tashkeel, tatweel, punctuation, unify hamza forms, normalize alef variants, etc.\r\nimport unicodedata\r\narabic_diacritics = ''.join(chr(c) for c in range(0x0600,0x06FF) if 'ARABIC' in unicodedata.name(chr(c), ''))\r\n# But simpler: use regex for Arabic diacritics\r\ntashkeel = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\ndef normalize_ar(text):\r\n    # remove tashkeel\r\n    t = re.sub(tashkeel, '', text)\r\n    # remove tatweel\r\n    t = t.replace('\\u0640','')\r\n    # unify hamza forms\r\n    t = t.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ى','ي').replace('ؤ','و').replace('ئ','ي')\r\n    # remove punctuation and non-letters/digits\r\n    t = re.sub(r'[^ء-ي0-9\\s]', '', t)\r\n    # collapse whitespace\r\n    t = re.sub(r'\\s+',' ', t).strip()\r\n    return t.lower()\r\n\r\nsnippet = \"لما كان يوم العقبة لما أجمع الله عز وجل على نبوته، وأراد أن يبعثه، نزل جبريل عليه السلام في صورة رجل، ففزع الناس، فجئت حتى قعدت على فخذ رسول الله صلى الله عليه وسلم، فقلت: من صاحب الرجل الذي أقبل؟ فقال: هذا جبريل، فلم أومن به حتى رأيته في صورة بعوضة سوداء على شجرة\"\r\nnorm_snippet = normalize_ar(snippet)\r\nnorm_snippet[:200], len(norm_snippet)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b6274481909a53d15395bbb17402bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bf5db48190a5aeac4e9dd0e90802bc7c972c34692f",
+      "code": "from difflib import SequenceMatcher\r\n# Prepare normalized candidates\r\ncandidates = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if not txt:\r\n        continue\r\n    norm = normalize_ar(txt)\r\n    candidates.append((i, txt, norm))\r\n\r\n# Compute similarity for each candidate vs norm_snippet\r\nbest = []\r\nfor i, txt, norm in candidates:\r\n    # compute ratio using SequenceMatcher\r\n    ratio = SequenceMatcher(None, norm_snippet, norm).ratio()\r\n    if ratio > 0.4:  # filter some threshold to reduce output\r\n        best.append((ratio, i, txt, norm))\r\nbest_sorted = sorted(best, key=lambda x: -x[0])[:30]\r\nbest_sorted[:10], len(best_sorted)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d445908190b4b0c2e0773abb2102bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d59ab88190b8e5df61880db92b02bc7c972c34692f",
+      "code": "# search for candidates containing tokens like 'بعوضة' or 'بعوض' or 'صورة بعوضة' or 'بعوضة سوداء' or 'شجرة'\r\nkeywords = [\"بعوضة\", \"بعوض\", \"شجرة\", \"صورة بعوضة\", \"بعوضة سوداء\", \"قعدت على فخذ\", \"قعدت على فخذ رسول\", \"قعدت على فخذ رسول الله\", \"لا تحزن إن الله معنا\", \"لا تحزن ان الله معنا\", \"ادخل قبل ان اكون\", \"ادخل قبل ان اكون\"]\r\nfound = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    norm = normalize_ar(txt)\r\n    for kw in keywords:\r\n        if kw in txt or kw in norm:\r\n            found.append((i, txt))\r\n            break\r\nlen(found), found[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d9d8f48190afc5a8057b566bf602bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708da436481908d55e500ac151f7002bc7c972c34692f",
+      "code": "matches_baawad = []\r\nfor i, txt, norm in candidates:\r\n    if \"بعوض\" in txt or \"بعوض\" in norm:\r\n        matches_baawad.append((i, txt))\r\nlen(matches_baawad), matches_baawad[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dc4f808190aaf1b79852e0b24f02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708dcd3e081908154bb7280d64beb02bc7c972c34692f",
+      "code": "matches = []\r\nfor i, txt, norm in candidates:\r\n    if \"بعوض\" in norm and \"شجر\" in norm:  # search root 'شجر' to match 'شجرة'\r\n        matches.append((i, txt, norm))\r\nlen(matches), matches[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708defeb88190b445fd24a4723c9402bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708dfa8948190aa7b2d16cd4721ac02bc7c972c34692f",
+      "code": "matches = []\r\nfor i, txt, norm in candidates:\r\n    if \"صورة بعوض\" in norm or \"صورة بعوضة\" in norm:\r\n        matches.append((i, txt, norm))\r\nlen(matches), matches[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e191808190bbd71ec5ac9978e502bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e20cac819088f9aa709e649dbb02bc7c972c34692f",
+      "code": "kw = normalize_ar(\"لا تحزن إن الله معنا\")\r\nmatches = []\r\nfor i, txt, norm in candidates:\r\n    if \"لا تحزن\" in txt or \"لا تحزن\" in norm:\r\n        matches.append((i, txt))\r\nlen(matches), matches[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e443688190a996b0857d71f34602bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e64cec81908adb1c38d10dbc2902bc7c972c34692f",
+      "code": "kw = \"يوم العقبة\"\r\nmatches = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if kw in txt or normalize_ar(kw) in normalize_ar(txt):\r\n        matches.append((i, txt))\r\nlen(matches), matches[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e945bc8190bd9d00694a90090102bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ec404c8190813180995176066c02bc7c972c34692f",
+      "code": "query = \"فقلت: من صاحب الرجل الذي أقبل؟\"\r\n# Normalize and search for similar without punctuation\r\nnorm_query = normalize_ar(query)\r\nmatches = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    norm = normalize_ar(txt)\r\n    if norm_query in norm:\r\n        matches.append((i, txt))\r\nlen(matches), matches[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708efc4408190b7e8905659f42f8702bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708f20a58819094eba3aa3c3ca66d02bc7c972c34692f",
+      "code": "keywords = [\"أجمع\", \"أجمع الله\", \"أجمع الله عز وجل\", \"أراد أن يبعثه\", \"نزل جبريل\", \"ففزع الناس\", \"قعدت على فخذ\", \"من صاحب الرجل\", \"بعوضة سوداء\", \"بعوضة\", \"صورة بعوضة\", \"صورة رجل\"]\r\nresults = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    norm = normalize_ar(txt)\r\n    for kw in keywords:\r\n        if normalize_ar(kw) in norm:\r\n            results.append((i, kw, txt))\r\n            break\r\nlen(results), results[:30]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f82edc8190a756bf6c66f415c202bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708faa4c08190a1f0a65762496a9102bc7c972c34692f",
+      "code": "from collections import Counter\r\nsnippet_tokens = norm_snippet.split()\r\nlen(snippet_tokens)\r\ndef token_f1(a_tokens, b_tokens):\r\n    a = Counter(a_tokens)\r\n    b = Counter(b_tokens)\r\n    inter = sum((a & b).values())\r\n    if inter == 0:\r\n        return 0.0\r\n    prec = inter / sum(b.values())  # b is candidate\r\n    rec = inter / sum(a.values())\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\nbest_f1 = []\r\nfor i, txt, norm in candidates:\r\n    cand_tokens = norm.split()\r\n    f1 = token_f1(snippet_tokens, cand_tokens)\r\n    if f1 > 0.3:  # threshold\r\n        best_f1.append((f1, i, txt, norm))\r\nbest_f1_sorted = sorted(best_f1, key=lambda x: -x[0])[:50]\r\nbest_f1_sorted[:20], len(best_f1_sorted)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708fedc6c8190abfc1b4f101902ca02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970900f2988190809af14b5484144102bc7c972c34692f",
+      "code": "kw = \"أجمع الله عز وجل\"\r\nfound = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"أجمع الله\" in txt or \"اجمع الله\" in normalize_ar(txt):\r\n        found.append((i, txt))\r\nlen(found), found[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970903e0d4819087751259c9bbaa5602bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709050f348190b5ee691567f7a9c902bc7c972c34692f",
+      "code": "kw = \"قعدت على فخذ\"\r\nmatches = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"قعدت على فخذ\" in txt or normalize_ar(\"قعدت على فخذ\") in normalize_ar(txt):\r\n        matches.append((i, txt))\r\nlen(matches), matches[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709085ca8819098676096c5f3888002bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970908d0848190bc2c7ac15097f80e02bc7c972c34692f",
+      "code": "# show keys of some entries\r\nfor i in range(0, 50):\r\n    entry = data[i]\r\n    if isinstance(entry, dict):\r\n        print(i, list(entry.keys())[:20])\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897090ade008190926b8104957b73db02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897090d5f008190b0f85499741a233002bc7c972c34692f",
+      "code": "kw_tokens = [\"نزل\", \"جبريل\", \"صورة\"]\r\ncandidates_k = []\r\nfor i, txt, norm in candidates:\r\n    normtxt = norm\r\n    if all(t in normtxt for t in kw_tokens):\r\n        candidates_k.append((i, txt, normtxt))\r\nlen(candidates_k), candidates_k[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897091088b48190b27b8dfbf822893b02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970913d1448190b090c9d21e42d37902bc7c972c34692f",
+      "code": "# print the two matches for 'يوم العقبة' we found earlier (indices 3153 and 12110)\r\nfor idx in [3153, 12110]:\r\n    print(\"Index:\", idx)\r\n    print(data[idx]['hadithTxt'][:2000])\r\n    print(\"\\n---\\n\")\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709160e788190bdcc75c3186e056702bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709173d548190b6b1bb9efda837dc02bc7c972c34692f",
+      "code": "matches_baawad_full = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    norm = normalize_ar(txt)\r\n    if \"بعوض\" in txt or \"بعوض\" in norm:\r\n        matches_baawad_full.append((i, txt))\r\nlen(matches_baawad_full)\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6897091a95cc819093ee79957e38ce7402bc7c972c34692f",
+      "code": "for idx, txt in matches_baawad_full:\r\n    print(\"Index:\", idx)\r\n    print(txt)\r\n    print(\"----\\n\")\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897091c8eb08190a2197bc27a317a2402bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897091e321481909375e69782fcbafe02bc7c972c34692f",
+      "code": "kw = \"أراد أن يبعثه\"\r\nfound = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"أراد أن يبعثه\" in txt or normalize_ar(\"أراد أن يبعثه\") in normalize_ar(txt):\r\n        found.append((i, txt))\r\nlen(found), found[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709220a608190a70dcd4dcacb924a02bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970922e9208190baa62c1e4e8fbba002bc7c972c34692f",
+      "code": "# search for entries with both 'صورة' and 'رجل' in normalized text\r\nres = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    norm = normalize_ar(txt)\r\n    if \"صورة\" in norm and \"رجل\" in norm:\r\n        res.append((i, txt, norm[:200]))\r\nlen(res), res[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897092690f88190977a155d0173ce2002bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897092b4e2c819089107263bfa6159b02bc7c972c34692f",
+      "code": "kw = \"ادخل قبل أن أكون\"\r\nmatches = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"ادخل قبل أن أكون\" in txt or normalize_ar(\"ادخل قبل أن اكون\") in normalize_ar(txt):\r\n        matches.append((i, txt))\r\nlen(matches), matches[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897092ee3c48190aeb29dcefa3b721902bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897092f8a5c8190b0ec601bc641fb1c02bc7c972c34692f",
+      "code": "kw = \"الغار\"\r\nmatches = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"الغار\" in txt or normalize_ar(\"الغار\") in normalize_ar(txt):\r\n        matches.append((i, txt))\r\nlen(matches), matches[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970934678c81908e3893e03231d68902bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6897093b8b708190bbb0a143d4110b8302bc7c972c34692f",
+      "code": "# search for 'على شجرة' normalized and raw\r\nkw = \"على شجرة\"\r\nres = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if \"على شجرة\" in txt or normalize_ar(\"على شجرة\") in normalize_ar(txt):\r\n        res.append((i, txt))\r\nlen(res), res[:10]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897093f4b54819083576ca3cbc4531002bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970941f1f0819086ede862a07c0b3602bc7c972c34692f",
+      "code": "from difflib import SequenceMatcher\r\nbest = []\r\nfor i, entry in enumerate(data):\r\n    txt = entry.get('hadithTxt') or entry.get('Matn') or \"\"\r\n    if not txt: continue\r\n    norm = normalize_ar(txt)\r\n    ratio = SequenceMatcher(None, norm_snippet, norm).ratio()\r\n    best.append((ratio, i, txt))\r\nbest_sorted = sorted(best, key=lambda x: -x[0])[:20]\r\nbest_sorted[:20]\r\n",
+      "container_id": "cntr_689708a2c62881908f646d3a0acf4d800f934b964b2295e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970958d1488190870e8d302016ab0302bc7c972c34692f",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68970959dadc8190ad990dbe8c0dce4002bc7c972c34692f",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 580287,
+    "input_tokens_details": {
+      "cached_tokens": 510736
+    },
+    "output_tokens": 7957,
+    "output_tokens_details": {
+      "reasoning_tokens": 7936
+    },
+    "total_tokens": 588244
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,438 @@
+{
+  "id": "resp_689678d320888197a0de1440b35f57dd01a2e4eb5833d53d",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d9970481979de5efaabc1c68ee01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678dcd0188197948fd1220a7a22a101a2e4eb5833d53d",
+      "code": "import json, re, os, sys, numpy as np, math, unicodedata, itertools, textwrap, random",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678df157881979db8bfc3352a581401a2e4eb5833d53d",
+      "code": "import json, os, re, unicodedata, math, statistics, difflib\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\n\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    quran_data = json.load(f)\n\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hadith_data = json.load(f)\n\ntype(quran_data), len(quran_data), type(hadith_data), len(hadith_data)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e295b081978dbb7c63a48d54cf01a2e4eb5833d53d",
+      "code": "# Let's inspect an item structure\nquran_data[0]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678e4743481979a2fdf5875aab23301a2e4eb5833d53d",
+      "code": "hadith_data[0]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678e646e4819783ff8f731269ca2901a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f3f38c8197aabec6ba9c5634a901a2e4eb5833d53d",
+      "code": "import re, unicodedata, json, math, difflib\nAR_DIAC = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\nTATWEEL = '\\u0640'\nPUNCTUATION = re.compile(r'[^\\w\\s\\u0600-\\u06FF]+', flags=re.UNICODE)\n\ndef normalize_ar(s):\n    if s is None:\n        return \"\"\n    s = s.replace(TATWEEL, '')\n    s = AR_DIAC.sub('', s)\n    # unify hamza forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا')\n    s = s.replace('ى','ي')\n    s = s.replace('ؤ','و').replace('ئ','ي')\n    s = s.replace('ة','ه')\n    s = PUNCTUATION.sub(' ', s)\n    s = re.sub(r'\\s+', ' ', s).strip().lower()\n    return s\n\ndef lcs_length(a, b):\n    # tokens or chars? We'll use chars\n    n, m = len(a), len(b)\n    # space/memory heavy for big strings; but we can reduce: We'll compute sequence matcher similarity as a proxy\n    sm = difflib.SequenceMatcher(None, a, b)\n    return sum(tr.size for tr in sm.get_matching_blocks())\n\ndef lcs_ratio(a,b):\n    if not a and not b:\n        return 1.0\n    l = lcs_length(a,b)\n    return l / max(len(a), len(b)) if max(len(a), len(b))>0 else 0.0\n\ndef token_f1(a,b):\n    at = a.split()\n    bt = b.split()\n    if not at or not bt:\n        return 0.0\n    inter = len(set(at) & set(bt))\n    prec = inter/len(set(at)) if at else 0\n    rec = inter/len(set(bt)) if bt else 0\n    if prec+rec==0:\n        return 0.0\n    return 2*prec*rec/(prec+rec)\n\ndef combined_score(a,b):\n    a_n = normalize_ar(a)\n    b_n = normalize_ar(b)\n    return (lcs_ratio(a_n,b_n) + token_f1(a_n,b_n))/2\n\norig_span = \"التوكل على الله تعالى هو أن تضع في القلب وتصدق على الله تعالى\"\nsnippet = \"التوكل على...الله تعالى\"\norig_n = normalize_ar(orig_span)\norig_n",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679018db08197b7af8d963826539801a2e4eb5833d53d",
+      "code": "# Let's scan hadiths for substring matches first\norig_norm = normalize_ar(orig_span)\n\ndef search_substring_in_hadiths(query_norm):\n    hits = []\n    for i, h in enumerate(hadith_data):\n        text = h.get('Matn') or h.get('hadithTxt') or ''\n        text_norm = normalize_ar(text)\n        if query_norm in text_norm:\n            hits.append((i, h, text[:200]))\n    return hits\n\nhits = search_substring_in_hadiths(orig_norm)\nlen(hits)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967907709c819798c9243afc85bdc001a2e4eb5833d53d",
+      "code": "# Search for \"التوكل على الله\" phrase\nq1_norm = normalize_ar(\"التوكل على الله\")\nhits2 = search_substring_in_hadiths(q1_norm)\nlen(hits2)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790b72e08197af3508e6bb6bad2f01a2e4eb5833d53d",
+      "code": "# Maybe with \"على الله فتوكلوا\" or \"على الله فليتوكل\"\n# But we search for \"تتوكلون على الله\"\nq1_norm = normalize_ar(\"تتوكلون على الله\")\nhits3 = search_substring_in_hadiths(q1_norm)\nlen(hits3)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790fe6848197be50090e78ff12d101a2e4eb5833d53d",
+      "code": "# Search for token 'توكل' \ndef search_token_contains(token):\n    token_norm = normalize_ar(token)\n    res=[]\n    for i,h in enumerate(hadith_data):\n        text = h.get('Matn') or h.get('hadithTxt') or ''\n        text_norm = normalize_ar(text)\n        if token_norm in text_norm:\n            res.append((i,h))\n    return res\n\nlen(search_token_contains(\"توكل\"))",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791412488197b5a43477f2d3505301a2e4eb5833d53d",
+      "code": "# Let's inspect some results \nsamples = search_token_contains(\"توكل\")[:20]\n[(i, h['title']) for i,h in samples[:10]]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791814988197a323c9bb0ffcf7c201a2e4eb5833d53d",
+      "code": "# Let's display one to see the context of \"توكل\"\ndef preview(idx):\n    h = hadith_data[idx]\n    text = h.get('Matn') or h.get('hadithTxt') or ''\n    return h['title'], text[:1000]\n\nfor idx, _ in samples[:5]:\n    title, text = preview(idx)\n    print(idx, title)\n    print(text[:400], \"\\n---\\n\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791a72688197a52f2d74a1a8df7401a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791b269081978a6edad3c3e38d8d01a2e4eb5833d53d",
+      "code": "cand = search_token_contains(\"حق توكله\")\nlen(cand), [ (i, hadith_data[i]['title'][:50]) for i,_ in cand[:10] ]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791f4acc8197abe5be17cb639f9701a2e4eb5833d53d",
+      "code": "for idx,_ in cand:\n    title, text = preview(idx)\n    print(idx, title)\n    print(text[:400], \"\\n\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967922b2408197bee1e1d59ae9712301a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967924d6ec8197b641193641cfc75901a2e4eb5833d53d",
+      "code": "def search_phrase(phrase):\n    norm = normalize_ar(phrase)\n    res=[]\n    for i,h in enumerate(hadith_data):\n        text = h.get('Matn') or h.get('hadithTxt') or ''\n        tn = normalize_ar(text)\n        if norm in tn:\n            res.append(i)\n    return res\n\nidxs = search_phrase(\"التوكل على الله\")\nlen(idxs), idxs[:20]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792927c88197a76aab1c774226ce01a2e4eb5833d53d",
+      "code": "# search for \"التوكل\"\nidxs = search_phrase(\"التوكل\")\nlen(idxs), idxs[:20]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792d599481978c04ae68c60f37ff01a2e4eb5833d53d",
+      "code": "for idx in idxs:\n    title, text = preview(idx)\n    print(idx, title)\n    print(text[:500], \"\\n---\\n\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792f67648197bbae06cf7829f47601a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793043ec8197939277a2536169fc01a2e4eb5833d53d",
+      "code": "# search the phrase 'تصدق على الله'\nidxs = search_phrase(\"تصدق على الله\")\nlen(idxs), idxs[:10]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679344cec8197ba906c0acd42a08201a2e4eb5833d53d",
+      "code": "search_phrase(\"أن تضع في القلب\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679381f908197b38de0cc26d4840f01a2e4eb5833d53d",
+      "code": "search_phrase(\"في القلب\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896793c454481979cb8c8b7adf2c96401a2e4eb5833d53d",
+      "code": "for idx in [9314,25767,30496]:\n    title, text = preview(idx)\n    print(idx, title)\n    print(text[:500], \"\\n---\\n\")",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793e1db48197b26a82b940cc924d01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679418f60819789377fdb6547c94301a2e4eb5833d53d",
+      "code": "from tqdm import tqdm\n\ndef top_matches_in_corpus(query, corpus, field):\n    qn = normalize_ar(query)\n    best = []\n    for item in corpus:\n        text = item.get(field) or \"\"\n        tn = normalize_ar(text)\n        if not tn:\n            continue\n        # quick filter: require at least one of main tokens \"توكل\" or \"على\" and \"الله\"\n        # But for thoroughness we compute anyway\n        score = combined_score(qn, tn)\n        best.append((score, text, item))\n    best.sort(key=lambda x: x[0], reverse=True)\n    return best[:20]\n\ntop_hadith = top_matches_in_corpus(orig_span, hadith_data, 'Matn')\n# If Matn missing, use hadithTxt - better to check both fields by building combined text for each item\nlen(top_hadith), top_hadith[0][0]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679548c908197b40fbad21588143401a2e4eb5833d53d",
+      "code": "# Let's compute matches across both 'Matn' (if present) and 'hadithTxt' and take best of two for each item\ndef best_text_for_hadith_item(item):\n    texts = []\n    if item.get('Matn'):\n        texts.append(('Matn', item['Matn']))\n    if item.get('hadithTxt'):\n        texts.append(('hadithTxt', item['hadithTxt']))\n    if not texts:\n        return None, ''\n    # choose the longer one that isn't isnad heavy? For now evaluate both\n    return texts\n\ndef top_matches_hadith(query, hadith_items):\n    qn = normalize_ar(query)\n    best=[]\n    for item in hadith_items:\n        best_score = -1\n        best_text = ''\n        for field, text in best_text_for_hadith_item(item) or []:\n            score = combined_score(qn, text)\n            if score > best_score:\n                best_score=score\n                best_text = text\n        if best_score >= 0:\n            best.append((best_score, best_text, item))\n    best.sort(key=lambda x: x[0], reverse=True)\n    return best[:30]\n\ntop_hadith = top_matches_hadith(orig_span, hadith_data)\n[(round(s,3), it['title'][:60]) for s,_,it in top_hadith[:10]]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679707150819788ae080e1aab396e01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797200b08197bc27824cf57d3ecf01a2e4eb5833d53d",
+      "code": "def filter_items_by_substring(sub):\n    sub_n = normalize_ar(sub)\n    indices = []\n    for i, item in enumerate(hadith_data):\n        text = (item.get('Matn') or \"\") + \" \" + (item.get('hadithTxt') or \"\")\n        tn = normalize_ar(text)\n        if sub_n in tn:\n            indices.append(i)\n    return indices\n\nidxs = filter_items_by_substring(\"توكل\")\nlen(idxs)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896797b9c4c819786881c91584de4a101a2e4eb5833d53d",
+      "code": "# Now compute top matches among these 129\nsubset = [hadith_data[i] for i in idxs]\ntop_hadith_tawakkul = top_matches_hadith(orig_span, subset)\n[(round(s,3), it['title'][:60]) for s,_,it in top_hadith_tawakkul[:10]]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797e53988197b05cf8b7514aed5b01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896798033388197bf9082feac094a6c01a2e4eb5833d53d",
+      "code": "def top_matches_quran(query):\n    qn = normalize_ar(query)\n    best=[]\n    for item in quran_data:\n        text = item.get('ayah_text') or ''\n        tn = normalize_ar(text)\n        score = combined_score(qn, tn)\n        best.append((score, text, item))\n    best.sort(key=lambda x: x[0], reverse=True)\n    return best[:30]\n\ntop_quran = top_matches_quran(orig_span)\n[(round(s,3), it['ayah_text']) for s,_,it in top_quran[:10]]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896798463ec8197aa2c470e234b937301a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896798a618081978e66e9074b8f38f001a2e4eb5833d53d",
+      "code": "# Search quran for 'ومن يتوكل على الله فهو حسبه'\nmatches = [ (i,x) for i,x in enumerate(quran_data) if \"ومن يتوكل على الله فهو حسبه\" in x['ayah_text']]\nlen(matches), matches[:3]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896798c427881979e7ee6da6bc9734a01a2e4eb5833d53d",
+      "code": "# Search normalized\ntarget = \"ومن يتوكل على الله فهو حسبه\"\nnorm_target = normalize_ar(target)\nres=[]\nfor i,x in enumerate(quran_data):\n    tn = normalize_ar(x['ayah_text'])\n    if norm_target in tn:\n        res.append((i, x['ayah_text'], x['surah_id'], x['ayah_id'], tn))\nlen(res), res[:1]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896798eb2ec8197b9271388bff250a301a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896798ff918819786ae4acf271892eb01a2e4eb5833d53d",
+      "code": "cand_quran_text = res[0][1]\ncombined_score(orig_span, cand_quran_text)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679924b70819783794ab053200cdc01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679932d2c81979efb861f68a9a7bd01a2e4eb5833d53d",
+      "code": "snippet_full = \"التوكل على الله تعالى\"\ncombined_score(snippet_full, cand_quran_text)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679951a80819791243c85b14a93a601a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896799c1dd88197836c5d427e96194001a2e4eb5833d53d",
+      "code": "# Search quran had and hadith for 'توكل على الله'\nidx_q_1 = [ (i, q['ayah_text']) for i,q in enumerate(quran_data) if normalize_ar('توكل على الله') in normalize_ar(q['ayah_text'])]\nlen(idx_q_1), idx_q_1[:5]",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896799dfb44819794086fa40a64c0ba01a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896799e94d08197a87eb3becf99377d01a2e4eb5833d53d",
+      "code": "cand1 = \"لَوْ أَنَّكُمْ كُنْتُمْ تَوَكَّلُونَ عَلَى اللهِ حَقَّ تَوَكُّلِهِ لَرُزِقْتُمْ كَمَا يُرْزَقُ الطَّيْرُ ، تَغْدُو خِمَاصًا وَتَرُوحُ بِطَانًا  \"\ncombined_score(orig_span, cand1)",
+      "container_id": "cntr_689678d4c8ec81909acc03099cdb6e810f197cf6c2d2eaf4",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a1003c81979745f4af10ce86c801a2e4eb5833d53d",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679a70cd481978a86858a3194d9da01a2e4eb5833d53d",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 229144,
+    "input_tokens_details": {
+      "cached_tokens": 209792
+    },
+    "output_tokens": 5141,
+    "output_tokens_details": {
+      "reasoning_tokens": 5120
+    },
+    "total_tokens": 234285
+  },
+  "user": null,
+  "store": false
+}

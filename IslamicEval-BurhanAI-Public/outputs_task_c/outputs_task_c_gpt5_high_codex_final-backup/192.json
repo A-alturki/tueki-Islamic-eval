@@ -1,0 +1,657 @@
+{
+  "id": "resp_689678d332188197a513b0ecbc382a180a5d9d16a5dc1c74",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d938148197bf698345c80f3e3f0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678eb407481978ab8cc99598a44190a5d9d16a5dc1c74",
+      "code": "# Let's load the provided JSON files and search for the given hadith span.\r\n\r\nimport json, re, os, math, statistics, itertools\r\nfrom difflib import SequenceMatcher\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_data = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_data = json.load(f)\r\n\r\nlen(quran_data), len(hadith_data[:1]) if isinstance(hadith_data, list) else type(hadith_data)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678ef5acc8197824e46c908a28cf10a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f0b520819797ba66447ca3d6d00a5d9d16a5dc1c74",
+      "code": "# Inspect the structure of some hadith entries\r\nhadith_data[0].keys(), hadith_data[0]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f2a46481979fb71e9d2c69f0f30a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f311e48197a798e91dafe3090b0a5d9d16a5dc1c74",
+      "code": "import unicodedata\r\n\r\narabic_diacritics = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06ED]\")\r\n\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return \"\"\r\n    # Remove diacritics\r\n    s = arabic_diacritics.sub(\"\", s)\r\n    # Remove tatweel\r\n    s = s.replace(\"\\u0640\", \"\")\r\n    # Normalize hamza forms and alef variants\r\n    s = (s.replace(\"أ\", \"ا\")\r\n           .replace(\"إ\", \"ا\")\r\n           .replace(\"آ\", \"ا\")\r\n           .replace(\"ٱ\", \"ا\")\r\n           .replace(\"ؤ\", \"و\")\r\n           .replace(\"ئ\", \"ي\")\r\n           .replace(\"ى\", \"ي\")\r\n           .replace(\"ة\", \"ه\"))\r\n    # Remove punctuation (Arabic and Latin)\r\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)  # keep Arabic letters and digits\r\n    # Remove Arabic punctuation symbols\r\n    s = s.replace(\"،\", \" \").replace(\"؛\", \" \").replace(\"؟\", \" \").replace(\"«\", \" \").replace(\"»\", \" \").replace(\"…\", \" \")\r\n    # Collapse whitespace\r\n    s = re.sub(r\"\\s+\", \" \", s).strip()\r\n    return s\r\n\r\ndef seq_ratio(a, b):\r\n    return SequenceMatcher(None, a, b).ratio()\r\n\r\ndef lcs_length(a, b):\r\n    # longest common subsequence length DP\r\n    n, m = len(a), len(b)\r\n    dp = [0] * (m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        for j in range(1, m+1):\r\n            tmp = dp[j]\r\n            if a[i-1] == b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                if dp[j] >= dp[j-1]:\r\n                    dp[j] = dp[j]\r\n                else:\r\n                    dp[j] = dp[j-1]\r\n            prev = tmp\r\n    return dp[m]\r\n\r\ndef normalized_lcs_ratio(a, b):\r\n    # LCS normalized by max length\r\n    if not a or not b:\r\n        return 0.0\r\n    lcs = lcs_length(a, b)\r\n    return lcs / max(len(a), len(b))\r\n\r\ndef token_f1(a, b):\r\n    # Tokenize by spaces after normalization\r\n    ta = a.split()\r\n    tb = b.split()\r\n    set_a = set(ta)\r\n    set_b = set(tb)\r\n    if not set_a or not set_b:\r\n        return 0.0\r\n    inter = len(set_a & set_b)\r\n    prec = inter / len(set_a)\r\n    rec = inter / len(set_b)\r\n    if prec + rec == 0:\r\n        return 0.0\r\n    return 2 * prec * rec / (prec + rec)\r\n\r\ndef combined_score(a, b):\r\n    # combine normalized lcs and token f1\r\n    return 0.5 * normalized_lcs_ratio(a, b) + 0.5 * token_f1(a, b)\r\n\r\nfull_span = \"وَلِلرَجُلِ حَقٌّ عَلَى أُمِّهِ وَالأُمُّ لِلرَجُلِ حَقٌّ عَلَيْهَا\"\r\nsnippet = \"وَلِلرَجُل... عَلَيْهَا\"\r\n\r\nnorm_full = normalize_arabic(full_span)\r\nnorm_snip = normalize_arabic(snippet)\r\n\r\nnorm_full, norm_snip, len(norm_full), len(norm_snip)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678fe81a4819794700ce9069beb0d0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967904e4f481978894bc3f2dfc14070a5d9d16a5dc1c74",
+      "code": "# Prepare hadith texts\r\nhadith_texts = []\r\nfor entry in hadith_data:\r\n    for key in (\"hadithTxt\", \"Matn\"):\r\n        txt = entry.get(key)\r\n        if txt:\r\n            hadith_texts.append((txt, entry))\r\n\r\nlen(hadith_texts)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790756dc819799c89a8e361fbd770a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967908db108197a30f4d6027ee0a070a5d9d16a5dc1c74",
+      "code": "norm_phrase1 = normalize_arabic(\"للرجل\")\r\nnorm_phrase2 = normalize_arabic(\"حق\")\r\nnorm_phrase3 = normalize_arabic(\"ام\")\r\n\r\ncandidates = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if norm_phrase1 in norm_txt and norm_phrase2 in norm_txt and norm_phrase3 in norm_txt:\r\n        candidates.append((txt, entry, norm_txt))\r\n\r\nlen(candidates)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790d64ec8197a4b24911f79b075b0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790d9eb08197829485a03545b9400a5d9d16a5dc1c74",
+      "code": "# Compute combined score for candidates\r\nscores = []\r\nfor txt, entry, norm_txt in candidates:\r\n    score = combined_score(norm_full, norm_txt)\r\n    lcsr = normalized_lcs_ratio(norm_full, norm_txt)\r\n    tf1 = token_f1(norm_full, norm_txt)\r\n    scores.append((score, lcsr, tf1, txt[:200].replace(\"\\n\",\" \"), entry['title'] if 'title' in entry else ''))\r\n\r\n# Sort by score descending\r\nscores_sorted = sorted(scores, key=lambda x: x[0], reverse=True)\r\nscores_sorted[:10]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967910b8d08197a3041e68d7d494c50a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967913b7b88197a1a874c35216d61a0a5d9d16a5dc1c74",
+      "code": "# Search quran for any verse containing tokens \"للرجل\" and \"حق\" and \"ام\"\r\ncandidates_quran = []\r\nfor verse in quran_data:\r\n    text = verse.get('ayah_text', '')\r\n    norm_txt = normalize_arabic(text)\r\n    if \"للرجل\" in norm_txt and \"حق\" in norm_txt and (\"ام\" in norm_txt or \"الام\" in norm_txt):\r\n        candidates_quran.append((text, norm_txt, verse))\r\n\r\nlen(candidates_quran), candidates_quran[:3]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679161c148197998f029d6283fa210a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967917bbe48197b4331b68ac0596960a5d9d16a5dc1c74",
+      "code": "# Search for hadith containing both 'حق' and 'ام' (mother) tokens\r\ncand2 = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"حق\" in norm_txt and \"ام\" in norm_txt:\r\n        cand2.append((txt, entry, norm_txt))\r\n\r\nlen(cand2)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791be1288197b801295aaf6974ad0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792140f88197b590137129832fdd0a5d9d16a5dc1c74",
+      "code": "# Search for hadith containing \"لامك\" (i.e., \"لأمك\") and \"حق\"\r\ncand3 = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"لامك\" in norm_txt and \"حق\" in norm_txt:\r\n        cand3.append((txt, entry, norm_txt))\r\n\r\nlen(cand3)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967926579c8197ae1c5da4e178ecc30a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792682ac81979380e4a127ab255e0a5d9d16a5dc1c74",
+      "code": "[(c[0][:400].replace(\"\\n\",\" \"), c[1].get('title', '')) for c in cand3]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967928fcbc8197919310c59685a9ce0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792a844c81979c133045f8f8442b0a5d9d16a5dc1c74",
+      "code": "# search for \"امك\" occurrences to inspect context with \"حق\"\r\nemk_cands = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"امك\" in norm_txt:\r\n        emk_cands.append((txt, entry, norm_txt))\r\nlen(emk_cands)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792ec8f88197972a773462b6f6970a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792f1a3481978164df642f71b1f60a5d9d16a5dc1c74",
+      "code": "# Filter for those with 'حق' too\r\nemk_haqq = [(txt, entry, norm) for txt, entry, norm in emk_cands if \"حق\" in norm]\r\nlen(emk_haqq)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967931f69c819784e6b7b18baaefa10a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793214e881979569b1532ae6a0760a5d9d16a5dc1c74",
+      "code": "target_norm = normalize_arabic(\"لأمك عليك حق\")\r\nmatches = []\r\nfor txt, entry, norm in emk_haqq:\r\n    if target_norm in norm:\r\n        matches.append((txt, entry.get('title','')))\r\nlen(matches), matches[:10]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967933f8108197ac6f670b9f1ab8a50a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679347b3c8197ae17827237bd0e350a5d9d16a5dc1c74",
+      "code": "target_norm2 = normalize_arabic(\"لأمك عليك حقا\")\r\nm2 = []\r\nfor txt, entry, norm in emk_haqq:\r\n    if target_norm2 in norm:\r\n        m2.append((txt, entry.get('title','')))\r\nlen(m2)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967939d3a88197ab307adcf746148b0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793a10f08197bc04ae367e650ee60a5d9d16a5dc1c74",
+      "code": "target_norm3 = normalize_arabic(\"إن لأمك حقا\")\r\nm3 = []\r\nfor txt, entry, norm in emk_haqq:\r\n    if normalize_arabic(\"ان\") in norm and normalize_arabic(\"لا مك\") in norm:\r\n        pass\r\n# Just search for the substring after normalization\r\ntarget_norm3 = normalize_arabic(\"إن لِأمِّكَ حقًّا\")\r\nm3 = [(txt, entry.get('title','')) for txt, entry, norm in emk_haqq if target_norm3 in norm]\r\nlen(m3)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679418ec88197b6829aec6bd8b78a0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967941d0908197a227e01d30a74a6f0a5d9d16a5dc1c74",
+      "code": "target_norm4 = \"لامك حقا\"\r\nm4 = [(txt, entry.get('title','')) for txt, entry, norm in emk_haqq if target_norm4 in norm]\r\nlen(m4), m4[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794456c8819795bdd55a617a24a00a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967944b274819794b7e4d9e78c80a10a5d9d16a5dc1c74",
+      "code": "abik_cands = []\r\ntarget_abik = normalize_arabic(\"لأبيك عليك حقا\")\r\nfor txt, entry in hadith_texts:\r\n    norm = normalize_arabic(txt)\r\n    if \"لابيك\" in norm and \"حق\" in norm:\r\n        abik_cands.append((txt, entry.get('title',''), norm))\r\nlen(abik_cands)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967949ecd481978d980e0616e249bb0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794cfe3081978644adf5d4da5bd90a5d9d16a5dc1c74",
+      "code": "raw_full = \"وَلِلرَجُلِ حَقٌّ عَلَى أُمِّهِ وَالأُمُّ لِلرَجُلِ حَقٌّ عَلَيْهَا\"\r\nraw_start = \"وَلِلرَجُلِ حَقٌّ عَلَى أُمِّهِ\"\r\nraw_phrase = raw_start\r\nraw_find = []\r\nfor txt, entry in hadith_texts:\r\n    if raw_phrase in txt:\r\n        raw_find.append((txt[:200], entry.get('title','')))\r\n\r\nlen(raw_find), raw_find[:3]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967950812c8197930dfc74167f7cd20a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679522c908197878be84a3240d2000a5d9d16a5dc1c74",
+      "code": "norm_ragol = normalize_arabic(\"الرجل\")\r\nnorm_em = normalize_arabic(\"الأم\")\r\nnorm_em, norm_ragol",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967954a2f88197af6098e24658163f0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967954dc248197a00488d90067992e0a5d9d16a5dc1c74",
+      "code": "cand4 = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if norm_ragol in norm_txt and norm_em in norm_txt and \"حق\" in norm_txt:\r\n        cand4.append((txt, entry, norm_txt))\r\n\r\nlen(cand4)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679591584819783ba34cde45466780a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679593ad08197923b57f5f2d12aa40a5d9d16a5dc1c74",
+      "code": "scores_cand4 = []\r\nfor txt, entry, norm_txt in cand4:\r\n    score = combined_score(norm_full, norm_txt)\r\n    lcsr = normalized_lcs_ratio(norm_full, norm_txt)\r\n    tf1 = token_f1(norm_full, norm_txt)\r\n    # Also compute ratio to the most similar substring? We'll approximate by computing SequenceMatcher with blocks? \r\n    scores_cand4.append((score, lcsr, tf1, txt[:200].replace(\"\\n\",\" \"), entry.get('title','')))\r\n\r\nscores_cand4_sorted = sorted(scores_cand4, key=lambda x: x[0], reverse=True)\r\nscores_cand4_sorted[:10]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795ddbf88197ad4d3bf3afa262950a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967969b05c8197be55ef5ad8862f1f0a5d9d16a5dc1c74",
+      "code": "# Search synonyms\r\ntargets = [\r\n    normalize_arabic(\"للرجل حق على أمه\"),\r\n    normalize_arabic(\"للرجل حق على والدته\"),\r\n    normalize_arabic(\"للرجل حق على أمه والأم للرجل حق عليها\"),\r\n    normalize_arabic(\"للرجل حق\"),\r\n    normalize_arabic(\"حق على أمه\"),\r\n    normalize_arabic(\"حق الوالدين\"),\r\n]\r\ntargets",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896797224cc8197b15bd612513021090a5d9d16a5dc1c74",
+      "code": "# Search for the more unique phrase \"حق علي امه\"\r\nres = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"حق علي امه\" in norm_txt:\r\n        res.append((txt, entry.get('title','')))\r\nlen(res), res[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967976eb108197b322f60ecf6de6790a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797790988197b353cb48842f928c0a5d9d16a5dc1c74",
+      "code": "parents_rights = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"الوالدين\" in norm_txt and \"حق\" in norm_txt:\r\n        parents_rights.append((txt, entry.get('title',''), norm_txt))\r\nlen(parents_rights)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896798017e8819785372f791882f0d80a5d9d16a5dc1c74",
+      "code": "[(p[0][:200].replace(\"\\n\",\" \"), p[1]) for p in parents_rights]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967983ee788197a9e5aa81c316b9390a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967988838081978a88e6977d46008a0a5d9d16a5dc1c74",
+      "code": "norm_full, norm_full.split()",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896798a56948197a0538b727fc1bd330a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679908638819797107b8fa3dbe8d10a5d9d16a5dc1c74",
+      "code": "norm_full_tokens = set(norm_full.split())\r\nlen(norm_full_tokens), norm_full_tokens",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967992f6808197b01ca1b8e736e5660a5d9d16a5dc1c74",
+      "code": "# Let's compute token overlap count for all hadith\r\ntop_overlap = []\r\nfor txt, entry in hadith_texts[:50000]:  # limit first 50k for time; then do remaining if needed\r\n    norm_txt = normalize_arabic(txt)\r\n    toks = set(norm_txt.split())\r\n    inter = norm_full_tokens & toks\r\n    if len(inter) >= 3:  # at least 3 tokens match\r\n        # compute a quick combined score\r\n        score = combined_score(norm_full, norm_txt[:min(len(norm_txt), len(norm_full)*3)])  # Use a window approx (first 3x length)\r\n        top_overlap.append((len(inter), score, txt[:200].replace(\"\\n\",\" \"), entry.get('title','')))\r\n\r\nlen(top_overlap)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679a3dae08197a50bbcdd434ed9ad0a5d9d16a5dc1c74",
+      "code": "# sort by token overlap count desc, then score desc\r\ntop_overlap_sorted = sorted(top_overlap, key=lambda x: (-x[0], -x[1]))\r\ntop_overlap_sorted[:20]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a6966c81979fc1abcfe98c90d90a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679a8f6c481978c84e304c45770c70a5d9d16a5dc1c74",
+      "code": "# search for occurrences of \"عليك حق\" with \"ام\" or \"امك\" or \"الام\"\r\ncands_alayka = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"عليك حق\" in norm_txt and (\"ام \" in norm_txt or \"امك\" in norm_txt or \"الام\" in norm_txt):\r\n        cands_alayka.append((txt, entry.get('title',''), norm_txt))\r\nlen(cands_alayka)",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679ae16648197bac2ab7a9c40a4920a5d9d16a5dc1c74",
+      "code": "# Let's view some of these\r\nsamples = [(c[0][:300].replace(\"\\n\",\" \"), c[1]) for c in cands_alayka[:10]]\r\nsamples",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b06e6c8197ae0d01aefcc1737c0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b1c1ec819797c10daa4ccc5d2d0a5d9d16a5dc1c74",
+      "code": "# Search for hadith containing \"لزوجك عليك حقا\"\r\ntarget_norm5 = normalize_arabic(\"لزوجك عليك حقا\")\r\ncands_spouse = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if target_norm5 in norm_txt:\r\n        cands_spouse.append((txt, entry.get('title','')))\r\n\r\nlen(cands_spouse), cands_spouse[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b6b27881978df13fd76f12be000a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679bd4bec8197b15c8ed32662f4070a5d9d16a5dc1c74",
+      "code": "# Search for hadith containing \"حقه عليها\" and \"امرأة\" or \"زوج\"\r\ncands_right_over = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"حقه عليها\" in norm_txt and (\"زوج\" in norm_txt or \"امراه\" in norm_txt or \"الزوجه\" in norm_txt):\r\n        cands_right_over.append((txt, entry.get('title','')))\r\nlen(cands_right_over), cands_right_over[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679c28bbc8197a26561a8f3f3275c0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679c34df48197b6b68aee22d3a9c70a5d9d16a5dc1c74",
+      "code": "# Search for \"يسجد\" \"لزوجها\"\r\ncands_sujud = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"يسجد\" in norm_txt and \"لزوجها\" in norm_txt:\r\n        cands_sujud.append((txt, entry.get('title','')))\r\n\r\nlen(cands_sujud), cands_sujud[:3]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679c8f260819798c01ef7d771ac790a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679cdd29081979d14955e1392218a0a5d9d16a5dc1c74",
+      "code": "# We'll perform a more careful sliding window approximate match around occurrences of \"الام\", \"الام \", \"امه\", \"ام\".\r\ntargets_tokens = [\"ام\",\"امه\",\"الام\"]\r\nlong_scores = []\r\n\r\nfor txt, entry, norm_txt in cand2:  # those with \"حق\" and \"ام\"\r\n    # find indexes of 'ام' 'امه' or 'الام'\r\n    for t in targets_tokens:\r\n        idx = norm_txt.find(t)\r\n        if idx != -1:\r\n            # Extract windows around index with size ~ len(norm_full) * 2\r\n            L = len(norm_full)\r\n            start = max(0, idx - L)\r\n            end = min(len(norm_txt), idx + L)\r\n            window = norm_txt[start:end]\r\n            # compute combined score with window\r\n            score = combined_score(norm_full, window)\r\n            if score > 0.3:\r\n                long_scores.append((score, window, txt[:200].replace(\"\\n\",\" \"), entry.get('title','')))\r\n                break\r\n\r\nlen(long_scores), sorted(long_scores, key=lambda x: x[0], reverse=True)[:10]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679d253f08197adb043c684ff4ec20a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679d7127c8197891ee03f42a5f6d60a5d9d16a5dc1c74",
+      "code": "# Search for Arabic phrase \"حق الأم\" or \"حق الوالدة\"\r\nc1 = []\r\nc2 = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"حق الام\" in norm_txt:\r\n        c1.append((txt, entry.get('title','')))\r\n    if \"حق الوالده\" in norm_txt:\r\n        c2.append((txt, entry.get('title','')))\r\n\r\nlen(c1), len(c2), c1[:3], c2[:3]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679dc446081978f13593fce346c9a0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679dc85388197b9ff3cbc24a347e20a5d9d16a5dc1c74",
+      "code": "c3 = []\r\nfor txt, entry in hadith_texts:\r\n    norm_txt = normalize_arabic(txt)\r\n    if \"امي\" in norm_txt and \"حق\" in norm_txt:\r\n        c3.append((txt, entry.get('title','')))\r\n\r\nlen(c3), c3[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679e1fdc88197ad04f5541f7102390a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679e3fe8c8197919d76263371538d0a5d9d16a5dc1c74",
+      "code": "# raw search across hadith texts for \"على أمه\" and \"حق\"\r\nhits = []\r\nfor txt, entry in hadith_texts:\r\n    if \"على أمه\" in txt and \"حق\" in txt:\r\n        hits.append((txt[:200].replace(\"\\n\",\" \"), entry.get('title','')))\r\nlen(hits), hits[:5]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689679e79f348197b91907c95ef497ac0a5d9d16a5dc1c74",
+      "code": "hits[0][0]",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679ed08748197b606669000913e3d0a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679ef7cd08197aa903f58b7c59b8f0a5d9d16a5dc1c74",
+      "code": "# Verify the full text includes \"على أمه\"\r\nfor txt, entry in hadith_texts:\r\n    if \"على أمه\" in txt and \"حق\" in txt:\r\n        print(\"Found:\", entry.get('title',''))\r\n        print([m.start() for m in re.finditer(\"على أمه\", txt)][:5])\r\n        start = txt.find(\"على أمه\")\r\n        print(txt[start-50:start+70])",
+      "container_id": "cntr_689678d50b5c8190bc40be350d0820c00be912b31540ae3e",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679f2db1481978d4d607a6324bab90a5d9d16a5dc1c74",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967a097e4c81979013c595591859440a5d9d16a5dc1c74",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 568062,
+    "input_tokens_details": {
+      "cached_tokens": 520040
+    },
+    "output_tokens": 9877,
+    "output_tokens_details": {
+      "reasoning_tokens": 9856
+    },
+    "total_tokens": 577939
+  },
+  "user": null,
+  "store": false
+}

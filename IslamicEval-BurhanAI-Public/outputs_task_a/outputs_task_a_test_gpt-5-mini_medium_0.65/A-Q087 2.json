@@ -1,0 +1,171 @@
+{
+  "id": "resp_68962338e654819796d257ade73eaf580fdd58ae45337f98",
+  "created_at": 1754669880.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896233c0c30819790d1a6a8e72874e60fdd58ae45337f98",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896233e2eb48197a929c4007de49ab60fdd58ae45337f98",
+      "code": "# read the file\npath=\"/mnt/data/file-4tboX2kzCBU5jt2h1AWoe1-text_to_analyse.txt\"\nwith open(path,\"rb\") as f:\n    raw_bytes = f.read()\nraw = raw_bytes.decode('utf-8')\nprint(len(raw))\nprint(raw[:400])\nprint(\"-----full text-----\")\nprint(raw)",
+      "container_id": "cntr_6896233a91888190b274ba57362ceef2050bd21479684749",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896234476948197a4b6eb7dd1cbdb2b0fdd58ae45337f98",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623504fb081978527ba3389a6a4f80fdd58ae45337f98",
+      "code": "raw = raw  # from above\nspans = []\n\nimport re\n# find {} blocks\nfor m in re.finditer(r'\\{([^}]*)\\}', raw):\n    inner = m.group(1)\n    # trim characters per rule\n    trim_chars = ' \\n\\t\\r\\u200f\\u200e' + '«»\"\\'()[]{}<>' + '،؛:.,!؟…ـ'\n    # remove leading/trailing characters in trim_chars\n    def trim_edges(s):\n        start=0\n        end=len(s)\n        while start<end and s[start] in trim_chars:\n            start+=1\n        while end>start and s[end-1] in trim_chars:\n            end-=1\n        return s[start:end]\n    inner_trim = trim_edges(inner)\n    # find exact occurrence of inner_trim in raw - but ensure within m span ideally\n    # search for inner_trim between m.start() and m.end()\n    segment = raw[m.start():m.end()]\n    idx = segment.find(inner_trim)\n    if idx!=-1:\n        start = m.start()+idx\n        end = start + len(inner_trim)\n    else:\n        # fallback to find globally\n        start = raw.find(inner_trim)\n        end = start + len(inner_trim)\n    # determine cue within ±64 chars of start\n    left = max(0, start-64)\n    right = min(len(raw), end+64)\n    context = raw[left:right]\n    ctype = \"Aya\"\n    spans.append((start,end,inner_trim,ctype))\n    \n# find quotes \" ... \"\n# Use pattern for \"([^\"]+)\" for content\nfor m in re.finditer(r'\"([^\"]*?)\"', raw):\n    inner = m.group(1)\n    inner_trim = re.sub(r'^[\\s\\u200f\\u200e«»\"\\'()[]{}<>،؛:.,!؟…ـ]+|[\\s\\u200f\\u200e«»\"\\'()[]{}<>،؛:.,!؟…ـ]+$','',inner)\n    # above regex may need proper escaping of []\n    # simpler use trim function\n    # redo using trim_edges\n    def trim_edges2(s):\n        trim_chars = ' \\n\\t\\r\\u200f\\u200e' + '«»\"\\'()[]{}<>' + '،؛:.,!؟…ـ'\n        start=0; end=len(s)\n        while start<end and s[start] in trim_chars:\n            start+=1\n        while end>start and s[end-1] in trim_chars:\n            end-=1\n        return s[start:end]\n    inner_trim = trim_edges2(inner)\n    if len(inner_trim)<10:\n        # skip short unless explicit cues; but hadiths are long usually.\n        pass\n    # locate within m span\n    segment = raw[m.start():m.end()]\n    idx = segment.find(inner_trim)\n    if idx!=-1:\n        start = m.start()+idx\n        end = start + len(inner_trim)\n    else:\n        start = raw.find(inner_trim)\n        end = start + len(inner_trim)\n    # decide type by scanning ±64 chars\n    left = max(0, start-64); right = min(len(raw), end+64)\n    context = raw[left:right]\n    # hadith cues\n    if re.search(r'قال رسول الله|النبي ﷺ|عن النبي|قال:|روي عن|في الحديث|رواه', context):\n        ctype = \"Hadeeth\"\n    else:\n        # ambiguous default Hadeeth since in quotes but maybe Aya? Could be Aya but ayahs were in braces not quotes\n        ctype = \"Hadeeth\"\n    spans.append((start,end,inner_trim,ctype))\n\n# Show spans\nfor s in spans:\n    print(s[0],s[1],s[2],s[3])\n    \nlen(spans)",
+      "container_id": "cntr_6896233a91888190b274ba57362ceef2050bd21479684749",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896235e01d48197a6f945b71a78d8730fdd58ae45337f98",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896235f650c81979d65179c10adcfdb0fdd58ae45337f98",
+      "code": "# verify\nfor start,end,text,ctype in spans:\n    snippet = raw[start:end]\n    ok = (snippet==text)\n    print(ok, start, end, repr(snippet[:40]), repr(text[:40]))",
+      "container_id": "cntr_6896233a91888190b274ba57362ceef2050bd21479684749",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68962361b3ec8197997e2e97308f06820fdd58ae45337f98",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689623639c7481978a7810bd020543310fdd58ae45337f98",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":222,\"span_end\":421,\"span_text\":\"وَكَذَلِكَ أَوْحَيْنَا إِلَيْكَ رُوحًا مِنْ أَمْرِنَا مَا كُنتَ تَدْرِي مَا الْكِتَابُ وَلَا الْإِيمَانُ وَلَكِنْ جَعَلْنَاهُ تَفْمِيَةً عَلَى قَلْبِكَ وَمُصَدِّقًا لِذِكْرِنَا وَهُدًى لِلْمُتَّقِينَ\",\"citation_type\":\"Aya\"},{\"span_start\":454,\"span_end\":593,\"span_text\":\"وَإِنْ يَمُدُّوكَ عَلَى الْقَتْلِ ثَمَّ قَدْ يَمُدُّ اللَّهُ عِنْدَهُ مِنْ قَبْلُ وَلَيُدْخِلَنَّ الَّذِينَ يَتَّقُونَ مِنْ عَذَابٍ غَلِيٍّ\",\"citation_type\":\"Aya\"},{\"span_start\":628,\"span_end\":685,\"span_text\":\"وَإِنَّ هَذَا قَوْلُنَا لَمُبَيِّنٌ لِأُولِي الْأَلْبَابِ\",\"citation_type\":\"Aya\"},{\"span_start\":735,\"span_end\":881,\"span_text\":\"إِنَّما الأَعْمَالُ بِالنِيَّةِ، وَإِنَّمَا لِلسَّائِلِ نِعْمَةٌ أَوْ عَذَابٌ يَكُونُ عَلَيْهِ أَوْ يُصَلِّي لَهُ أَوْ يُصَدِّقَهُ أَوْ يُزَكِّيهِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":931,\"span_end\":984,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَهَلَكَ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1034,\"span_end\":1135,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَذَلِكَ الَّذِي أَخَذَ بِالنَفْسِ وَأَخَذَ بِالْقُرْآنِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1188,\"span_end\":1291,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَكَذَلِكَ الَّذِي أَخَذَ بِالنَفْسِ وَأَخَذَ بِالْقُرْآنِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1341,\"span_end\":1444,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَكَذَلِكَ الَّذِي أَخَذَ بِالنَفْسِ وَأَخَذَ بِالْقُرْآنِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1497,\"span_end\":1600,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَكَذَلِكَ الَّذِي أَخَذَ بِالنَفْسِ وَأَخَذَ بِالْقُرْآنِ\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1650,\"span_end\":1753,\"span_text\":\"مَنْ أَخَذَ بِالْقُرْآنِ وَأَخَذَ بِالنَفْسِ فَكَذَلِكَ الَّذِي أَخَذَ بِالنَفْسِ وَأَخَذَ بِالْقُرْآنِ\",\"citation_type\":\"Hadeeth\"}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-4tboX2kzCBU5jt2h1AWoe1"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "medium",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1a_spans",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer"
+                },
+                "span_end": {
+                  "type": "integer"
+                },
+                "span_text": {
+                  "type": "string"
+                },
+                "citation_type": {
+                  "type": "string",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 21047,
+    "input_tokens_details": {
+      "cached_tokens": 17312
+    },
+    "output_tokens": 3251,
+    "output_tokens_details": {
+      "reasoning_tokens": 2304
+    },
+    "total_tokens": 24298
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,174 @@
+{
+  "id": "resp_6896726dae348195b78932adbea6690f074c73397ac335a6",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967271b2bc8195aaa0fe3627ec21b8074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672747ed481958dc0dad801ccb161074c73397ac335a6",
+      "code": "# Load the provided JSON files and search for the given span (normalized: remove diacritics etc.)\r\nimport json, re, unicodedata, itertools, textwrap\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadiths = json.load(f)\r\n\r\ndef normalize_arabic(s):\r\n    if not isinstance(s, str):\r\n        return \"\"\r\n    # Remove diacritics\r\n    s = ''.join(ch for ch in unicodedata.normalize('NFD', s) if unicodedata.category(ch) != 'Mn')\r\n    # Normalize hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ؤ','و').replace('ئ','ي').replace('ء','')\r\n    # Remove tatweel and punctuation\r\n    s = s.replace('ـ','')\r\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)\r\n    # Collapse spaces\r\n    s = re.sub(r\"\\s+\", \" \", s).strip()\r\n    return s\r\n\r\ntarget_full = \"وَإِنَّكَ لَتُحْسِبُهُمْ شَدِيدًا وَهُمْ مُحْسِنُونَ\"\r\ntarget_norm = normalize_arabic(target_full)\r\n\r\ndef search_quran(snippet_norm):\r\n    hits = []\r\n    for rec in quran:\r\n        ayah = rec.get(\"ayah_text\",\"\")\r\n        ayah_norm = normalize_arabic(ayah)\r\n        if snippet_norm in ayah_norm:\r\n            hits.append(rec)\r\n    return hits\r\n\r\ndef search_quran_approx(snippet_norm, min_overlap_tokens=3):\r\n    tokens = snippet_norm.split()\r\n    hits = []\r\n    for rec in quran:\r\n        ayah_norm = normalize_arabic(rec.get(\"ayah_text\",\"\"))\r\n        overlap = set(tokens) & set(ayah_norm.split())\r\n        if len(overlap) >= min_overlap_tokens:\r\n            # simple score = overlap size\r\n            hits.append((len(overlap), rec))\r\n    hits.sort(key=lambda x: -x[0])\r\n    return hits[:20]\r\n\r\nhits_exact = search_quran(target_norm)\r\nhits_approx = search_quran_approx(target_norm, min_overlap_tokens=2)\r\n\r\nlen(hits_exact), len(hits_approx), hits_approx[:5]",
+      "container_id": "cntr_6896726f594881908d3853ab14430d600c6090cc11d6ae14",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896727a9fe48195844eaad82ee14fb2074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896727aeb388195bd429f68f1473bb7074c73397ac335a6",
+      "code": "# Search hadith databases for the snippet\r\ndef extract_matn(rec):\r\n    # There are varying field names\r\n    for k in (\"hadithTxt\",\"Matn\",\"matn\",\"Hadith\",\"text\",\"hadith_text\"):\r\n        if k in rec and isinstance(rec[k], str) and rec[k].strip():\r\n            return rec[k]\r\n    return \"\"\r\n\r\ndef search_hadith(snippet_norm):\r\n    hits = []\r\n    for rec in hadiths:\r\n        matn = extract_matn(rec)\r\n        if not matn:\r\n            continue\r\n        matn_norm = normalize_arabic(matn)\r\n        if snippet_norm in matn_norm:\r\n            hits.append(rec)\r\n    return hits\r\n\r\ndef search_hadith_approx(snippet_norm, min_overlap_tokens=2):\r\n    tokens = snippet_norm.split()\r\n    hits = []\r\n    for rec in hadiths:\r\n        matn = extract_matn(rec)\r\n        if not matn:\r\n            continue\r\n        matn_norm = normalize_arabic(matn)\r\n        overlap = set(tokens) & set(matn_norm.split())\r\n        if len(overlap) >= min_overlap_tokens:\r\n            hits.append((len(overlap), rec))\r\n    hits.sort(key=lambda x: -x[0])\r\n    return hits[:20]\r\n\r\nh_exact = search_hadith(target_norm)\r\nh_approx = search_hadith_approx(target_norm, min_overlap_tokens=2)\r\nlen(h_exact), h_approx[:5]",
+      "container_id": "cntr_6896726f594881908d3853ab14430d600c6090cc11d6ae14",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728477648195b40750d0f954720f074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672876bdc819588582b4e60f96ef0074c73397ac335a6",
+      "code": "# Search for occurrences of \"محسنون\" in Quran to see potential intended ayah\r\nmatches = []\r\nfor rec in quran:\r\n    text = rec.get(\"ayah_text\",\"\")\r\n    if \"مُحْسِنُونَ\" in text or \"محسنون\" in text:\r\n        matches.append(text)\r\nlen(matches), matches[:20]",
+      "container_id": "cntr_6896726f594881908d3853ab14430d600c6090cc11d6ae14",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967289e1a08195ae85ae226f019266074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728c79408195b6a6ec288925bf53074c73397ac335a6",
+      "code": "# Search for Surah Ar-Ra'd 13:29 content in the DB by known phrase \"طوبى لهم وحسن مآب\"\r\ncands = []\r\nfor rec in quran:\r\n    text = rec.get(\"ayah_text\",\"\")\r\n    if \"طُوبَىٰ لَهُمْ وَحُسْنُ مَـَٔابٍ\" in text or \"طُوبَى لَهُمْ وَحُسْنُ مَآبٍ\" in text or \"طوبى لهم\" in text:\r\n        cands.append(text)\r\ncands",
+      "container_id": "cntr_6896726f594881908d3853ab14430d600c6090cc11d6ae14",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728f21408195ad44a9cfb23350bf074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728fa974819598ec4549db7a9e78074c73397ac335a6",
+      "code": "# Broad search for \"مآب\" and for \"الذين آمنوا وعملوا الصالحات\"\r\ndef find_contains(s):\r\n    out=[]\r\n    for rec in quran:\r\n        text=rec.get(\"ayah_text\",\"\")\r\n        if s in text:\r\n            out.append(text)\r\n    return out[:20]\r\n\r\nfind_contains(\"مَآب\"), find_contains(\"مَاب\"), find_contains(\"الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ\")[:5]",
+      "container_id": "cntr_6896726f594881908d3853ab14430d600c6090cc11d6ae14",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967292fa208195bee86bf83a88bab9074c73397ac335a6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967296569c8195a72d986ad83557bf074c73397ac335a6",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ طُوبَىٰ لَهُمْ وَحُسْنُ مَآبٍ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 60815,
+    "input_tokens_details": {
+      "cached_tokens": 33696
+    },
+    "output_tokens": 2141,
+    "output_tokens_details": {
+      "reasoning_tokens": 832
+    },
+    "total_tokens": 62956
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

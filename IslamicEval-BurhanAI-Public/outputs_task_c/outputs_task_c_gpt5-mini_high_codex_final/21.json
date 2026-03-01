@@ -1,0 +1,234 @@
+{
+  "id": "resp_689708a1655c819082cb0c05c8041b5e04c8799e4b0dfae9",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5681c8190b6bf3951fb09867404c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708a89c3c8190b6055fe7bb029bd904c8799e4b0dfae9",
+      "code": "# Let's load the quranic_verses.json and search for matches.\r\nimport json, re, unicodedata, sys, os, math\r\n\r\nqfile = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\r\nhfile = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\r\n\r\nwith open(qfile, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\n\r\nlen(qdata)\r\n",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ad43308190aaeb124f74e0aa2504c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ad8d688190b9d47bbb8350301604c8799e4b0dfae9",
+      "code": "# inspect first few entries\r\nfor i, entry in enumerate(qdata[:5]):\r\n    print(i, entry.keys())\r\n    # print sample text\r\n    print(entry.get('ayah_text')[:200])\r\n    print('---')",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708af7bf48190950abc399e89e37004c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b3a6e48190aee86132b80b85f704c8799e4b0dfae9",
+      "code": "# Normalize Arabic text function\r\nimport re\r\ndef normalize_arabic(text):\r\n    # remove tatweel\r\n    text = re.sub('\\u0640', '', text)\r\n    # remove diacritics (tashkeel)\r\n    tashkeel = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\r\n    text = tashkeel.sub('', text)\r\n    # replace various hamzas with bare ا or with hamza U+0621? Let's map: أإآء -> ا or ء?\r\n    # We'll map to plain ا for normalization.\r\n    text = re.sub('[\\u0622\\u0623\\u0625\\u0621]', 'ا', text)\r\n    # remove punctuation and marks\r\n    text = re.sub(r'[^\\w\\s\\u0621-\\u064A]', ' ', text)  # keep Arabic letters and digits and underscore? \\w includes underscores and digits and Latin letters; but we keep arabic by range\r\n    # collapse multiple spaces and lowercase (Arabic has no case)\r\n    text = re.sub('\\s+', ' ', text).strip()\r\n    return text\r\n\r\n# Test normalize on input\r\norig = \"وَلَقَدْ أَرْسَلْنَا مِن قَبْلِكَ رُسُلًا وَجَعَلْنَا لَهُمْ أَزْوَاجًا وَذُرِيَّةً وَمَا كَانَ لِسَيديدٍ عَن ثِلثَةٍ مِنْ عَبدٍ أَنْ يَكونَ مُحْرِفًا\"\r\nprint(normalize_arabic(orig))",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b87d608190b81e206457278cc804c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b95de881909dc8d26d8768fb3404c8799e4b0dfae9",
+      "code": "from difflib import SequenceMatcher\r\ndef lcs_ratio(a,b):\r\n    # longest common substring length ratio to max of lengths\r\n    # dynamic programming for LCS? For substring not subsequence.\r\n    # We'll implement DP O(nm) but accept since strings small.\r\n    A, B = a, b\r\n    n, m = len(A), len(B)\r\n    if n==0 or m==0:\r\n        return 0.0, \"\"\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    longest = 0\r\n    end_idx = 0\r\n    for i in range(n):\r\n        for j in range(m):\r\n            if A[i]==B[j]:\r\n                dp[i+1][j+1] = dp[i][j]+1\r\n                if dp[i+1][j+1] > longest:\r\n                    longest = dp[i+1][j+1]\r\n                    end_idx = i+1\r\n    substr = A[end_idx-longest:end_idx] if longest>0 else \"\"\r\n    ratio = longest / max(n,m)\r\n    return ratio, substr\r\n\r\n# Build normalized list of ayah texts\r\nnorm_ayahs = []\r\nfor entry in qdata:\r\n    text = entry.get('ayah_text','')\r\n    ntext = normalize_arabic(text)\r\n    norm_ayahs.append(ntext)\r\n\r\nquery_norm = normalize_arabic(orig)\r\n\r\n# compute similarity metrics for all ayahs\r\nfrom collections import defaultdict, Counter\r\nresults = []\r\nfor i, entry in enumerate(qdata):\r\n    ntext = norm_ayahs[i]\r\n    # token overlap F1\r\n    atoks = ntext.split()\r\n    btoks = query_norm.split()\r\n    aset = Counter(atoks)\r\n    bset = Counter(btoks)\r\n    # intersection count based on sets? We'll count unique token overlap as min counts possible.\r\n    inter = 0\r\n    for tok in set(atoks) & set(btoks):\r\n        inter += min(aset[tok], bset[tok])\r\n    prec = inter / len(atoks) if len(atoks)>0 else 0\r\n    rec = inter / len(btoks) if len(btoks)>0 else 0\r\n    f1 = 2*prec*rec/(prec+rec) if (prec+rec)>0 else 0\r\n    seq_ratio = SequenceMatcher(None, ntext, query_norm).ratio()\r\n    lcs_r, substr = lcs_ratio(ntext, query_norm)\r\n    # combine into score\r\n    score = max(f1, seq_ratio, lcs_r)\r\n    results.append((score, f1, seq_ratio, lcs_r, i, entry['surah_name'], entry['ayah_id'], entry['ayah_text']))\r\n\r\n# sort top results\r\nresults_sorted = sorted(results, key=lambda x: x[0], reverse=True)\r\nresults_sorted[:20]",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c6ddf08190a7be81706e79313a04c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ccf69481909d1504c5c63f972904c8799e4b0dfae9",
+      "code": "with open(hfile, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\nlen(hdata), list(hdata[:2])[0].keys() if isinstance(hdata, list) and len(hdata)>0 else None",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cf21c88190bb9192fa059b3e5904c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cf91a8819087d0aa1e073a923504c8799e4b0dfae9",
+      "code": "# Normalize hadith texts and search best matches\r\nh_results = []\r\nquery_norm = normalize_arabic(orig)\r\nfrom difflib import SequenceMatcher\r\ndef best_for_texts(texts, qnorm):\r\n    best = None\r\n    for i, text in enumerate(texts):\r\n        if not text:\r\n            continue\r\n        ntext = normalize_arabic(text)\r\n        # token overlap\r\n        atoks = ntext.split()\r\n        btoks = qnorm.split()\r\n        aset = Counter(atoks)\r\n        bset = Counter(btoks)\r\n        inter = sum(min(aset[t], bset[t]) for t in set(atoks)&set(btoks))\r\n        prec = inter/len(atoks) if atoks else 0\r\n        rec = inter/len(btoks) if btoks else 0\r\n        f1 = 2*prec*rec/(prec+rec) if (prec+rec)>0 else 0\r\n        seq_ratio = SequenceMatcher(None, ntext, qnorm).ratio()\r\n        lcs_r, substr = lcs_ratio(ntext, qnorm)\r\n        score = max(f1, seq_ratio, lcs_r)\r\n        if (best is None) or (score>best[0]):\r\n            best = (score, f1, seq_ratio, lcs_r, i, text)\r\n    return best\r\n\r\n# Try on hadith texts: use hadithTxt and Matn\r\nbest_hadith = None\r\nfor idx, h in enumerate(hdata[:5000]):  # limit to first 5000 to speed; might need all 34994 but try first\r\n    cand1 = h.get('hadithTxt') or ''\r\n    cand2 = h.get('Matn') or ''\r\n    for cand in (cand1, cand2):\r\n        if cand:\r\n            res = best_for_texts([cand], query_norm)\r\n            if res and (best_hadith is None or res[0]>best_hadith[0]):\r\n                best_hadith = (res, idx, h)\r\nbest_hadith\n",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d488f88190bc903019d91d661704c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d4ba7c81909947caacccc2391804c8799e4b0dfae9",
+      "code": "best_hadith = None\r\nbest_score = -1\r\nfor idx, h in enumerate(hdata):  # iterate all might be heavy but we'll try. It's 34994 entries.\r\n    cand1 = h.get('hadithTxt') or ''\r\n    cand2 = h.get('Matn') or ''\r\n    for cand in (cand1, cand2):\r\n        if not cand:\r\n            continue\r\n        ntext = normalize_arabic(cand)\r\n        atoks = ntext.split()\r\n        btoks = query_norm.split()\r\n        aset = Counter(atoks); bset = Counter(btoks)\r\n        inter = sum(min(aset[t], bset[t]) for t in set(atoks)&set(btoks))\r\n        prec = inter/len(atoks) if atoks else 0\r\n        rec = inter/len(btoks) if btoks else 0\r\n        f1 = 2*prec*rec/(prec+rec) if (prec+rec)>0 else 0\r\n        seq_ratio = SequenceMatcher(None, ntext, query_norm).ratio()\r\n        lcs_r, substr = lcs_ratio(ntext, query_norm)\r\n        score = max(f1, seq_ratio, lcs_r)\r\n        if score > best_score:\r\n            best_score = score\r\n            best_hadith = (score, f1, seq_ratio, lcs_r, idx, cand, h)\r\nbest_score, best_hadith[:6] if best_hadith else None",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689709faac188190a6566fe40a3d5e7704c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709fb055c81909920e4490c25c47604c8799e4b0dfae9",
+      "code": "best_score\n",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a02450081908dd966b09cee24f504c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68970a027fac8190a5fd2d4d979aa4e304c8799e4b0dfae9",
+      "code": "best_hadith",
+      "container_id": "cntr_689708a2fee8819082b66eef178539980b678130ab74682d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68970a03f1a08190912092ea2d35787504c8799e4b0dfae9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68970a12c4448190ac2f543bef2a54ef04c8799e4b0dfae9",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 62462,
+    "input_tokens_details": {
+      "cached_tokens": 57232
+    },
+    "output_tokens": 4693,
+    "output_tokens_details": {
+      "reasoning_tokens": 4672
+    },
+    "total_tokens": 67155
+  },
+  "user": null,
+  "store": false
+}

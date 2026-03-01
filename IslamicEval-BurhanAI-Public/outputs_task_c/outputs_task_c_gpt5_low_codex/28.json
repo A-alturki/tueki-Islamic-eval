@@ -1,0 +1,214 @@
+{
+  "id": "resp_6896726dac708196b9d955eac2a071c700cffb15589f17e6",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967272dd6c81969ceb7ede4e388e6100cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896727616b08196a28cacbb8712319800cffb15589f17e6",
+      "code": "# Load the provided JSON files and search for candidates related to the snippet.\r\nimport json, re, unicodedata, itertools, os, textwrap\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_db = json.load(f)\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_db = json.load(f)\r\n\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return \"\"\r\n    # remove tashkeel/diacritics\r\n    s2 = ''.join(ch for ch in s if not unicodedata.combining(unicodedata.normalize('NFD', ch)[-1:] or '\\0'))\r\n    s2 = unicodedata.normalize('NFC', s2)\r\n    # unify hamza forms\r\n    s2 = s2.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\").replace(\"ء\",\"\")\r\n    # remove tatweel and punctuation\r\n    s2 = s2.replace(\"ـ\",\"\")\r\n    s2 = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s2)\r\n    s2 = re.sub(r\"\\s+\", \" \", s2).strip()\r\n    return s2\r\n\r\ndef extract_text(rec):\r\n    return rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\r\n\r\n# Build searchable corpus\r\ntexts = []\r\nfor i, rec in enumerate(hadith_db):\r\n    txt = extract_text(rec)\r\n    if not txt: \r\n        continue\r\n    texts.append((i, txt, normalize_arabic(txt)))\r\n\r\nsnippet_full = \"ا تَزَوَّجَنَّ أُختَيَّ\"\r\nsnippet_norm = normalize_arabic(snippet_full)\r\nsnippet_norm",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967282e2ac81969fece8abdd3c4a9a00cffb15589f17e6",
+      "code": "# Search for direct occurrences of \"اختي\" or variants around it\r\nterms = [\"اختي\", \"اختى\", \"اخت\", \"اختين\", \"اختين\", \"اختيك\", \"اختيكما\"]\r\nmatches = []\r\nfor i, txt, n in texts:\r\n    if any(t in n for t in terms):\r\n        matches.append((i, txt))\r\n\r\nlen(matches)",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728565d0819686c30b16774ce29200cffb15589f17e6",
+      "code": "# Narrow down: look for patterns with \"لا\" + \"تزوج\" or \"نكح\" and \"اخت\"\r\ncands = []\r\nfor i, txt, n in texts:\r\n    if (\"لا\" in n and (\"تزوج\" in n or \"انكح\" in n or \"تنكح\" in n or \"نكح\" in n) and \"اخت\" in n):\r\n        cands.append((i, txt, n))\r\nlen(cands)",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967288be6c8196a4354a16c00350ef00cffb15589f17e6",
+      "code": "# Display candidates for inspection\r\nfor i, (idx, txt, n) in enumerate(cands[:50], 1):\r\n    print(i, \"IDX\", idx)\r\n    print(txt)\r\n    print(\"-\"*80)",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728b4dc08196b570669e93b6211300cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728d02248196960f45b4782c94ba00cffb15589f17e6",
+      "code": "# Search for common canonical phrase about not combining woman with aunt\r\nphrases = [\"لا يجمع بين المرأة وعمتها\", \"لا تنكح المرأة على عمتها\", \"لا تنكح المرأة على خالتها\"]\r\nfor phrase in phrases:\r\n    pn = normalize_arabic(phrase)\r\n    hits = []\r\n    for i, txt, n in texts:\r\n        if pn in n:\r\n            hits.append((i, txt))\r\n    print(phrase, \"=>\", len(hits), \"hits\")\r\n    if hits:\r\n        print(hits[0][1][:400], \"\\n---\\n\")",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672985c4c8196a0655e8c0aa4956500cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729cc3fc8196a203d577ce2572e800cffb15589f17e6",
+      "code": "# Retrieve the exact sentence from a hit that is purely the matn sentence.\r\ntarget = None\r\nfor i, txt, n in texts:\r\n    if \"لا يجمع بين المرأة وعمتها ، ولا بين المرأة وخالتها\" in txt:\r\n        target = txt\r\n        break\r\n\r\ntarget[:300]",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729f3fe08196bdf011b37eda2d7500cffb15589f17e6",
+      "code": "# Extract the sentence starting with \"لا يجمع\" to the end punctuation\r\nm = re.search(r\"(لا يجمع بين المرأة وعمتها ، ولا بين المرأة وخالتها\\s*\\.?)\", target)\r\nm.group(1) if m else None",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a1f0e081968a92ce824596568d00cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a2d3cc819691dc6bfe55f022b900cffb15589f17e6",
+      "code": "# Extract the other variant exactly\r\ntarget2 = None\r\nfor i, txt, n in texts:\r\n    if \"نهى رسول الله صلى الله عليه وسلم أن تنكح المرأة على عمتها أو خالتها\" in txt:\r\n        target2 = txt\r\n        break\r\nprint(target2[:250])\r\nm2 = re.search(r\"(نهى رسول الله صلى الله عليه وسلم أن تنكح المرأة على عمتها أو خالتها)\", target2)\r\nm2.group(1) if m2 else None",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a62bc48196a8a80abc13b1d52e00cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a867f08196aae4f6dd21a4439000cffb15589f17e6",
+      "code": "# Search for entries that mention \"أختها\" in matn\r\nhits = []\r\nfor i, txt, n in texts:\r\n    if \"أختها\" in txt:\r\n        hits.append((i, txt))\r\nlen(hits), hits[:2]",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672aaab90819680098a9ed9bf085600cffb15589f17e6",
+      "code": "# Narrow search for prohibitions involving \"اختها\" specifically with \"لا\" and \"تنكح/تجمع\"\r\ncands2 = []\r\nfor i, txt, n in texts:\r\n    if \"اختها\" in n and (\"لا\" in n) and (\"تنكح\" in n or \"تجمع\" in n or \"نكح\" in n):\r\n        cands2.append((i, txt, n))\r\nlen(cands2)",
+      "container_id": "cntr_6896726fa8bc819084ac181d6419f0440ac888e078c43d62",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672ad89f48196839c25b0505b999f00cffb15589f17e6",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672b10e30819686453d88c9fbbdf800cffb15589f17e6",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"لا يجمع بين المرأة وعمتها ، ولا بين المرأة وخالتها .\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 75473,
+    "input_tokens_details": {
+      "cached_tokens": 63592
+    },
+    "output_tokens": 2290,
+    "output_tokens_details": {
+      "reasoning_tokens": 960
+    },
+    "total_tokens": 77763
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

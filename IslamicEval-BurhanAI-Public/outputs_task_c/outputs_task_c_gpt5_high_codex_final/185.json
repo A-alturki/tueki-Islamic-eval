@@ -1,0 +1,327 @@
+{
+  "id": "resp_689678d2e7708196acbb2eed9adb982f0978a26bc3b1b336",
+  "created_at": 1754691794.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d686f0819683f7ae99bd55e4ec0978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967907abe48196986b23081f67b2d20978a26bc3b1b336",
+      "code": "import json, re, unicodedata, os, sys, textwrap, math, itertools, difflib, numpy as np",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967909a5b08196a49a87cc167314250978a26bc3b1b336",
+      "code": "import json, codecs, io, os, pprint, collections, math, re, unicodedata, difflib, itertools",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790b667c8196a5f359aee1fb8c680978a26bc3b1b336",
+      "code": "quran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\n    qdb = json.load(f)\nlen(qdb), type(qdb)",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790eb20081969776ee5e2441e59c0978a26bc3b1b336",
+      "code": "# Inspect a sample item keys\nqdb[0].keys(), qdb[0]",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896791054d48196bfb29ed04e8ff9b90978a26bc3b1b336",
+      "code": "# Load hadiths\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\n    hdb = json.load(f)\nlen(hdb), type(hdb), hdb[0].keys()",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791288c481968610a99441ec0e550978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967912ddd88196abae8337634a99380978a26bc3b1b336",
+      "code": "import re, unicodedata\n\ndef normalize_ar(s):\n    if not isinstance(s, str):\n        return \"\"\n    # Normalize Unicode form\n    s = unicodedata.normalize(\"NFKC\", s)\n    # Remove tatweel\n    s = s.replace(\"ـ\", \"\")\n    # Remove diacritics (harakat)\n    harakat = \"\".join([\n        \"\\u064B\", \"\\u064C\", \"\\u064D\", \"\\u064E\", \"\\u064F\", \"\\u0650\",\n        \"\\u0651\", \"\\u0652\", \"\\u0653\", \"\\u0654\", \"\\u0655\", \"\\u0670\",\n        \"\\u0656\", \"\\u0657\", \"\\u0658\", \"\\u0659\", \"\\u065A\", \"\\u065B\",\n        \"\\u065C\", \"\\u065D\", \"\\u065E\", \"\\u06D6\", \"\\u06D7\", \"\\u06D8\",\n        \"\\u06D9\", \"\\u06DA\", \"\\u06DB\", \"\\u06DC\", \"\\u06DF\", \"\\u06E0\",\n        \"\\u06E1\", \"\\u06E2\", \"\\u06E3\", \"\\u06E4\", \"\\u06E5\", \"\\u06E6\",\n        \"\\u06E7\", \"\\u06E8\", \"\\u06E9\", \"\\u06EA\", \"\\u06EB\", \"\\u06EC\", \"\\u06ED\"\n    ])\n    s = \"\".join(ch for ch in s if ch not in harakat)\n    # Remove punctuation and symbols (Arabic and English)\n    s = re.sub(r\"[^\\w\\s\\u0600-\\u06FF]\", \" \", s)\n    # Normalize hamza variants\n    s = s.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\n    s = s.replace(\"ؤ\", \"و\").replace(\"ئ\", \"ي\").replace(\"ة\", \"ه\")\n    # Lowercase: Arabic letters don't have case; just strip spaces\n    s = re.sub(r\"\\s+\", \" \", s).strip()\n    return s\n\ndef token_set_ratio(a, b):\n    a_norm = normalize_ar(a)\n    b_norm = normalize_ar(b)\n    a_tokens = set(a_norm.split())\n    b_tokens = set(b_norm.split())\n    if not a_tokens and not b_tokens:\n        return 1.0\n    inter = len(a_tokens & b_tokens)\n    precision = inter / len(a_tokens) if a_tokens else 0\n    recall = inter / len(b_tokens) if b_tokens else 0\n    if precision + recall == 0:\n        f1 = 0.0\n    else:\n        f1 = 2 * precision * recall / (precision + recall)\n    return f1\n\ndef lcs_ratio(a, b):\n    a_norm = normalize_ar(a)\n    b_norm = normalize_ar(b)\n    sm = difflib.SequenceMatcher(None, a_norm, b_norm)\n    # Ratio approximates similarity; but we'll compute longest matching blocks length over length of longer\n    # However SequenceMatcher ratio includes operations; we implement LCS length simpler?\n    lcs_len = 0\n    for block in sm.get_matching_blocks():\n        lcs_len += block.size\n    # matching_blocks includes a dummy block; remove last block's zero\n    lcs_len = max(0, lcs_len - 0)  # Actually matching blocks includes zero sized at end; but sum includes; smh\n    # Let's compute ratio as 2*lcs_len/(len(a_norm)+len(b_norm))? We'll compute using difflib ratio directly\n    ratio = sm.ratio()\n    return ratio\n\ndef robust_similarity(a, b):\n    # Combine token F1 and difflib ratio\n    f1 = token_set_ratio(a, b)\n    ratio = lcs_ratio(a, b)\n    return max(f1, ratio)\n\noriginal_full = \"وَتَقَرَّبُوا إِلَى اللَّهِ بِالْعِلْمِ وَالْعِبَادَةِ وَالْمَجْهُدِ فِي سَبِيلِ اللَّهِ وَتَقَرَّبُوا إِلَى اللَّهِ وَأَنْتُمْ تُسَارِعُونَ إِلَى الْخَيْرِ\"\nsnippet = \"وَتَقَرَّب... الْخَيْرِ\"\noriginal_full, normalize_ar(original_full)[:200], token_set_ratio(original_full, original_full), lcs_ratio(original_full, original_full)",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791b575881969f38fda2a2b2b46d0978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792077e48196ab94dcf926f9d5600978a26bc3b1b336",
+      "code": "def search_quran_substring(sub):\n    sub_norm = normalize_ar(sub)\n    hits = []\n    for rec in qdb:\n        text = rec[\"ayah_text\"]\n        text_norm = normalize_ar(text)\n        if sub_norm in text_norm:\n            hits.append(rec)\n    return hits\n\n# Try searching \"تسارعون الى الخير\"\nsearch_quran_substring(\"تسارعون الى الخير\")[:5]",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792295048196a3d653a503812ad50978a26bc3b1b336",
+      "code": "# search \"يسارعون في الخيرات\"\nlen(search_quran_substring(\"يسارعون في الخيرات\")), search_quran_substring(\"يسارعون في الخيرات\")[:3]",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792450c08196bf9d865f9054e5f40978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792540d08196862ce5207aaeb73d0978a26bc3b1b336",
+      "code": "search_quran_substring(\"وسارعوا\")",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792768508196afddb7f67c61ecd30978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927c24c819695c075977d7d13620978a26bc3b1b336",
+      "code": "search_quran_substring(\"تقربوا الى الله\")",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896792a324c8196a514b9fbcf73a95b0978a26bc3b1b336",
+      "code": "# Search \"ابتغوا اليه الوسيلة\"\nsearch_quran_substring(\"ابتغوا اليه الوسيله\")",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792bf8b881969c7cf2be8ef2c0780978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792cc17c81969dbf5ed27e1ab64f0978a26bc3b1b336",
+      "code": "# Find Al-Hajj surah id\n[s for s in qdb if s[\"surah_name\"]==\"الحج\" and s[\"ayah_id\"]==77][:3]",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792e67008196b45ca002baccc8c30978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792f4d0481968c06ea9f4ca491910978a26bc3b1b336",
+      "code": "candidate_22_77 = [s for s in qdb if s[\"surah_name\"]==\"الحج\" and s[\"ayah_id\"]==77][0]\norig = original_full\ncand_text = candidate_22_77[\"ayah_text\"]\ntoken_set_ratio(orig, cand_text), lcs_ratio(orig, cand_text), robust_similarity(orig, cand_text)",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793158c08196ba26a9f0ee1a5bf60978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793230288196980b3d96486fab6c0978a26bc3b1b336",
+      "code": "candidate_5_35 = [s for s in qdb if s[\"surah_id\"]==5 and s[\"ayah_id\"]==35][0]\ntoken_set_ratio(orig, candidate_5_35[\"ayah_text\"]), lcs_ratio(orig, candidate_5_35[\"ayah_text\"]), robust_similarity(orig, candidate_5_35[\"ayah_text\"]), candidate_5_35",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793411988196acf5e14f481034af0978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967934a37c8196bc332128b0eca3da0978a26bc3b1b336",
+      "code": "candidate_3_133 = [s for s in qdb if s[\"surah_id\"]==3 and s[\"ayah_id\"]==133][0]\nrobust_similarity(orig, candidate_3_133[\"ayah_text\"]), candidate_3_133",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679363d388196a8f68c4dedd8e3ea0978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679368cf8819681d5b2943e08eea50978a26bc3b1b336",
+      "code": "candidates_isari3 = [(rec[\"surah_id\"], rec[\"ayah_id\"], rec[\"ayah_text\"], robust_similarity(orig, rec[\"ayah_text\"])) for rec in qdb if normalize_ar(\"يسارعون في الخيرات\") in normalize_ar(rec[\"ayah_text\"])]\ncandidates_isari3",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967938619c8196a964f3046527f8420978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793e35d481969882624e5ef69b880978a26bc3b1b336",
+      "code": "combined = candidate_5_35[\"ayah_text\"] + \" \" + candidate_22_77[\"ayah_text\"]\nrobust_similarity(orig, combined), token_set_ratio(orig, combined), lcs_ratio(orig, combined)",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896793fd0848196ac7b50b7afb7a66c0978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967949614081968790567df65d8d5c0978a26bc3b1b336",
+      "code": "cand_text",
+      "container_id": "cntr_689678d445d481908ab56aa22bd4ec00009d5765015c29aa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794adc0481968e7aa3c58005f2f70978a26bc3b1b336",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896794ecb2c81968c35dc7186ff79880978a26bc3b1b336",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"يَا أَيُّهَا الَّذِينَ آمَنُوا ارْكَعُوا وَاسْجُدُوا وَاعْبُدُوا رَبَّكُمْ وَافْعَلُوا الْخَيْرَ لَعَلَّكُمْ تُفْلِحُونَ ۩\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 124642,
+    "input_tokens_details": {
+      "cached_tokens": 120696
+    },
+    "output_tokens": 5844,
+    "output_tokens_details": {
+      "reasoning_tokens": 5760
+    },
+    "total_tokens": 130486
+  },
+  "user": null,
+  "store": false
+}

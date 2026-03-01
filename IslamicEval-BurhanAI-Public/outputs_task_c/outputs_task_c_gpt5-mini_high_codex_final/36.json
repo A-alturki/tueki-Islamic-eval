@@ -1,0 +1,264 @@
+{
+  "id": "resp_689708a156748195a8014b9e1d8cd84c02dd0ec51031db0a",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a68fd88195a738d927c5edb07102dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ad5c848195a065cadd0ddb43c102dd0ec51031db0a",
+      "code": "# Load the two JSON files and inspect structure\nimport json, os, textwrap, sys\n\nquran_path = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\nhadith_path = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\n\n# Check files exist\nprint(\"Exists quran:\", os.path.exists(quran_path))\nprint(\"Exists hadith:\", os.path.exists(hadith_path))\n\n# Load hadith JSON\nwith open(hadith_path, 'r', encoding='utf-8') as f:\n    hadith_data = json.load(f)\n\nprint(\"Type hadith_data:\", type(hadith_data), \"len:\", len(hadith_data))\n\n# Show first item keys\nif len(hadith_data)>0:\n    print(\"Sample keys:\", list(hadith_data[0].keys()))\n    print(\"Sample item 0 keys and sample text:\")\n    # print some fields maybe hadithTxt or Matn\n    sample=hadith_data[0]\n    for k in sample:\n        print(k, \":\", (sample[k][:200] + '...') if isinstance(sample[k], str) else type(sample[k]))\nelse:\n    print(\"Hadith file empty\")\n\n# load quranic_verses.json to inspect\nwith open(quran_path, 'r', encoding='utf-8') as f:\n    quran_data = json.load(f)\n\nprint(\"Type quran_data:\", type(quran_data), \"len:\", len(quran_data))\nif len(quran_data)>0:\n    print(\"Sample quran item keys:\", list(quran_data[0].keys()))\n    print(\"Sample ayah_text:\", quran_data[0].get('ayah_text','')[:200])\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b24b788195b112343363f36ca602dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b9769c8195b384994867e5910202dd0ec51031db0a",
+      "code": "# Let's implement normalization and search functions and run search for the snippet and full span.\r\nimport re\r\nfrom difflib import SequenceMatcher\r\nfrom collections import defaultdict\r\nimport math\r\n\r\n# load hadith and quran again - they are loaded above, but reusing variables\r\n# hadith_data and quran_data are in memory\r\n# define normalize function for Arabic text\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED\\u08E4-\\u08FE]')  # broad\r\ntatweel = '\\u0640'\r\npunctuation = re.compile(r'[^\\w\\u0600-\\u06FF]+', flags=re.UNICODE)  # will remove non-word (keeping arabic letters and numerals and underscores)\r\n# But this will remove Arabic diacritics? We've already removed diacritics.\r\n# Better to remove punctuation separately: Latin punctuation etc.\r\n\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return ''\r\n    # unify hamza variants (map to bare alif)\r\n    s = s.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا').replace('ٱ','ا')\r\n    s = s.replace('ى','ي').replace('ة','ه')  # maybe also map ta marbuta to ha? often used. But careful: could change meaning. \r\n    # The developer instruction didn't mention ta-marbuta mapping; maybe avoid mapping ة to ه. It's safer to not map.\r\n    # Let's revert that change: keep ة.\r\n    s = s.replace('ى','ي')  # map alif maqsura to ya\r\n    # remove tatweel\r\n    s = s.replace(tatweel, '')\r\n    # remove diacritics\r\n    s = arabic_diacritics.sub('', s)\r\n    # remove punctuation - but we should keep arabic letters and numbers and spaces\r\n    # Replace punctuation with space to preserve token separation\r\n    s = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', s)\r\n    # collapse whitespace and to lower (no case in Arabic)\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\n# Let's test normalize on the given spans\r\nfull_span = \"أَلاَ تَرَوْنَ أَنَّ اللَّهَ يُحِبُّ مِنْكُمُ التَصَدُّقَ فَإِنْ أَرَدتُمُ أَنْ تُصَدِّقُوا فَلا تَصَدُّقُوا بِالنَواقِصِ\"\r\nsnippet = \"أَلاَ تَرَ...النَواقِصِ\"\r\n\r\nprint(\"Normalized full span:\", normalize_arabic(full_span))\r\nprint(\"Normalized snippet:\", normalize_arabic(snippet))\r\n\r\n\r\n# Prepare normalized versions of hadith texts (hadithTxt and Matn)\r\ndef get_texts_from_item(item):\r\n    texts = []\r\n    if item.get('Matn'):\r\n        texts.append(item.get('Matn'))\r\n    if item.get('hadithTxt'):\r\n        texts.append(item.get('hadithTxt'))\r\n    return texts\r\n\r\n# create list of tuples (index, original_text, normalized_text, source_field)\r\nhadith_texts = []\r\nfor idx, item in enumerate(hadith_data):\r\n    # for both hadithTxt and Matn entries, store separately\r\n    if item.get('Matn') and isinstance(item.get('Matn'), str) and item.get('Matn').strip():\r\n        txt = item.get('Matn')\r\n        hadith_texts.append((idx, 'Matn', txt, normalize_arabic(txt)))\r\n    if item.get('hadithTxt') and isinstance(item.get('hadithTxt'), str) and item.get('hadithTxt').strip():\r\n        txt = item.get('hadithTxt')\r\n        hadith_texts.append((idx, 'hadithTxt', txt, normalize_arabic(txt)))\r\n\r\nlen(hadith_texts)\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c4c8e08195819b7e3adf37438602dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c63af88195bb262c556fdc28c102dd0ec51031db0a",
+      "code": "norm_full = normalize_arabic(full_span)\r\nnorm_snip = normalize_arabic(snippet)\r\n\r\n# search for exact substring matches\r\nsubstring_matches = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if norm_full in norm:\r\n        substring_matches.append((idx, field, orig, norm, norm.find(norm_full)))\r\nlen(substring_matches), substring_matches[:5]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c83b948195bfbe526ec34e2b4c02dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cc577c819588d7a14e15b5849102dd0ec51031db0a",
+      "code": "from difflib import SequenceMatcher\r\nimport heapq, math, time\r\n\r\ndef token_f1(a,b):\r\n    atoks = a.split()\r\n    btoks = b.split()\r\n    set_a = set(atoks)\r\n    set_b = set(btoks)\r\n    common = set_a & set_b\r\n    if len(common)==0:\r\n        return 0.0\r\n    prec = len(common)/len(set_b) if len(set_b)>0 else 0.0\r\n    rec = len(common)/len(set_a) if len(set_a)>0 else 0.0\r\n    if prec+rec==0:\r\n        return 0.0\r\n    return 2*prec*rec/(prec+rec)\r\n\r\n# compute scores for hadith_texts\r\nscores = []\r\nt0 = time.time()\r\nfor (idx, field, orig, norm) in hadith_texts:\r\n    sm = SequenceMatcher(None, norm_full, norm)\r\n    ratio = sm.ratio()\r\n    blocks = sm.get_matching_blocks()\r\n    matched_chars = sum(b.size for b in blocks)\r\n    lcs_ratio = matched_chars / max(1, len(norm_full))\r\n    tf1 = token_f1(norm_full, norm)\r\n    # Also compute longest single matching block / len(norm_full)\r\n    longest_block = max((b.size for b in blocks), default=0)\r\n    longest_ratio = longest_block / max(1, len(norm_full))\r\n    # store combined score maybe weighted\r\n    combined = max(ratio, lcs_ratio, tf1, longest_ratio)\r\n    scores.append((combined, ratio, lcs_ratio, tf1, longest_ratio, idx, field, orig[:200]))\r\nt1 = time.time()\r\nprint(\"Scoring done in\", t1-t0, \"s\")\r\n# get top 20\r\ntop20 = heapq.nlargest(20, scores, key=lambda x: x[0])\r\ntop20[:10]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e5f9448195ac2dbc87a0bb682702dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e8115c81959fca92ffa9a9167302dd0ec51031db0a",
+      "code": "# search for entries containing the word 'النواقص' or 'نواقص' in normalized or original text\r\ncandidates = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if 'النواقص' in orig or 'النواقص' in norm or 'نواقص' in orig or 'نواقص' in norm:\r\n        candidates.append((idx, field, orig[:200], norm[:200]))\r\nlen(candidates), candidates[:20]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ea020c81959a3c90096030890902dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708eae0948195bf5eee4b18d291a402dd0ec51031db0a",
+      "code": "# search for tokens containing 'تصدق' across hadith_texts\r\nmatches_ts = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if 'تصدق' in norm or 'التصدق' in norm or 'صدقة' in norm or 'التصد' in norm:\r\n        matches_ts.append((idx, field, orig[:200], norm[:200]))\r\nlen(matches_ts)\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708ed7e1c8195a6c20aaa306059c402dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708edd2f08195a0bc99da50c1e3b802dd0ec51031db0a",
+      "code": "matches = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if 'تصدق' in norm and 'حب' in norm and 'منكم' in norm:\r\n        matches.append((idx, field, orig[:300], norm[:300]))\r\nlen(matches), matches[:20]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f063fc8195994eaffef476d60e02dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708f16bb481958bb957f2eaf0091902dd0ec51031db0a",
+      "code": "# find entries that include 'تصدقوا' or 'تصدق' in normalized\r\ncand = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if 'تصدقوا' in norm or 'تصدق' in norm:\r\n        cand.append((idx, field, orig[:300], norm[:300]))\r\nlen(cand)\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f3920c819597762456f5efc71702dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708f4867c819591144eb7eb9d903002dd0ec51031db0a",
+      "code": "# search in quran_data for normalized full span or token overlap\r\nq_matches = []\r\nfor item in quran_data:\r\n    ayah = item.get('ayah_text','')\r\n    norm_ayah = normalize_arabic(ayah)\r\n    sm = SequenceMatcher(None, norm_full, norm_ayah)\r\n    ratio = sm.ratio()\r\n    blocks = sm.get_matching_blocks()\r\n    matched_chars = sum(b.size for b in blocks)\r\n    lcs_ratio = matched_chars / max(1, len(norm_full))\r\n    if ratio>0.4 or lcs_ratio>0.3 or 'تصدق' in norm_ayah:\r\n        q_matches.append((ratio, lcs_ratio, item.get('surah_name'), item.get('ayah_text')))\r\nlen(q_matches), q_matches[:10]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708f9787881958e14be8607b7f19d02dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708fb63e08195ae8ed817a4b370c302dd0ec51031db0a",
+      "code": "# search for 'نقائص' and 'نواقص' in normalized texts\r\nvariants = ['نقائص','نقاضص','نق...']\r\nfound = []\r\nfor idx, field, orig, norm in hadith_texts:\r\n    if 'نقائص' in norm or 'نواقص' in norm or 'نقايص' in norm or 'نقاص' in norm:\r\n        found.append((idx, field, orig[:200], norm[:200]))\r\nlen(found), found[:20]\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708fe323c81958802ac4fab5f489002dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689709009a2c8195ac070ccbd6dbc2d102dd0ec51031db0a",
+      "code": "# search raw hadith_data JSON text for substring 'النوقع' or 'النواق' or 'نواقص' (case sensitive)\r\nimport json, io\r\n\r\n# read entire hadith file as string? It's big but manageable.\r\nwith open(hadith_path, 'r', encoding='utf-8') as f:\r\n    raw = f.read()\r\n\r\nfor term in ['النواقص','نواقص','نقائص','النقائص','نواقصِ','النواقِصِ']:\r\n    print(term, raw.find(term))\n",
+      "container_id": "cntr_689708a35cac81908c87042211572c8f0f54b2e783190f70",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6897090383e481959781a0c1cd4eafe102dd0ec51031db0a",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6897090c6e548195837ca0e6d2281ffb02dd0ec51031db0a",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 115156,
+    "input_tokens_details": {
+      "cached_tokens": 105312
+    },
+    "output_tokens": 5525,
+    "output_tokens_details": {
+      "reasoning_tokens": 5504
+    },
+    "total_tokens": 120681
+  },
+  "user": null,
+  "store": false
+}

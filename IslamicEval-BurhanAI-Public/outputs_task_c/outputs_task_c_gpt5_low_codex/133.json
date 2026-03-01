@@ -1,0 +1,183 @@
+{
+  "id": "resp_6896726e24048196be68289f89241cb105a3e3040f7c4548",
+  "created_at": 1754690158.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967272de7081969d9be9c87cdebd1805a3e3040f7c4548",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896727403e881969170ed2b5b67eb7105a3e3040f7c4548",
+      "code": "# Load the provided JSON databases and search for the hadith span.\nimport json, re, unicodedata, os, sys, textwrap\n\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\n\ndef load_json(path):\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\n\nquran = load_json(quran_path)\nhadith = load_json(hadith_path)\n\n# Normalization helpers\ndef strip_diacritics(s):\n    return \"\".join(ch for ch in unicodedata.normalize(\"NFD\", s) if unicodedata.category(ch) != \"Mn\")\n\ndef normalize(s):\n    s = s.replace(\"ـ\", \"\")  # tatweel\n    s = re.sub(r\"[^\\w\\s]+\", \" \", s, flags=re.UNICODE)  # remove punctuation\n    s = re.sub(r\"\\s+\", \" \", s).strip()\n    s = s.replace(\"أ\",\"ا\").replace(\"إ\",\"ا\").replace(\"آ\",\"ا\").replace(\"ى\",\"ي\").replace(\"ؤ\",\"و\").replace(\"ئ\",\"ي\")\n    return strip_diacritics(s)\n\nquery_full = \"تعلموا القرآن وغنوا به وأفشوه\"\nquery_norm = normalize(query_full)\n\n# Search in hadith fields hadithTxt or Matn\nresults = []\nfor i, rec in enumerate(hadith):\n    matn = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n    if not matn:\n        continue\n    n = normalize(matn)\n    if query_norm in n:\n        results.append((i, matn, rec.get(\"source\") or rec.get(\"book\") or \"\"))\n\nlen(results)",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727f7f388196b2ef50a69c4a841205a3e3040f7c4548",
+      "code": "# If no direct substring, try approximate and token overlap search for similar phrase components.\nfrom difflib import SequenceMatcher\n\ndef score(a,b):\n    return SequenceMatcher(None, a, b).ratio()\n\ncandidates = []\nfor i, rec in enumerate(hadith):\n    matn = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n    if not matn:\n        continue\n    n = normalize(matn)\n    # Look for pieces like \"تعلموا القرآن\" and \"أفشوه\" or \"غنوا به\"\n    cond1 = \"تعلموا القران\" in n\n    cond2 = \"افشوه\" in n\n    cond3 = \"غنوا به\" in n or \"غنوا\" in n\n    if cond1 and (cond2 or cond3):\n        candidates.append((i, matn))\n    else:\n        # compute ratio with query\n        r = score(n, query_norm)\n        if r > 0.4:\n            candidates.append((i, matn))\n\nlen(candidates)",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967297e6108196a021ad6ba5df77af05a3e3040f7c4548",
+      "code": "# Show the candidate(s)\ncandidates[:3]",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729996f08196bd1d9a132db6ff3c05a3e3040f7c4548",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729a3fe481969c1f285a9c56463b05a3e3040f7c4548",
+      "code": "# Search for occurrences of certain words in hadith text fields\nhits = []\nfor i, rec in enumerate(hadith):\n    matn = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n    if not matn:\n        continue\n    n = normalize(matn)\n    if \"تعلموا\" in n or \"غنوا\" in n or \"افشوه\" in n:\n        hits.append((i, matn[:200]))\nlen(hits), hits[:10]",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729f33cc81968cc9d1fd76c468ad05a3e3040f7c4548",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a3740c819690af300a47870afb05a3e3040f7c4548",
+      "code": "# Search for \"غنوا به\" or \"زينوا القرآن بأصواتكم\" to see if alternatives exist in DB\nterms = [\"غنوا به\", \"غنوا بالقرآن\", \"زينوا القرآن بأصواتكم\", \"حسنوا القرآن بأصواتكم\", \"تعلموا القرآن\"]\ndef search_terms(terms):\n    found = {t: [] for t in terms}\n    for i, rec in enumerate(hadith):\n        matn = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n        if not matn:\n            continue\n        for t in terms:\n            if normalize(t) in normalize(matn):\n                found[t].append((i, matn))\n    return found\n\nfound = search_terms(terms)\n{k: len(v) for k,v in found.items()}, list(found[\"زينوا القرآن بأصواتكم\"])[:1]",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672b68f348196b72f755ab384742505a3e3040f7c4548",
+      "code": "# Inspect the entries for \"غنوا به\" and \"تعلموا القرآن\"\nfound[\"غنوا به\"][:3], found[\"تعلموا القرآن\"][:5]",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b86874819698920369854394c705a3e3040f7c4548",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672ba97888196b8c2159b6b62984905a3e3040f7c4548",
+      "code": "# Search for 'أفشوه' specifically in hadith matn fields\nhits_afshuh = []\nfor i, rec in enumerate(hadith):\n    matn = rec.get(\"hadithTxt\") or rec.get(\"Matn\") or \"\"\n    if not matn:\n        continue\n    if \"أفشوه\" in matn or \"افشوه\" in normalize(matn):\n        hits_afshuh.append((i, matn[:200]))\nlen(hits_afshuh), hits_afshuh[:5]",
+      "container_id": "cntr_6896726fe5588190ac73db15a36930870ccc697becc9a5ef",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672bf4f2c81969d8be158fd23436d05a3e3040f7c4548",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672c0e560819684aa370c2c8d42f705a3e3040f7c4548",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 42707,
+    "input_tokens_details": {
+      "cached_tokens": 37440
+    },
+    "output_tokens": 1590,
+    "output_tokens_details": {
+      "reasoning_tokens": 384
+    },
+    "total_tokens": 44297
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

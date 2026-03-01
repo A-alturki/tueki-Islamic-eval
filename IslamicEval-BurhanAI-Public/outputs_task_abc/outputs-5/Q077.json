@@ -1,0 +1,562 @@
+{
+  "id": "resp_688fb31d023c819bae84c8042f7d8db208f602202744cafd",
+  "created_at": 1754247965.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_688fb320abf0819b9e98b30dc469219c08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb37dbe5c819b926f58940d137fbc08f602202744cafd",
+      "code": "# Let's inspect files in /mnt/data\r\nimport os, textwrap, json, re\r\n\r\nos.listdir('/mnt/data')",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_688fb381244c819b95713ca2a8f9925f08f602202744cafd",
+      "code": "# Read the file content\r\npath = '/mnt/data/file-Xt4qGA9QJd5oRHZ2Pd1UdN-Q077.txt'\r\nwith open(path, 'r', encoding='utf-8') as f:\r\n    text = f.read()\r\nlen(text), text[:4000]",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb38776a4819ba21baf2365f2581808f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3903154819ba6ff1f4357452c3d08f602202744cafd",
+      "code": "import re\r\n\r\ntext = open('/mnt/data/file-Xt4qGA9QJd5oRHZ2Pd1UdN-Q077.txt','r',encoding='utf-8').read()\r\n\r\n# Helper function to classify based on nearby context\r\ndef classify_span(start, end, text):\r\n    # look back 50 chars for context\r\n    ctx_start = max(0, start-80)\r\n    ctx_end = min(len(text), end+80)\r\n    ctx = text[ctx_start:ctx_end]\r\n    # tokens that indicate Quran\r\n    if re.search(r'(قوله\\s+تعالى|قال\\s+تعالى|وقال\\s+تعالى)', ctx):\r\n        return 'Aya'\r\n    # bracket with sura: ayah nearby\r\n    if re.search(r'\\[[^\\[\\]]+:\\s*[\\d٠-٩]+\\]', text[end:end+40]):\r\n        return 'Aya'\r\n    # tokens that indicate hadith\r\n    if re.search(r'(حديث|رواه|قال رسول الله|النبي\\s+صلى الله عليه وسلم)', ctx):\r\n        return 'Hadeeth'\r\n    return 'Unknown'\r\n\r\n# 1) Extract quoted segments between double quotes\r\nquote_spans = []\r\nfor m in re.finditer(r'\"([^\"]+)\"', text):\r\n    span_text = m.group(1)\r\n    start = m.start(1)\r\n    end = m.end(1)\r\n    typ = classify_span(start,end,text)\r\n    quote_spans.append({'start':start,'end':end,'text':span_text,'type':typ})\r\n\r\nquote_spans",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb39a748c819bbe8588eec32c296608f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3a0cf90819bb82c0940650daba608f602202744cafd",
+      "code": "# Find all [sura: ayah] bracket markers\r\nbrackets = list(re.finditer(r'\\[([^\\[\\]:]+):\\s*([\\d٠-٩]+)\\]', text))\r\nlen(brackets), [(m.group(0), m.start(), m.group(1), m.group(2)) for m in brackets[:10]]",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb3a54b88819b8533458cd20fe51a08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3b5f644819b8c07c56ab6e0d51408f602202744cafd",
+      "code": "import string\r\n\r\n# Define boundaries that typically separate sentences or preceding phrases\r\nboundaries = '\\n.[]()؛:!؟'  # include Arabic semicolon and question mark\r\n\r\ndef preceding_phrase_for_bracket(m):\r\n    start_bracket = m.start()\r\n    # Work backwards to find a boundary char\r\n    i = start_bracket - 1\r\n    while i >= 0 and text[i] not in boundaries:\r\n        i -= 1\r\n    phrase_start = i + 1\r\n    phrase = text[phrase_start:start_bracket].strip()\r\n    return phrase_start, start_bracket, phrase\r\n\r\n# Extract phrases for bracket occurrences after index 1900 (references region)\r\nresults = []\r\nfor m in brackets:\r\n    s, e, phrase = preceding_phrase_for_bracket(m)\r\n    results.append({'bracket': m.group(0), 'start': s, 'end': e, 'phrase': phrase, 'bracket_pos': m.start()})\r\nresults[:8]",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb3be65d0819b81a788a22661be9d08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3c5ecf0819bb6fa66f961f2680708f602202744cafd",
+      "code": "# Extract hadith from \"وفي الحديث: \" upto period before \"رواه\"\r\nhadith_spans = []\r\n\r\nfor m in re.finditer(r'وفي الحديث:\\s*([^.\\n]+)\\.\\s*رواه\\s+[^\\n\\.]+', text):\r\n    start = m.start(1)\r\n    end = m.end(1)\r\n    hadith_spans.append({'start':start,'end':end,'text':text[start:end]})\r\n\r\nhadith_spans[:5], len(hadith_spans)",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb3cb1fbc819bb10cdcf82454f98708f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3cfc06c819b8193fac1531eff4408f602202744cafd",
+      "code": "# Extract the Suraqa Hadith between \"حيث قال:\" and \"رواه مسلم.\"\r\nm = re.search(r'حديث\\s+سراقة\\s+بن\\s+مالك[\\s\\S]*?حيث\\s+قال:\\s*([\\s\\S]*?)\\s*رواه\\s+مسلم\\.', text)\r\nsuraqa = None\r\nif m:\r\n    start = m.start(1)\r\n    end = m.end(1)\r\n    suraqa = {'start': start, 'end': end, 'text': text[start:end]}\r\nsuraqa",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb3d54768819ba65d150c7a23471a08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb3dc03b0819bac681eda89df552108f602202744cafd",
+      "code": "ref_idx = text.find('References:\\n')\r\nref_idx",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb3e09320819bb9851f3ec8b74a5808f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "fs_688fb3f09474819b9d8e96568288089008f602202744cafd",
+      "queries": [
+        "\"فَمَنْ شَاءَ فَلْيُؤْمِنْ وَمَنْ شَاءَ فَلْيَكْفُرْ\" الكهف 29",
+        "\"إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلًا\" الإنسان 29",
+        "\"وَقُلِ اعْمَلُوا فَسَيَرَى اللَّهُ عَمَلَكُمْ\" التوبة 105",
+        "\"ادْخُلُوا الْجَنَّةَ بِمَا كُنْتُمْ تَعْمَلُونَ\" النحل 32",
+        "\"وَمَنْ يُرِدْ ثَوَابَ الدُّنْيَا نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا\" آل عمران 145"
+      ],
+      "status": "completed",
+      "type": "file_search_call",
+      "results": null
+    },
+    {
+      "id": "rs_688fb3fc741c819b9686bda4ba500c3408f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "fs_688fb4069ad4819b88da0a7541d6211808f602202744cafd",
+      "queries": [
+        "إن هذه تذكرة فمن شاء اتخذ إلى ربه سبيلا الإنسان 29",
+        "وقل اعملوا فسيرى الله عملكم ورسوله والمؤمنون التوبة 105",
+        "ادخلوا الجنة بما كنتم تعملون النحل 32"
+      ],
+      "status": "completed",
+      "type": "file_search_call",
+      "results": null
+    },
+    {
+      "id": "rs_688fb40e88a8819bb79783fd5d0267bf08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "fs_688fb4198bec819b8908eb5fb69edc0e08f602202744cafd",
+      "queries": [
+        "إن الله خير عبدا بين الدنيا وبين ما عنده فاختار ما عنده رواه البخاري",
+        "إن أول ما خلق الله القلم فقال له اكتب مقادير الخلق إلى يوم القيامة رواه الترمذي أبو داود",
+        "حديث سراقة بن مالك فيما جفت به الأقلام وجرت به المقادير اعملوا فكل ميسر لعمله رواه مسلم"
+      ],
+      "status": "completed",
+      "type": "file_search_call",
+      "results": null
+    },
+    {
+      "id": "rs_688fb41e6220819ba563e4b0f388c74508f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb423b64c819b8d072bff25a2b6e008f602202744cafd",
+      "action": {
+        "query": "إن الله خير عبدا بين الدنيا وبين ما عنده فاختار ما عنده حديث صحيح البخاري رقم",
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "ws_688fb429736c819b90cb7e0a4d2cec3908f602202744cafd",
+      "action": {
+        "query": "حديث سراقة بن مالك فيما جفت به الأقلام وجرت به المقادير اعملوا فكل ميسر لعمله صحيح مسلم رقم الحديث",
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb42dedd4819bac1f11425610ec9608f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb436e2a0819b803765b761d3370608f602202744cafd",
+      "action": {
+        "query": "sunnah.com bukhari \"Allah gave a servant the choice between this world and which is with Him\" Arabic \"إن الله خير عبدا بين الدنيا وبين ما عنده\"",
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb43b8ad4819b93e9f3ab1dcab53708f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb43df844819bb0d285767300edbc08f602202744cafd",
+      "action": {
+        "query": "صحيح البخاري إن الله خير عبدا بين الدنيا وبين ما عنده فاختار ما عنده رقم الحديث",
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb4442010819ba5e99a13df95071308f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb44c1b18819bbe3095af923accf508f602202744cafd",
+      "action": {
+        "query": "sunnah.com muslim 2648 Suraqa bin Malik pens have dried hadith",
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb44fb908819ba9b329de62b16d0608f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb4545424819b9901c5cada626d2208f602202744cafd",
+      "action": {
+        "query": null,
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb4568910819ba893a5237237093d08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ws_688fb456b1d0819b9abd978176bb1a4d08f602202744cafd",
+      "action": {
+        "query": null,
+        "type": "search"
+      },
+      "status": "completed",
+      "type": "web_search_call"
+    },
+    {
+      "id": "rs_688fb459d6dc819b9976876e38cc04bf08f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "fs_688fb45b5984819b935f8c72164d1dce08f602202744cafd",
+      "queries": [
+        "ادخلوا الجنة بما كنتم تعملون النحل 32",
+        "\"ادْخُلُوا الْجَنَّةَ بِمَا كُنْتُمْ تَعْمَلُونَ\" سورة النحل 32"
+      ],
+      "status": "completed",
+      "type": "file_search_call",
+      "results": null
+    },
+    {
+      "id": "rs_688fb45fce30819bbdb10f980796879908f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb48a5ddc819bb89ff9c5eeb43c3508f602202744cafd",
+      "code": "import json, re\r\n\r\ntext = open('/mnt/data/file-Xt4qGA9QJd5oRHZ2Pd1UdN-Q077.txt','r',encoding='utf-8').read()\r\n# Pre-identified spans from earlier analysis\r\nquote_spans = [\r\n    {'start': 92, 'end': 143, 'text': text[92:143], 'type':'Aya', 'ref':('الكهف',18,29)},\r\n    {'start': 236, 'end': 304, 'text': text[236:304], 'type':'Aya', 'ref':('الإنسان',76,29)},\r\n    {'start': 418, 'end': 492, 'text': text[418:492], 'type':'Aya', 'ref':('التوبة',9,105)},\r\n    {'start': 632, 'end': 679, 'text': text[632:679], 'type':'Aya', 'ref':('النحل',16,32)},\r\n    {'start': 843, 'end': 899, 'text': text[843:899], 'type':'Hadeeth', 'ref':('Sahih al-Bukhari',8,114)},\r\n    {'start': 1018, 'end': 1085, 'text': text[1018:1085], 'type':'Hadeeth', 'ref':('Jami at-Tirmidhi',47,1)},\r\n]\r\n\r\n# Suraqa hadith span\r\nsuraqa = {'start': 1318, 'end': 1530, 'text': text[1318:1530], 'type':'Hadeeth', 'ref':('Sahih Muslim',33,2648)}\r\n\r\n# Hadith \"وفي الحديث: إن الله خير عبدا...\" occurrences\r\nhadith_repeats = [\r\n    {'start': 2118, 'end': 2174, 'text': text[2118:2174], 'type':'Hadeeth', 'ref':('Sahih al-Bukhari',8,114)},\r\n    {'start': 2563, 'end': 2619, 'text': text[2563:2619], 'type':'Hadeeth', 'ref':('Sahih al-Bukhari',8,114)},\r\n]\r\n\r\n# Bracket-derived references in references region\r\nbracket_spans = [\r\n    {'start':1915, 'end':1993, 'text': text[1915:1993], 'type':'Aya', 'ref':('آل عمران',3,145)},\r\n    {'start':2021, 'end':2091, 'text': text[2021:2091], 'type':'Aya', 'ref':('الإنسان',76,29)},\r\n    {'start':2373, 'end':2440, 'text': text[2373:2440], 'type':'Aya', 'ref':('آل عمران',3,145)},\r\n    {'start':2467, 'end':2537, 'text': text[2467:2537], 'type':'Aya', 'ref':('الإنسان',76,29)},\r\n]\r\n\r\n# Now build the citation records\r\ndef corrected_text_for(span):\r\n    t = span['text']\r\n    if span['type']=='Aya':\r\n        sura, sura_num, aya_num = span['ref']\r\n        # Provide corrected version for known problematic phrase Al-Imran 145\r\n        if (sura_num, aya_num)==(3,145):\r\n            # Some spans are incomplete; correct to full double-phrase as cited\r\n            return 'وَمَنْ يُرِدْ ثَوَابَ الدُّنْيَا نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا'\r\n        # For others, keep as-is (excerpt exact)\r\n        return t\r\n    else:\r\n        # Hadith corrections\r\n        # For Bukhari \"إن الله خير عبدا\" ensure \"ما عند الله\"\r\n        if 'إن الله خير عبدا' in t:\r\n            return 'إِنَّ اللَّهَ خَيَّرَ عَبْدًا بَيْنَ الدُّنْيَا وَبَيْنَ مَا عِنْدَ اللَّهِ، فَاخْتَارَ مَا عِنْدَ اللَّهِ'\r\n        # For the Pen hadith, use Tirmidhi wording\r\n        if 'إن أول ما خلق الله القلم' in t:\r\n            return 'إِنَّ أَوَّلَ مَا خَلَقَ اللَّهُ الْقَلَمَ فَقَالَ لَهُ اكْتُبْ فَجَرَى بِمَا هُوَ كَائِنٌ إِلَى الْأَبَدِ'\r\n        # For Suraqa hadith, keep as in text or standard phrase\r\n        if 'اعملوا' in t and 'ميسر' in t:\r\n            # Keep as is\r\n            return t.strip()\r\n        return t\r\n\r\ndef build_item(span):\r\n    item = {\r\n        'span_start': span['start'],\r\n        'span_end': span['end'],\r\n        'span_text': span['text'],\r\n        'citation_type': 'Aya' if span['type']=='Aya' else 'Hadeeth',\r\n        'is_valid': True,\r\n        'aya_reference': {},\r\n        'hadeeth_reference': {},\r\n        'corrected_text': corrected_text_for(span),\r\n        'completely_invalid': False\r\n    }\r\n    if span['type']=='Aya':\r\n        sura, sura_num, aya_num = span['ref']\r\n        item['aya_reference'] = {'sura_name': sura, 'sura_number': sura_num, 'aya_number': aya_num}\r\n    else:\r\n        col, book_num, hadith_num = span['ref']\r\n        item['hadeeth_reference'] = {'collection_name': col, 'book_number': book_num, 'hadith_number': hadith_num}\r\n    return item\r\n\r\ncitations = []\r\nfor s in quote_spans:\r\n    citations.append(build_item(s))\r\ncitations.append(build_item(suraqa))\r\nfor s in hadith_repeats:\r\n    citations.append(build_item(s))\r\nfor s in bracket_spans:\r\n    citations.append(build_item(s))\r\n\r\nlen(citations)",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_688fb4ab8448819bb8376a5a25a0b3b808f602202744cafd",
+      "code": "# Preview the citation items\r\nfrom pprint import pprint\r\npprint(citations[:5])\r\nprint('...')\r\npprint(citations[5:10])\r\nprint('...')\r\npprint(citations[10:])",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb4afb79c819ba66cfe1bcafd793408f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb4b50634819b812d3cf5632a285b08f602202744cafd",
+      "code": "# Strip surrounding whitespace in corrected_text to be clean\r\nfor c in citations:\r\n    if isinstance(c.get('corrected_text'), str):\r\n        c['corrected_text'] = c['corrected_text'].strip()\r\n\r\n# Validate there's no None and all fields\r\nlen(citations), citations[0]",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb4ba5eb8819badf613a768e68ba108f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_688fb4bdfa9c819bb67c1b293c601b6c08f602202744cafd",
+      "code": "output = {\"citations\": citations}\r\nprint(json.dumps(output, ensure_ascii=False)[:1000])",
+      "container_id": "cntr_688fb31ee00481989852696dad1d947b00c1a4a20cb8d6e7",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_688fb4c25b30819ba259107a635ebbb908f602202744cafd",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_688fb4c61130819bb3f30e05233bf0be08f602202744cafd",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":92,\"span_end\":143,\"span_text\":\"فَمَنْ شَاءَ فَلْيُؤْمِنْ وَمَنْ شَاءَ فَلْيَكْفُرْ\",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"الكهف\",\"sura_number\":18,\"aya_number\":29},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"فَمَنْ شَاءَ فَلْيُؤْمِنْ وَمَنْ شَاءَ فَلْيَكْفُرْ\",\"completely_invalid\":false},{\"span_start\":236,\"span_end\":304,\"span_text\":\"إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلًا\",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"الإنسان\",\"sura_number\":76,\"aya_number\":29},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلًا\",\"completely_invalid\":false},{\"span_start\":418,\"span_end\":492,\"span_text\":\"وَقُلِ اعْمَلُوا فَسَيَرَى اللَّهُ عَمَلَكُمْ وَرَسُولُهُ وَالْمُؤْمِنُونَ\",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"التوبة\",\"sura_number\":9,\"aya_number\":105},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"وَقُلِ اعْمَلُوا فَسَيَرَى اللَّهُ عَمَلَكُمْ وَرَسُولُهُ وَالْمُؤْمِنُونَ\",\"completely_invalid\":false},{\"span_start\":632,\"span_end\":679,\"span_text\":\"ادْخُلُوا الْجَنَّةَ بِمَا كُنْتُمْ تَعْمَلُونَ\",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"النحل\",\"sura_number\":16,\"aya_number\":32},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"ادْخُلُوا الْجَنَّةَ بِمَا كُنْتُمْ تَعْمَلُونَ\",\"completely_invalid\":false},{\"span_start\":843,\"span_end\":899,\"span_text\":\"إن الله خير عبدا بين الدنيا وبين ما عنده، فاختار ما عنده\",\"citation_type\":\"Hadeeth\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"\",\"sura_number\":0,\"aya_number\":0},\"hadeeth_reference\":{\"collection_name\":\"Sahih al-Bukhari\",\"book_number\":8,\"hadith_number\":114},\"corrected_text\":\"إِنَّ اللَّهَ خَيَّرَ عَبْدًا بَيْنَ الدُّنْيَا وَبَيْنَ مَا عِنْدَ اللَّهِ، فَاخْتَارَ مَا عِنْدَ اللَّهِ\",\"completely_invalid\":false},{\"span_start\":1018,\"span_end\":1085,\"span_text\":\"إن أول ما خلق الله القلم فقال له: اكتب مقادير الخلق إلى يوم القيامة\",\"citation_type\":\"Hadeeth\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"\",\"sura_number\":0,\"aya_number\":0},\"hadeeth_reference\":{\"collection_name\":\"Jami at-Tirmidhi\",\"book_number\":47,\"hadith_number\":1},\"corrected_text\":\"إِنَّ أَوَّلَ مَا خَلَقَ اللَّهُ الْقَلَمَ فَقَالَ لَهُ اكْتُبْ فَجَرَى بِمَا هُوَ كَائِنٌ إِلَى الْأَبَدِ\",\"completely_invalid\":false},{\"span_start\":1318,\"span_end\":1530,\"span_text\":\"يا رسول الله؛ بين لنا ديننا كأنا خلقنا الآن، فيما العمل اليوم؟ أفيما جفت به الأقلام وجرت به المقادير أم فيما نستقبل؟ قال: لا، بل فيما جفت به الأقلام وجرت به المقادير. قال: ففيم العمل؟ قال: اعملوا، فكل ميسر لعمله.\",\"citation_type\":\"Hadeeth\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"\",\"sura_number\":0,\"aya_number\":0},\"hadeeth_reference\":{\"collection_name\":\"Sahih Muslim\",\"book_number\":33,\"hadith_number\":2648},\"corrected_text\":\"يا رسول الله؛ بين لنا ديننا كأنا خلقنا الآن، فيما العمل اليوم؟ أفيما جفت به الأقلام وجرت به المقادير أم فيما نستقبل؟ قال: لا، بل فيما جفت به الأقلام وجرت به المقادير. قال: ففيم العمل؟ قال: اعملوا، فكل ميسر لعمله.\",\"completely_invalid\":false},{\"span_start\":1915,\"span_end\":1993,\"span_text\":\"الدُّنْيَا نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا \",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"آل عمران\",\"sura_number\":3,\"aya_number\":145},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"وَمَنْ يُرِدْ ثَوَابَ الدُّنْيَا نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا\",\"completely_invalid\":false},{\"span_start\":2021,\"span_end\":2091,\"span_text\":\" إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلاً \",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"الإنسان\",\"sura_number\":76,\"aya_number\":29},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلاً\",\"completely_invalid\":false},{\"span_start\":2118,\"span_end\":2174,\"span_text\":\"إن الله خير عبدا بين الدنيا وبين ما عنده، فاختار ما عنده\",\"citation_type\":\"Hadeeth\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"\",\"sura_number\":0,\"aya_number\":0},\"hadeeth_reference\":{\"collection_name\":\"Sahih al-Bukhari\",\"book_number\":8,\"hadith_number\":114},\"corrected_text\":\"إِنَّ اللَّهَ خَيَّرَ عَبْدًا بَيْنَ الدُّنْيَا وَبَيْنَ مَا عِنْدَ اللَّهِ، فَاخْتَارَ مَا عِنْدَ اللَّهِ\",\"completely_invalid\":false},{\"span_start\":2373,\"span_end\":2440,\"span_text\":\"نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا \",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"آل عمران\",\"sura_number\":3,\"aya_number\":145},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"وَمَنْ يُرِدْ ثَوَابَ الدُّنْيَا نُؤْتِهِ مِنْهَا وَمَنْ يُرِدْ ثَوَابَ الْآخِرَةِ نُؤْتِهِ مِنْهَا\",\"completely_invalid\":false},{\"span_start\":2467,\"span_end\":2537,\"span_text\":\" إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلاً \",\"citation_type\":\"Aya\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"الإنسان\",\"sura_number\":76,\"aya_number\":29},\"hadeeth_reference\":{\"collection_name\":\"\",\"book_number\":0,\"hadith_number\":0},\"corrected_text\":\"إِنَّ هَذِهِ تَذْكِرَةٌ فَمَنْ شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلاً\",\"completely_invalid\":false},{\"span_start\":2563,\"span_end\":2619,\"span_text\":\"إن الله خير عبدا بين الدنيا وبين ما عنده، فاختار ما عنده\",\"citation_type\":\"Hadeeth\",\"is_valid\":true,\"aya_reference\":{\"sura_name\":\"\",\"sura_number\":0,\"aya_number\":0},\"hadeeth_reference\":{\"collection_name\":\"Sahih al-Bukhari\",\"book_number\":8,\"hadith_number\":114},\"corrected_text\":\"إِنَّ اللَّهَ خَيَّرَ عَبْدًا بَيْنَ الدُّنْيَا وَبَيْنَ مَا عِنْدَ اللَّهِ، فَاخْتَارَ مَا عِنْدَ اللَّهِ\",\"completely_invalid\":false}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Xt4qGA9QJd5oRHZ2Pd1UdN"
+        ]
+      },
+      "type": "code_interpreter"
+    },
+    {
+      "type": "file_search",
+      "vector_store_ids": [
+        "vs_688f9d74734881918b69687b1f32e724"
+      ],
+      "filters": null,
+      "max_num_results": 20,
+      "ranking_options": {
+        "ranker": "auto",
+        "score_threshold": 0.0
+      }
+    },
+    {
+      "type": "web_search_preview",
+      "search_context_size": "medium",
+      "user_location": {
+        "type": "approximate",
+        "city": null,
+        "country": null,
+        "region": null,
+        "timezone": null
+      }
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "citations_validation",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "description": "List of citations with details, validation, references, and per-citation corrections.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer",
+                  "description": "Inclusive start character index of the citation within the text (exclude the qutation marks)."
+                },
+                "span_end": {
+                  "type": "integer",
+                  "description": "Exclusive end character index of the citation within the text (exclude the qutation marks)."
+                },
+                "span_text": {
+                  "type": "string",
+                  "description": "The text content of the citation span."
+                },
+                "citation_type": {
+                  "type": "string",
+                  "description": "Type of the citation: either Aya (Quran) or Hadeeth (Prophetic tradition).",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                },
+                "is_valid": {
+                  "type": "boolean",
+                  "description": "True if the cited Aya or Hadeeth is recognized and valid, false otherwise."
+                },
+                "aya_reference": {
+                  "type": "object",
+                  "description": "Quranic reference details (required if citation_type is Aya; empty object if not applicable).",
+                  "properties": {
+                    "sura_name": {
+                      "type": "string",
+                      "description": "Name of the sura (chapter) in the Quran."
+                    },
+                    "sura_number": {
+                      "type": "integer",
+                      "description": "Number of the sura (chapter) in the Quran."
+                    },
+                    "aya_number": {
+                      "type": "integer",
+                      "description": "Number of the aya (verse) in the Quran."
+                    }
+                  },
+                  "required": [
+                    "sura_name",
+                    "sura_number",
+                    "aya_number"
+                  ],
+                  "additionalProperties": false
+                },
+                "hadeeth_reference": {
+                  "type": "object",
+                  "description": "Hadeeth reference details (required if citation_type is Hadeeth; empty object if not applicable).",
+                  "properties": {
+                    "collection_name": {
+                      "type": "string",
+                      "description": "Name of the Hadeeth collection in english (e.g. Sahih Bukhari, Muslim)."
+                    },
+                    "book_number": {
+                      "type": "integer",
+                      "description": "Book number within the collection."
+                    },
+                    "hadith_number": {
+                      "type": "integer",
+                      "description": "Hadith number within the specified book."
+                    }
+                  },
+                  "required": [
+                    "collection_name",
+                    "book_number",
+                    "hadith_number"
+                  ],
+                  "additionalProperties": false
+                },
+                "corrected_text": {
+                  "type": "string",
+                  "description": "The corrected version of the citation text (or the text itself if it was correct in the first place) (e.g. if there are certain words that were invalid this version must have this corrected), or 'خطأ' for completely invalid citations (i.e. no close enough citation can be found to correct the text). If there are close texts in Quran or Hadith - but too far from the citation, this must be considered 'خطأ' and completely_invalid must be true."
+                },
+                "completely_invalid": {
+                  "type": "boolean",
+                  "description": "Set to true if the citation is completely invalid i.e. there can't be a close enough text to correct it, (corrected_text must be 'خطأ')."
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type",
+                "is_valid",
+                "aya_reference",
+                "hadeeth_reference",
+                "corrected_text",
+                "completely_invalid"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    }
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 1140278,
+    "input_tokens_details": {
+      "cached_tokens": 1048656
+    },
+    "output_tokens": 18122,
+    "output_tokens_details": {
+      "reasoning_tokens": 15936
+    },
+    "total_tokens": 1158400
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,174 @@
+{
+  "id": "resp_689708a164b0819086eed6ccf785a0cb0faa5fd4d1c8ffb9",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a5b13c8190a9e0aeed52a3adc00faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ab93588190881a6a4d322f5fad0faa5fd4d1c8ffb9",
+      "code": "# Load the provided JSON files and inspect structure, then search for candidate matches.\nimport json\nfrom pathlib import Path\nqfile = Path(\"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\")\nhfile = Path(\"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\")\nprint(\"Files exist:\", qfile.exists(), hfile.exists())\n# Load first 10 items of quranic_verses.json to inspect structure\nqdata = json.load(open(qfile, \"r\", encoding=\"utf-8\"))\nprint(\"Number of Quran verses:\", len(qdata))\nprint(\"Sample entry keys:\", list(qdata[0].keys()) if len(qdata)>0 else \"empty\")\nprint(\"Sample ayah_text (first 3):\")\nfor i in range(min(3,len(qdata))):\n    print(i, qdata[i].get(\"ayah_text\")[:200])\n# Load hadith file structure\nhdata = json.load(open(hfile, \"r\", encoding=\"utf-8\"))\nprint(\"Number of hadith entries:\", len(hdata))\nprint(\"Sample hadith keys:\", list(hdata[0].keys()) if len(hdata)>0 else \"empty\")\nprint(\"Sample hadith text (first 3):\")\nfor i in range(min(3, len(hdata))):\n    # print both possible fields\n    print(i, hdata[i].get(\"hadithTxt\")[:200] if hdata[i].get(\"hadithTxt\") else hdata[i].get(\"Matn\")[:200])\n",
+      "container_id": "cntr_689708a31aac819095072d7696c40ea70d48d75094802396",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b3a020819098c71cfbbbfd41450faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b812a08190adf9f529ccc5efb00faa5fd4d1c8ffb9",
+      "code": "# Let's search for best matches in quranic verses for the given span and snippet.\nimport json, re, difflib, math\nfrom collections import Counter\n\nqdata = json.load(open(\"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\", \"r\", encoding=\"utf-8\"))\nhdata = json.load(open(\"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\", \"r\", encoding=\"utf-8\"))\n\nfull_span = \"وَلَا تَرْتَعوا بِقُلُوبِكُمُ الْعَنَاتِ أَن تَكُونُوا شَاهِدِينَ عَلَى أَيّامِ اللَّهِ وَتَرْجُمُونَ قَومًا وَتُصْلِحُونَ\"\nsnippet = \"وَلَا تَرْ...ُصْلِحُونَ\"\n\n# Normalization function\narabic_diacritics = re.compile(\"\"\"\n                             ّ    | # Shadda\n                             َ    | # Fatha\n                             ً    | # Tanwin Fath\n                             ُ    | # Damma\n                             ٌ    | # Tanwin Damm\n                             ِ    | # Kasra\n                             ٍ    | # Tanwin Kasr\n                             ْ    | # Sukun\n                             ـ     # Tatweel/Kashida\n                         \"\"\", re.VERBOSE)\n\ndef normalize_ar(text):\n    # remove tashkeel\n    t = re.sub(arabic_diacritics, '', text)\n    # remove punctuation and bracket characters and commas, quotes, etc\n    t = re.sub(r'[ـ،\\.\\!\\?؛:\\-\\—\"\\'\\(\\)\\[\\]\\{\\}«»…،/‎]', ' ', t)\n    # unify hamzas: map أ إ آ ؤ ئ to ا or و/ي? \n    t = t.replace('إ', 'ا').replace('أ', 'ا').replace('آ', 'ا')\n    t = t.replace('ؤ', 'و').replace('ئ', 'ي')\n    # normalize alef-maqsura to ya\n    t = t.replace('ى', 'ي')\n    # remove tashkeel leftover (if any)\n    t = re.sub(arabic_diacritics, '', t)\n    # collapse multiple spaces & lower\n    t = re.sub(r'\\s+', ' ', t).strip()\n    # lowercase - Arabic doesn't have case, but keep\n    return t\n\nnorm_full = normalize_ar(full_span)\nnorm_snippet = normalize_ar(snippet)\nprint(\"Normalized full span:\", norm_full)\nprint(\"Normalized snippet:\", norm_snippet[:100])\n\n# Define function for similarity measures\ndef lcs_ratio(a, b):\n    # Use difflib SequenceMatcher to estimate similarity of whole strings\n    s = difflib.SequenceMatcher(None, a, b)\n    return s.ratio()\n\ndef token_overlap(a, b):\n    sa = set(a.split())\n    sb = set(b.split())\n    if not sa and not sb: return 0.0\n    overlap = sa & sb\n    return len(overlap) / ((len(sa)+len(sb))/2)\n\n# Search qdata for top matches using lcs_ratio between normalized texts\nbest = []\nfor entry in qdata:\n    text = entry.get(\"ayah_text\",\"\")\n    norm_text = normalize_ar(text)\n    r = lcs_ratio(norm_full, norm_text)\n    to = token_overlap(norm_full, norm_text)\n    best.append((r, to, entry['surah_name'], entry['surah_id'], entry['ayah_id'], text))\n\nbest_sorted = sorted(best, key=lambda x: x[0], reverse=True)\nfor i in range(20):\n    r,to,sname,sid,aid,text = best_sorted[i]\n    print(i+1, f\"ratio={r:.4f} token_overlap={to:.4f}\", f\"{sname} {sid}:{aid}\", text)\n",
+      "container_id": "cntr_689708a31aac819095072d7696c40ea70d48d75094802396",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c413648190a35671c32cfa949c0faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c4d57c8190bece33c1e53844dc0faa5fd4d1c8ffb9",
+      "code": "# Search hadith DB for best matches\nbest_h = []\nfor entry in hdata:\n    # get matn string: prefer hadithTxt then Matn\n    text = entry.get(\"hadithTxt\") or entry.get(\"Matn\") or \"\"\n    norm_text = normalize_ar(text)\n    r = lcs_ratio(norm_full, norm_text)\n    to = token_overlap(norm_full, norm_text)\n    best_h.append((r, to, entry.get(\"hadithID\"), entry.get(\"BookID\"), text[:200]))\n\nbest_h_sorted = sorted(best_h, key=lambda x: x[0], reverse=True)\nfor i in range(20):\n    r,to,hid,bid,text = best_h_sorted[i]\n    print(i+1, f\"ratio={r:.4f} token_overlap={to:.4f}\", f\"hadithID={hid} BookID={bid}\", text)\n",
+      "container_id": "cntr_689708a31aac819095072d7696c40ea70d48d75094802396",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d448e08190b49286e4f42b9df20faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708d7af948190a145997ac787108f0faa5fd4d1c8ffb9",
+      "code": "# Search for verses containing tokens from the span\ntokens = set(normalize_ar(full_span).split())\ntokens_list = list(tokens)\ntokens_list[:20], len(tokens_list)\nmatches = []\nfor entry in qdata:\n    norm_text = normalize_ar(entry['ayah_text'])\n    for tok in tokens:\n        if tok in norm_text:\n            matches.append((tok, entry['surah_name'], entry['surah_id'], entry['ayah_id'], entry['ayah_text']))\n            # break\n# Show unique tokens found and examples\nfrom collections import defaultdict\nexamples = defaultdict(list)\nfor tok, sname, sid, aid, text in matches:\n    if len(examples[tok])<3:\n        examples[tok].append((sname,sid,aid,text))\nfor tok, exs in examples.items():\n    print(\"Token:\", tok)\n    for e in exs:\n        print(\"  \", e[0], f\"{e[1]}:{e[2]}\", e[3])\n    print()\n",
+      "container_id": "cntr_689708a31aac819095072d7696c40ea70d48d75094802396",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708dbc100819083f73bba1b6f034e0faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708dde684819092f35d8617d0d2180faa5fd4d1c8ffb9",
+      "code": "# find Surah An-Nur 24:27\nfor entry in qdata:\n    if entry['surah_name']==\"النور\" and entry['ayah_id']==27:\n        print(\"Found:\", entry['surah_id'], entry['ayah_id'], entry['ayah_text'])\n        break\n# let's also print 24:26-29\nfor entry in qdata:\n    if entry['surah_name']==\"النور\" and entry['ayah_id'] in [26,27,28,29,30]:\n        print(entry['ayah_id'], entry['ayah_text'])\n",
+      "container_id": "cntr_689708a31aac819095072d7696c40ea70d48d75094802396",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e08d5081909b95c63f86a638fe0faa5fd4d1c8ffb9",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708e26fa081908be1960fa6d5bea80faa5fd4d1c8ffb9",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 44188,
+    "input_tokens_details": {
+      "cached_tokens": 35952
+    },
+    "output_tokens": 3477,
+    "output_tokens_details": {
+      "reasoning_tokens": 3456
+    },
+    "total_tokens": 47665
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,246 @@
+{
+  "id": "resp_689623a8c0e08195b4256c88fb71a9f9068923482e5b3f51",
+  "created_at": 1754669992.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689623ab7b188195ac88b88844018aad068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623ad64b481958235efe415076122068923482e5b3f51",
+      "code": "# Read the file\npath = \"/mnt/data/file-MUU8hb6QmB592K81YeZMws-text_to_analyse.txt\"\nwith open(path, \"rb\") as f:\n    raw_bytes = f.read()\nraw = raw_bytes.decode('utf-8')\nlen(raw), raw[:4000]",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689623b0b77c8195845a2c2d7da93771068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623c2f59481959965a885ab09a826068923482e5b3f51",
+      "code": "import re, json, textwrap\nraw = open(\"/mnt/data/file-MUU8hb6QmB592K81YeZMws-text_to_analyse.txt\", \"r\", encoding=\"utf-8\").read()\n\n# Find double-quoted segments\ndq_matches = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'\"([^\"]+)\"', raw)]\nlen(dq_matches), dq_matches[:20]",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689623c595c8819586b9ebb76955f02d068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623c65854819581e21087a0e62d58068923482e5b3f51",
+      "code": "# find Quranic bracket matches\nqb_matches = [(m.start(), m.end(), m.group(1)) for m in re.finditer(r'﴿(.*?)﴾', raw, flags=re.S)]\nlen(qb_matches), qb_matches[:20]",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689623c99d388195aa8715b26d2a9273068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623cf509881959f0e517281ae3149068923482e5b3f51",
+      "code": "# search for some tokens to find other potential ayah/hadith segments\ncandidates = ['بِبَيْعِكُمُ', 'البقرة', 'النساء', 'فَوْزُ', 'أَحَلَّ', 'رِجَالٌ', 'عَذَابٍ أَلِيمٍ', 'أَحَلَّ اللهُ', 'أفضل الكسب', 'حبله', 'ثلاث فيهنّ البركة', 'المقاربة', 'خلط البُرّ']\nfor c in candidates:\n    print(c, \"->\", [ (m.start(), m.end(), raw[m.start():m.start()+80]) for m in re.finditer(re.escape(c), raw)])",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689623d5a1d88195bc4c31364f193293068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689623fe0b2c81958d880f14ab9faacf068923482e5b3f51",
+      "code": "import re, unicodedata, sys\nraw = open(\"/mnt/data/file-MUU8hb6QmB592K81YeZMws-text_to_analyse.txt\", encoding=\"utf-8\").read()\n\n# find matches\nmatches = []\n\n# helper to add match with group indices\ndef add_match(start_idx, end_idx, origin):\n    matches.append({'start0': start_idx, 'end0': end_idx, 'origin': origin})\n\n# double-quoted groups\nfor m in re.finditer(r'\"([^\"]+)\"', raw):\n    start1 = m.start(1)\n    end1 = m.end(1)\n    add_match(start1, end1, 'double_quote')\n\n# Quranic bracket groups ﴿ ... ﴾\nfor m in re.finditer(r'﴿(.*?)﴾', raw, flags=re.S):\n    start1 = m.start(1)\n    end1 = m.end(1)\n    add_match(start1, end1, 'quranic_bracket')\n\n# Also search for hadith phrase occurrences separately\nextra_phrases = ['أفضل الكسب عمل الرجل بيده وكل بيع مبرور',\n                 'أفضل الكسب عمل الرجل بيده وكل بيع مبرور']  # same repeated, but we'll search for occurrences anyway\nfor phrase in set(extra_phrases):\n    for m in re.finditer(re.escape(phrase), raw):\n        start1 = m.start()\n        end1 = m.end()\n        # Only add if not already included: i.e., not inside existing match\n        inside = False\n        for mm in matches:\n            if start1 >= mm['start0'] and end1 <= mm['end0']:\n                inside = True\n                break\n        if not inside:\n            add_match(start1, end1, 'plain_phrase')\n\n# Also search for apparent hadith occurrences like sequences inside quotes with leading/trailing spaces captured earlier are included.\n# Now deduplicate matches by exact (start0,end0) but keep duplicates across same content allowed if different positions. So sort by start.\nmatches_sorted = sorted(matches, key=lambda x: x['start0'])\nlen(matches_sorted)",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689624040dd08195afaa10443a3cdc60068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896240617e48195b17c34797cd3af10068923482e5b3f51",
+      "code": "trim_chars = set(list(' \\t\\n\\r\\f\\v\"\\'«»()[]{}<>،؛:.,!?…ـ*•'))  # include bullet • maybe\n# include Arabic comma etc; star '*' included\n# function to trim\ndef trim_span(start0, end0):\n    start = start0\n    end = end0\n    # convert to indices possibly out of bounds\n    # Trim start\n    while start < end and raw[start] in trim_chars:\n        start += 1\n    # Trim end\n    while end > start and raw[end-1] in trim_chars:\n        end -= 1\n    return start, end\n\n# Now prepare list with final spans (start,end,text,origin)\nfinal_spans = []\nfor m in matches_sorted:\n    start0 = m['start0']; end0 = m['end0']; origin = m['origin']\n    start, end = trim_span(start0, end0)\n    text = raw[start:end]\n    # If after trimming text length < 10 arabic letters maybe skip? But they want >=10 letters except when explicit cues. But these are likely fine.\n    # Assert raw[start:end] == text, trivial\n    final_spans.append({'start': start, 'end': end, 'text': text, 'origin': origin, 'start0': start0, 'end0': end0})\n\n# Show final spans\nfor s in final_spans:\n    print(s['start'], s['end'], s['text'][:80], '... len', len(s['text']), 'origin', s['origin'])",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896240bb46c81958fd35a5d8e44d05e068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68962412877081958556c9ddfdc048ab068923482e5b3f51",
+      "code": "ayah_cues = ['قال الله', 'قال تعالى', 'يقول الله', 'كما قال تعالى', 'الآية', 'سورة', 'آية', 'قال الله تعالى', 'قال تعالى', 'سورة النور', 'سورة الصف', 'القرآن', 'الآيات', 'في سورة', 'الآية 37', 'الآية 37', 'في سورة النور']\nhadith_cues = ['قال رسول الله', 'قال النبي', 'قال رسول', 'قال ﷺ', 'قال صلى الله عليه وسلم', 'النبي ﷺ', 'رواه', 'روى', 'أخرجه', 'أخرجه البخاري', 'حدثنا', 'حَدَّثَنَا', 'عن النبي', 'عن الرسول', 'رُوِيَ', 'أخرجه الترمذي', 'رواه الترمذي', 'رواه البخاري', 'أخرجه الحاكم']\n\ndef classify_span(span):\n    start = span['start']; end = span['end']\n    context = raw[max(0, start-64): min(len(raw), end+64)]\n    # check presence of cues (case sensitive)\n    ayah_found = False\n    hadith_found = False\n    for c in ayah_cues:\n        if c in context:\n            ayah_found = True\n            break\n    for c in hadith_cues:\n        if c in context:\n            hadith_found = True\n            break\n    # origin quranic bracket means ayah\n    if span['origin'] == 'quranic_bracket':\n        return 'Aya', ayah_found, hadith_found, context\n    # origin double_quote could be either\n    if ayah_found and not hadith_found:\n        return 'Aya', ayah_found, hadith_found, context\n    if hadith_found and not ayah_found:\n        return 'Hadeeth', ayah_found, hadith_found, context\n    if ayah_found and hadith_found:\n        # use MATN to decide - naive heuristics: if contains words common in Quranic such as 'تُؤْمِنُونَ','تُجَاهِدُونَ','ذِكْرِ اللَّهِ','لَا تُلْهِيهِمْ' etc\n        quranic_signs = ['تُؤْمِنُونَ','تُجَاهِدُونَ','ذِكْرِ اللَّهِ','لَا تُلْهِيهِمْ','لا تَأْكُلُواْ','هَلْ أَدُلُّكُمْ','ربكم','عَذَابٍ','آية','آيات','تِجَارَةٌ']\n        for s in quranic_signs:\n            if s in span['text']:\n                return 'Aya', ayah_found, hadith_found, context\n        # else if hadith-looking words like 'عمل الرجل', 'حبله', 'أعطوه' etc\n        hadith_signs = ['عمل الرجل','حبله','يأتي بحزمة','ثلاث فيهنّ البركة','لأن يأخذ']\n        for s in hadith_signs:\n            if s in span['text']:\n                return 'Hadeeth', ayah_found, hadith_found, context\n        # default to Ayah if ambiguous\n        return 'Aya', ayah_found, hadith_found, context\n    # if neither cues found, determine by origin or by textual features\n    # if contains typical Quranic words or punctuation like '،' and starts with Arabic capital? Hard to decide. We'll use heuristics:\n    quranic_signs = ['تُؤْمِنُونَ','تُجَاهِدُونَ','ذِكْرِ اللَّهِ','لَا تُلْهِيهِمْ','لا تَأْكُلُواْ','هَلْ أَدُلُّكُمْ','ربكم','عَذَابٍ','آية','آيات','تِجَارَةٌ','اللَّهُ']\n    hadith_signs = ['عمل الرجل','حبله','حزمة الحطب','أفضل الكسب','ثلاث فيهنّ البركة','خير له من أن يسأل الناس']\n    for s in quranic_signs:\n        if s in span['text']:\n            return 'Aya', ayah_found, hadith_found, context\n    for s in hadith_signs:\n        if s in span['text']:\n            return 'Hadeeth', ayah_found, hadith_found, context\n    # if origin double_quote maybe hadith? But many ayahs also double quoted. We'll fallback based on punctuation like presence of 'سورة' in near preceding text\n    if 'سورة' in context or 'الآية' in context or 'البقرة' in context or 'النساء' in context:\n        return 'Aya', ayah_found, hadith_found, context\n    if 'قال رسول' in context or 'رواه' in context or 'أخرجه' in context:\n        return 'Hadeeth', ayah_found, hadith_found, context\n    # else default to Aya perhaps but check if it contains personal name etc\n    return 'Aya', ayah_found, hadith_found, context\n\n# classify each span\nfor s in final_spans:\n    typ, ay, ha, ctx = classify_span(s)\n    print(s['start'], s['end'], typ, 'text:', s['text'][:60], '...')",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689624200db48195bbc328a2a7879c38068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896242373a08195aec430c3daa106e4068923482e5b3f51",
+      "code": "# verify raw substring equality and create output structure\nout = {\"citations\": []}\nfor s in final_spans:\n    start = s['start']; end = s['end']; text = s['text']\n    assert raw[start:end] == text, f\"Mismatch at {start}:{end}\"\n    # get classification\n    typ, ayfound, hadfound, ctx = classify_span(s)\n    type_label = 'Aya' if typ == 'Aya' else 'Hadeeth'\n    out['citations'].append({\"span_start\": start, \"span_end\": end, \"span_text\": text, \"citation_type\": type_label})\n\nimport json, pprint\npprint.pprint(out)",
+      "container_id": "cntr_689623aa7fec81909e668017bf67f6e20403d5eff1d4483b",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689624275e408195aa5ae48ad6897625068923482e5b3f51",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68962431311c8195b7e39cfa9b750a98068923482e5b3f51",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"citations\":[{\"span_start\":287,\"span_end\":333,\"span_text\":\"وَأَحَلَّ اللَّهُ الْبَيْعَ وَحَرَّمَ الرِّبَا\",\"citation_type\":\"Aya\"},{\"span_start\":510,\"span_end\":575,\"span_text\":\"رِجَالٌ لَا تُلْهِيهِمْ تِجَارَةٌ وَلَا بَيْعٌ عَن ذِكْرِ اللَّهِ\",\"citation_type\":\"Aya\"},{\"span_start\":684,\"span_end\":900,\"span_text\":\"هَلْ أَدُلُّكُمْ عَلَى تِجَارَةٍ تُنْجِيكُمْ مِنْ عَذَابٍ أَلِيمٍ * تُؤْمِنُونَ بِاللَّهِ وَرَسُولِهِ وَتُجَاهِدُونَ فِي سَبِيلِ اللَّهِ بِأَمْوَالِكُمْ وَأَنْفُسِكُمْ ذَلِكُمْ خَيْرٌ لَكُمْ إِنْ كُنْتُمْ تَعْلَمُونَ\",\"citation_type\":\"Aya\"},{\"span_start\":1270,\"span_end\":1309,\"span_text\":\"أفضل الكسب عمل الرجل بيده وكل بيع مبرور\",\"citation_type\":\"Hadeeth\"},{\"span_start\":1818,\"span_end\":1862,\"span_text\":\"وَأَحَلَّ اللهُ الْبَيْعَ وَحَرَّمَ الرِّبَا\",\"citation_type\":\"Aya\"},{\"span_start\":1924,\"span_end\":2027,\"span_text\":\"لاَ تَأْكُلُواْ أَمْوَالَكُمْ بَيْنَكُمْ بِالْبَاطِلِ إِلاَّ أَن تَكُونَ تِجَارَةً عَن تَرَاضٍ مِّنكُمْ\",\"citation_type\":\"Aya\"},{\"span_start\":2379,\"span_end\":2496,\"span_text\":\"لأن يأخذ أحدكم حبله، فيأتي بحزمة الحطب على ظهره، فيبيعها، فيكف الله بها وجهه، خير له من أن يسأل الناس، أعطوه أو منعوه\",\"citation_type\":\"Hadeeth\"},{\"span_start\":2992,\"span_end\":3058,\"span_text\":\"رِجَالٌ لَا تُلْهِيهِمْ تِجَارَةٌ وَلَا بَيْعٌ عَنْ ذِكْرِ اللَّهِ\",\"citation_type\":\"Aya\"},{\"span_start\":3112,\"span_end\":3171,\"span_text\":\"وَإِذَا رَأَوْا تِجَارَةً أَوْ لَهْوًا انْفَضُّوا إِلَيْهَا\",\"citation_type\":\"Aya\"},{\"span_start\":3214,\"span_end\":3301,\"span_text\":\"هَلْ أَدُلُّكُمْ عَلَى تِجَارَةٍ تُنْجِيكُمْ مِنْ عَذَابٍ أَلِيمٍ، تُؤْمِنُونَ بِاللَّه\",\"citation_type\":\"Aya\"},{\"span_start\":3543,\"span_end\":3569,\"span_text\":\"وأحل الله البيع وحرم الربا\",\"citation_type\":\"Aya\"},{\"span_start\":3635,\"span_end\":3672,\"span_text\":\"ليس عليكم جناح أن تبتغوا فضلا من ربكم\",\"citation_type\":\"Aya\"},{\"span_start\":3736,\"span_end\":3775,\"span_text\":\"أفضل الكسب عمل الرجل بيده وكل بيع مبرور\",\"citation_type\":\"Hadeeth\"},{\"span_start\":3961,\"span_end\":4040,\"span_text\":\"ثلاث فيهنّ البركة: البيع إلى أجل، والمقارضة، وخلط البُرّ بالشعير للبيت لا للبيع\",\"citation_type\":\"Hadeeth\"}]}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-MUU8hb6QmB592K81YeZMws"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1a_spans",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "span_start": {
+                  "type": "integer"
+                },
+                "span_end": {
+                  "type": "integer"
+                },
+                "span_text": {
+                  "type": "string"
+                },
+                "citation_type": {
+                  "type": "string",
+                  "enum": [
+                    "Aya",
+                    "Hadeeth"
+                  ]
+                }
+              },
+              "required": [
+                "span_start",
+                "span_end",
+                "span_text",
+                "citation_type"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "citations"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 97227,
+    "input_tokens_details": {
+      "cached_tokens": 86760
+    },
+    "output_tokens": 10711,
+    "output_tokens_details": {
+      "reasoning_tokens": 9856
+    },
+    "total_tokens": 107938
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,295 @@
+{
+  "id": "resp_689678d317748193885fb88e87a092b00d7f807f6df6d053",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7c0848193b90e4a96cc323af00d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678ee1ab081939b12093350e936d50d7f807f6df6d053",
+      "code": "# Let's open the provided files and inspect structure\r\nimport json, os, re, unicodedata, math\r\nfrom collections import defaultdict, Counter\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_data = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_data = json.load(f)\r\n\r\ntype(quran_data), type(hadith_data), len(quran_data), len(hadith_data)",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f315848193b039590570ec48240d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f35e348193b8eac897d3cb45ac0d7f807f6df6d053",
+      "code": "quran_data[0].keys(), hadith_data[0].keys(), hadith_data[0]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f62678819395f4680fe378556b0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f81e408193b7335a826094d50e0d7f807f6df6d053",
+      "code": "# Define Arabic text normalization utilities per instruction\r\nimport regex as reg\r\n\r\nAR_DIACRITICS = re.compile(r\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\nTATWEEL = \"\\u0640\"\r\nPUNCTUATION_PATTERN = re.compile(r\"[\\u0600-\\u0605\\u0606-\\u060A\\u060C\\u061B\\u061F\\u066A-\\u066D\\u06D4!\\\"#\\$%&'\\(\\)\\*\\+,\\-\\.\\/:;<=>\\?@\\[\\]\\\\\\^_`{\\|}~“”ـ،؛؟»«…]\")\r\n# unify hamza forms: alef with hamza above/below to bare alef; also Waw/Yeh hamza to Waw/Yeh?\r\ndef normalize_ar(s):\r\n    if not isinstance(s, str):\r\n        return \"\"\r\n    s = s.replace(TATWEEL, \"\")\r\n    s = AR_DIACRITICS.sub(\"\", s)\r\n    s = PUNCTUATION_PATTERN.sub(\" \", s)\r\n    # unify various Alef forms\r\n    s = s.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\r\n    s = s.replace(\"ؤ\", \"و\").replace(\"ئ\", \"ي\").replace(\"ة\", \"ه\").replace(\"ى\", \"ي\")\r\n    s = s.replace(\"ٰ\", \"\")  # dagger alef\r\n    s = s.replace(\"\\u0671\", \"ا\") # alef wasla\r\n    # normalize spaces\r\n    s = reg.sub(r\"\\s+\", \" \", s).strip().lower()\r\n    return s\r\n\r\ndef lcs_length(a, b):\r\n    # char-level LCS dynamic programming\r\n    n, m = len(a), len(b)\r\n    dp = [0] * (m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        for j in range(1, m+1):\r\n            temp = dp[j]\r\n            if a[i-1] == b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                dp[j] = max(dp[j], dp[j-1])\r\n            prev = temp\r\n    return dp[m]\r\n\r\ndef similarity_metrics(a, b):\r\n    # returns lcs ratio and token f1-like score\r\n    a_n = normalize_ar(a)\r\n    b_n = normalize_ar(b)\r\n    if not a_n or not b_n:\r\n        return 0.0, 0.0\r\n    lcs = lcs_length(a_n, b_n)\r\n    lcs_ratio = lcs / max(len(a_n), len(b_n))\r\n    # token overlap F1\r\n    a_tokens = a_n.split()\r\n    b_tokens = b_n.split()\r\n    a_count = Counter(a_tokens)\r\n    b_count = Counter(b_tokens)\r\n    overlap = sum(min(a_count[t], b_count[t]) for t in set(a_count)|set(b_count))\r\n    prec = overlap / (sum(a_count.values()) or 1)\r\n    rec = overlap / (sum(b_count.values()) or 1)\r\n    if prec+rec == 0:\r\n        f1 = 0.0\r\n    else:\r\n        f1 = 2*prec*rec/(prec+rec)\r\n    return lcs_ratio, f1\r\n\r\nquery_full = \"من مشى مع أخيه المسلم في حاجة فناصح له في ذلك، قضى الله له بها حاجة في الجنة\"\r\nquery_snippet = \"من مشى مع ...ة في الجنة\"\r\n\r\nnormalize_ar(query_full), normalize_ar(query_snippet), similarity_metrics(query_full, query_full)",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967901ed208193b58c91a65333ffd00d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967902213c8193afc30542b904db3b0d7f807f6df6d053",
+      "code": "# Search for the query in hadith_data\r\nquery_n = normalize_ar(query_full)\r\n\r\ncandidates = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    if not isinstance(text, str):\r\n        continue\r\n    text_n = normalize_ar(text)\r\n    if not text_n:\r\n        continue\r\n    # quick filter: check substring presence of some terms\r\n    if \"من مشي مع اخيه المسلم في حاجه\" in text_n or \"من مشي مع اخيه\" in text_n or \"في حاجه\" in text_n:\r\n        lcs, f1 = similarity_metrics(text, query_full)\r\n        # Save top candidates\r\n        score = (lcs + f1) / 2\r\n        candidates.append((score, lcs, f1, i, item, text))\r\n\r\n# Sort candidates by score\r\ncandidates_sorted = sorted(candidates, key=lambda x: x[0], reverse=True)\r\n\r\nlen(candidates_sorted), candidates_sorted[:5] and [(c[0], c[3], hadith_data[c[3]].get(\"title\")[:60], hadith_data[c[3]].get(\"hadithID\")) for c in candidates_sorted[:10]]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967908a2b88193b8f1ee3d0961e6e20d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790a486481939693e03f044d63640d7f807f6df6d053",
+      "code": "# search for \"من مشى\" occurrences\r\ntarget_phrase = \"من مشى\"\r\ntarget_n = normalize_ar(target_phrase)\r\nmatches = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    text_n = normalize_ar(text)\r\n    if target_n in text_n:\r\n        lcs, f1 = similarity_metrics(text, query_full)\r\n        score = (lcs + f1)/2\r\n        matches.append((score, i, item.get(\"title\"), item.get(\"hadithID\"), text[:200]))\r\nlen(matches)",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790f7b4c81938d2d5fbb7865d4f90d7f807f6df6d053",
+      "code": "sorted(matches, key=lambda x: x[0], reverse=True)[:6]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967911524081939b9a4d80c96fb09b0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967911b950819384dbda84e2562dd60d7f807f6df6d053",
+      "code": "# search for \"في حاجة\" in hadith data\r\nphrase = \"في حاجة\"\r\nphrase_n = normalize_ar(phrase)\r\nres = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    text_n = normalize_ar(text)\r\n    if phrase_n in text_n:\r\n        lcs, f1 = similarity_metrics(text, query_full)\r\n        score = (lcs + f1)/2\r\n        res.append((score, i, item.get(\"title\"), item.get(\"hadithID\"), text[:200]))\r\nlen(res)",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967916a9c0819392b4a2e40b865cfe0d7f807f6df6d053",
+      "code": "sorted(res, key=lambda x: x[0], reverse=True)[:10]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791875ec8193bb3eac48503a114e0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679278f6481938543c71655325a510d7f807f6df6d053",
+      "code": "# Compute similarity for all hadith to the query\r\ntop = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    if not isinstance(text, str) or not text.strip():\r\n        continue\r\n    lcs, f1 = similarity_metrics(text, query_full)\r\n    score = (lcs + f1)/2\r\n    # Keep top 20\r\n    if len(top) < 20:\r\n        top.append((score, lcs, f1, i, item.get(\"title\"), item.get(\"hadithID\"), text[:300]))\r\n        top.sort(key=lambda x: x[0], reverse=True)\r\n    else:\r\n        if score > top[0][0]:\r\n            top[0] = (score, lcs, f1, i, item.get(\"title\"), item.get(\"hadithID\"), text[:300])\r\n            top.sort(key=lambda x: x[0], reverse=True)\r\n\r\n# sort descending by score\r\ntop_sorted = sorted(top, key=lambda x: x[0], reverse=True)\r\ntop_sorted[:5]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679dd4bc081939141198538c85dc80d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679e21efc8193808ef6cf596926a00d7f807f6df6d053",
+      "code": "# Find \"والله في عون\" variants\r\nresults = []\r\nfor i,item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    if \"فِي عَوْنِ\" in text or \"في عون\" in normalize_ar(text):\r\n        if \"مَا كَانَ الْعَبْدُ فِي عَوْنِ أَخِيهِ\" in text or \"ما كان العبد في عون\" in normalize_ar(text):\r\n            results.append((i, item.get(\"title\"), item.get(\"hadithID\"), text))\r\nlen(results), results[:3]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679e756d08193a5a5ec51e4c6e58a0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679f1126081939e060c1c0234d6b00d7f807f6df6d053",
+      "code": "# Search for \"فناصح له\" and \"قضى الله له بها حاجة\" and \"قضى الله له بها\"\r\nphrases = [\"فناصح له\", \"قضى الله له بها حاجة\", \"قضى الله له بها\", \"قضى الله له حاجته\", \"قضى الله له حاجة\", \"سعى مع أخيه\", \"مشى مع أخيه\", \"مشي مع اخيه\"]\r\nresults = {}\r\nfor ph in phrases:\r\n    ph_n = normalize_ar(ph)\r\n    hits = []\r\n    for i, item in enumerate(hadith_data):\r\n        text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n        text_n = normalize_ar(text)\r\n        if ph_n and ph_n in text_n:\r\n            hits.append((i, item.get(\"title\"), item.get(\"hadithID\"), text[:200]))\r\n    results[ph] = hits\r\n\r\n{ph: len(hits) for ph, hits in results.items()}",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a088c3481938186bd711dab36bf0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967a096e9c8193a0dc0b53287d36dc0d7f807f6df6d053",
+      "code": "# Search quran db for any partial match with 'حاجة' or 'قضى'\r\nmatches_q = []\r\nfor i, item in enumerate(quran_data):\r\n    text = item.get(\"ayah_text\") or \"\"\r\n    if any(term in text for term in [\"حَاجَ\", \"حَاجَة\", \"قَضَى\", \"قَضَيْنَا\"]):\r\n        lcs, f1 = similarity_metrics(text, query_full)\r\n        score = (lcs + f1)/2\r\n        if score > 0.4:\r\n            matches_q.append((score, i, item[\"ayah_text\"]))\r\nsorted(matches_q, key=lambda x: x[0], reverse=True)[:5]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a0d223c81939e360802a429d69c0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967a100a1c81938240f7cc2dcd2b430d7f807f6df6d053",
+      "code": "# Search for 'اثبت الله قدمه' (normalize)\r\nphrase = normalize_ar(\"أثبت الله قدمه\")\r\nhits = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    if phrase in normalize_ar(text):\r\n        hits.append((i, item.get(\"title\"), item.get(\"hadithID\"), text[:200]))\r\nlen(hits), hits[:3]",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a148ed08193922dedbe41b00fb30d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967a14dc3881938ced49ce576902870d7f807f6df6d053",
+      "code": "phrase = normalize_ar(\"مثل أجر حجة وعمرة تامة\")\r\nhits = []\r\nfor i, item in enumerate(hadith_data):\r\n    text = item.get(\"Matn\") or item.get(\"hadithTxt\") or \"\"\r\n    if phrase in normalize_ar(text):\r\n        hits.append((i, item.get(\"title\"), item.get(\"hadithID\"), text[:200]))\r\nlen(hits)",
+      "container_id": "cntr_689678d4f408819098e4e6b970e5489b0aba2ba597b2ce9d",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967a18ebb88193860d102380da5a1f0d7f807f6df6d053",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967a1c38648193924f9da37b3102d60d7f807f6df6d053",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 130416,
+    "input_tokens_details": {
+      "cached_tokens": 115504
+    },
+    "output_tokens": 5589,
+    "output_tokens_details": {
+      "reasoning_tokens": 5568
+    },
+    "total_tokens": 136005
+  },
+  "user": null,
+  "store": false
+}

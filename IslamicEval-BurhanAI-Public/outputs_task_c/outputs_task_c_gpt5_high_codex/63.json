@@ -1,0 +1,348 @@
+{
+  "id": "resp_68967534200081948866a507d3df334a05bdea019eac1dd0",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896753b2e3481948c75b3c04428b72305bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754380f88194bacd1c997f3667ed05bdea019eac1dd0",
+      "code": "# Let's open the provided JSON files and search.\r\nimport json, re, os, math, unicodedata\r\n\r\nquran_path = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\r\n\r\n# Load files\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_data = json.load(f)\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_data = json.load(f)\r\n\r\nlen(quran_data), len(hadith_data)",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754624d88194b2ac4f3bb4d1f01605bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675474f948194ac8e35badfa5b38f05bdea019eac1dd0",
+      "code": "# Inspect first few entries to confirm structure\r\nquran_data[0].keys(), hadith_data[0].keys()[:10]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896754982ac8194936b66b94b76279805bdea019eac1dd0",
+      "code": "list(quran_data[0].keys())[:10], list(hadith_data[0].keys())[:10]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896754b5ad881948f37c1b5fb5976b305bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967551844481948b2aad136db27afd05bdea019eac1dd0",
+      "code": "import re\r\nimport unicodedata\r\n\r\n# Arabic diacritics set\r\narabic_diacritics = re.compile(r\"[\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]\")\r\ntatweel_re = re.compile(r\"\\u0640\")\r\npunct_re = re.compile(r\"[^\\w\\s\\u0600-\\u06FF]\")  # remove non-letter/digit/space except Arabic range\r\n\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return \"\"\r\n    # Normalize Unicode form\r\n    text = unicodedata.normalize(\"NFC\", text)\r\n    # Remove tatweel and diacritics\r\n    text = tatweel_re.sub(\"\", text)\r\n    text = arabic_diacritics.sub(\"\", text)\r\n    # Normalize hamza forms\r\n    text = text.replace(\"أ\", \"ا\").replace(\"إ\", \"ا\").replace(\"آ\", \"ا\")\r\n    text = text.replace(\"ؤ\", \"و\").replace(\"ئ\", \"ي\").replace(\"ء\", \"\")  # dropping standalone hamza\r\n    # Optional: normalize taa marbuta? We'll keep as is to reduce false changes.\r\n    # Remove punctuation\r\n    text = punct_re.sub(\" \", text)\r\n    # Lowercase (no effect for Arabic)\r\n    text = text.lower()\r\n    # Collapse whitespace\r\n    text = re.sub(r\"\\s+\", \" \", text).strip()\r\n    return text\r\n\r\ndef lcs_length(a, b):\r\n    # Dynamic programming LCS length\r\n    n, m = len(a), len(b)\r\n    # If too long, might be heavy; but texts are short; it's fine.\r\n    dp = [0]*(m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        ai = a[i-1]\r\n        for j in range(1, m+1):\r\n            temp = dp[j]\r\n            if ai == b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                if dp[j] < dp[j-1]:\r\n                    dp[j] = dp[j-1]\r\n            prev = temp\r\n    return dp[m]\r\n\r\ndef lcs_ratio(a, b):\r\n    if not a or not b:\r\n        return 0.0\r\n    la = len(a); lb = len(b)\r\n    l = lcs_length(a, b)\r\n    # normalized by average length or max length? They said normalized LCS; we'll do 2*l/(la+lb) equivalent to F1-like\r\n    return (2*l) / (la + lb)\r\n\r\ndef token_f1(a, b):\r\n    # tokens are whitespace separated\r\n    ta = [t for t in a.split() if t]\r\n    tb = [t for t in b.split() if t]\r\n    sa = set(ta); sb = set(tb)\r\n    if not sa or not sb:\r\n        return 0.0\r\n    inter = len(sa & sb)\r\n    prec = inter / len(sa)\r\n    rec = inter / len(sb)\r\n    if prec + rec == 0:\r\n        return 0.0\r\n    return 2*prec*rec/(prec+rec)\r\n\r\ntarget_full = \"الله وحده يعلم كم عانى وكم تحمل لينقذنا من الظلام\"\r\nsnippet = \"الله وحده ... من الظلام\"\r\nnorm_full = normalize_ar(target_full)\r\nnorm_snip = normalize_ar(snippet)\r\n\r\nnorm_full, norm_snip, len(norm_full), len(norm_snip)",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967561b67881948171e15bb6d3380305bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896756706d08194b48bcbd5a9b8434805bdea019eac1dd0",
+      "code": "from math import isfinite\r\n\r\ndef evaluate_candidates_texts(texts, labels, topn=10):\r\n    best = []\r\n    for i, txt in enumerate(texts):\r\n        norm_txt = normalize_ar(txt)\r\n        # Similarities\r\n        lcs_full = lcs_ratio(norm_full, norm_txt)\r\n        tf1_full = token_f1(norm_full, norm_txt)\r\n        lcs_snip = lcs_ratio(norm_snip, norm_txt)\r\n        tf1_snip = token_f1(norm_snip, norm_txt)\r\n        # We'll record max single metric for ranking; but final decision uses full metrics.\r\n        score = max(lcs_full, tf1_full, lcs_snip, tf1_snip)\r\n        best.append((score, lcs_full, tf1_full, lcs_snip, tf1_snip, i, txt, labels[i]))\r\n    best.sort(reverse=True, key=lambda x: x[0])\r\n    return best[:topn]\r\n\r\n# Prepare Quran texts and labels\r\nq_texts = [d.get(\"ayah_text\",\"\") for d in quran_data]\r\nq_labels = [f\"{d.get('surah_name','')}:{d.get('ayah_id','')}\" for d in quran_data]\r\n\r\nbest_q = evaluate_candidates_texts(q_texts, q_labels, topn=20)\r\nbest_q[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756dc17081948cb0445f409a3e1f05bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757073208194bd312f37bc0fe52405bdea019eac1dd0",
+      "code": "# Find occurrences of \"الظلام\" and \"ظلام\" and \"الظلمات\" in Quran\r\ndef find_contains(term, texts, labels):\r\n    res = []\r\n    for t,l in zip(texts, labels):\r\n        if term in t:\r\n            res.append((l,t))\r\n    return res\r\n\r\nq_contains_althulmam = find_contains(\"الظلام\", q_texts, q_labels)\r\nq_contains_thulmam = find_contains(\"ظلام\", q_texts, q_labels)\r\nq_contains_althulumat = find_contains(\"الظلمات\", q_texts, q_labels)\r\n\r\nlen(q_contains_althulmam), len(q_contains_thulmam), len(q_contains_althulumat), q_contains_thulmam[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967573f18c81949a26b9e11f6524b505bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967574f64c8194bb75065bed40d74205bdea019eac1dd0",
+      "code": "# search normalized forms\r\nnorm_q_texts = [normalize_ar(t) for t in q_texts]\r\ndef find_contains_norm(term, norm_texts, texts, labels):\r\n    norm_term = normalize_ar(term)\r\n    res = []\r\n    for nt, t, l in zip(norm_texts, texts, labels):\r\n        if norm_term in nt:\r\n            res.append((l,t))\r\n    return res\r\n\r\nq_contains_alzulumat = find_contains_norm(\"الظلمات\", norm_q_texts, q_texts, q_labels)\r\nq_contains_zulumat = find_contains_norm(\"ظلمات\", norm_q_texts, q_texts, q_labels)\r\nq_contains_zulmam = find_contains_norm(\"ظلام\", norm_q_texts, q_texts, q_labels)\r\nq_contains_min_alzulumat = find_contains_norm(\"من الظلمات\", norm_q_texts, q_texts, q_labels)\r\n\r\nlen(q_contains_alzulumat), len(q_contains_zulumat), len(q_contains_zulmam), len(q_contains_min_alzulumat)",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967577e0a881949384d81dcdccfa7805bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967579dc9c8194b0e0379621cc614905bdea019eac1dd0",
+      "code": "find_contains_norm(\"لينقذنا\", norm_q_texts, q_texts, q_labels)[:5], find_contains_norm(\"ينقذ\", norm_q_texts, q_texts, q_labels)[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757bb6188194814c2601cab539e705bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757ca5988194aaba39f81c3d719d05bdea019eac1dd0",
+      "code": "# Prepare hadith texts (preferring 'Matn' if present; else hadithTxt)\r\nh_texts = []\r\nh_labels = []\r\nfor i, d in enumerate(hadith_data):\r\n    txt = d.get(\"Matn\") or d.get(\"hadithTxt\") or \"\"\r\n    # Some may include isnad; but we are to return only matn; but the dataset has those fields for matn.\r\n    h_texts.append(txt)\r\n    h_labels.append(f\"hadith_{i}\")\r\n    \r\nnorm_h_texts = [normalize_ar(t) for t in h_texts]\r\n\r\ndef search_norm(term):\r\n    return find_contains_norm(term, norm_h_texts, h_texts, h_labels)\r\n\r\nlen(search_norm(\"الظلمات\")), len(search_norm(\"الظلام\")), len(search_norm(\"ظلام\")), len(search_norm(\"ينقذ\")), len(search_norm(\"لينقذ\"))",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758321388194bb75e0cc176d8be905bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896758388a88194bf6af31186f3ba3f05bdea019eac1dd0",
+      "code": "search_norm(\"الظلام\")[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675857efc81948da6c1720870213405bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967586546481949f4c216b651ba5b605bdea019eac1dd0",
+      "code": "search_norm(\"ينقذ\")",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758852cc8194b68c98a5817a12fb05bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967597d33c8194b1f361fae2df654105bdea019eac1dd0",
+      "code": "# Find Surah al-Ahzab 21\r\n# Identify surah_name 'الأحزاب' and ayah_id 21\r\ncandidates = [(d['ayah_text'], d['surah_name'], d['ayah_id']) for d in quran_data if d['surah_name'] == 'الأحزاب' and d['ayah_id'] == 21]\r\ncandidates",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896759b042481948d8a4034c373c2d805bdea019eac1dd0",
+      "code": "cand_text = candidates[0][0]\r\nnorm_cand = normalize_ar(cand_text)\r\nsim_lcs = lcs_ratio(norm_full, norm_cand)\r\nsim_tf1 = token_f1(norm_full, norm_cand)\r\nsim_lcs, sim_tf1",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896759dbc6081949c547488f00f7bef05bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896759f0ee48194b6cc5f5adb5dc62105bdea019eac1dd0",
+      "code": "def top_by_metric(texts, labels, metric='lcs_full', topn=10):\r\n    res = []\r\n    for t,l in zip(texts, labels):\r\n        nt = normalize_ar(t)\r\n        lf = lcs_ratio(norm_full, nt)\r\n        tf = token_f1(norm_full, nt)\r\n        res.append((lf, tf, l, t))\r\n    if metric == 'lcs_full':\r\n        res.sort(reverse=True, key=lambda x: x[0])\r\n    else:\r\n        res.sort(reverse=True, key=lambda x: x[1])\r\n    return res[:topn]\r\n\r\ntop_lcs_q = top_by_metric(q_texts, q_labels, 'lcs_full', 10)\r\ntop_tf1_q = top_by_metric(q_texts, q_labels, 'tf1', 10)\r\ntop_lcs_q[:5], top_tf1_q[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675a6bb1c819497dc00b2ba79ad5305bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675a82e7081949acfa02917fc0cc705bdea019eac1dd0",
+      "code": "top_lcs_h = top_by_metric(h_texts, h_labels, 'lcs_full', 10)\r\ntop_tf1_h = top_by_metric(h_texts, h_labels, 'tf1', 10)\r\n[(r[0], r[1], r[2]) for r in top_lcs_h[:5]], [(r[0], r[1], r[2]) for r in top_tf1_h[:5]]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689675f8ece481948449158ebd1c43dc05bdea019eac1dd0",
+      "code": "# Let's view the first few hadith texts from top_lcs_h\r\n[r[2] for r in top_lcs_h[:3]], [h_texts[int(r[2].split('_')[1])] for r in top_lcs_h[:3]]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675fb45d08194aef196550e4d9f1205bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675ffab748194bb6ada263679275a05bdea019eac1dd0",
+      "code": "# gather verses containing 'من الظلمات' normalized and compute metrics\r\ncands = q_contains_min_alzulumat  # list of (label,text) for 'من الظلمات'\r\nres = []\r\nfor l, t in cands:\r\n    nt = normalize_ar(t)\r\n    res.append((lcs_ratio(norm_full, nt), token_f1(norm_full, nt), l, t))\r\nsorted(res, reverse=True)[:5]",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967604b5408194983a780e67bfaa7105bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967612f4a08194a5fdd586d5aa9f4f05bdea019eac1dd0",
+      "code": "# Targeted search for phrases in Quran and hadith\r\ndef find_phrase_in_db(phrase):\r\n    norm_p = normalize_ar(phrase)\r\n    # search quran\r\n    res_q = []\r\n    for t, l, nt in zip(q_texts, q_labels, norm_q_texts):\r\n        if norm_p in nt:\r\n            res_q.append((l, t))\r\n    # search hadith\r\n    res_h = []\r\n    for t, l, nt in zip(h_texts, h_labels, norm_h_texts):\r\n        if norm_p in nt:\r\n            res_h.append((l, t))\r\n    return res_q, res_h\r\n\r\nphrases = [\"الله وحده يعلم\", \"كم عانى\", \"كم تحمل\", \"لينقذنا\", \"من الظلام\"]\r\nresults = {p: find_phrase_in_db(p) for p in phrases}\r\n{k: (len(v[0]), len(v[1])) for k,v in results.items()}",
+      "container_id": "cntr_68967537d4148190a11c4ae5d54c22f7093d1a150cce7ab2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967616fc8c8194b322295b7e8b27c305bdea019eac1dd0",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_6896762338fc81948c52a5c29ca5f1f505bdea019eac1dd0",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 205351,
+    "input_tokens_details": {
+      "cached_tokens": 166952
+    },
+    "output_tokens": 6805,
+    "output_tokens_details": {
+      "reasoning_tokens": 6784
+    },
+    "total_tokens": 212156
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

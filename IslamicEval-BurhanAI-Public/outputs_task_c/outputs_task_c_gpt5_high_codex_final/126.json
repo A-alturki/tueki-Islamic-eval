@@ -1,0 +1,464 @@
+{
+  "id": "resp_689678d3036c819685fab3613e33c5aa0e7fe4e6930b20cb",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7f6d48196b4bf36f11326dfa80e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f3fa088196b516afd6d50a51140e7fe4e6930b20cb",
+      "code": "import json, re, os, unicodedata, sys, math, difflib, itertools, statistics, numpy as np",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f6fa188196ab41aac02dbadac30e7fe4e6930b20cb",
+      "code": "import json, os, textwrap, re, unicodedata, math, difflib, numpy as np, statistics",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678f8abd88196bb994ee8ca853fcb0e7fe4e6930b20cb",
+      "code": "quran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\nprint(os.path.exists(quran_path), os.path.exists(hadith_path))",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678fab214819685064d6b2fe7441a0e7fe4e6930b20cb",
+      "code": "with open(quran_path, 'r', encoding='utf-8') as f:\n    quran = json.load(f)\nlen(quran), type(quran)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678fc99408196be9e68f9f4f94bae0e7fe4e6930b20cb",
+      "code": "# Let's inspect a sample entries structure\nquran[0]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689678feaa748196ba0d291326a11dba0e7fe4e6930b20cb",
+      "code": "with open(hadith_path, 'r', encoding='utf-8') as f:\n    hadiths = json.load(f)\nlen(hadiths), type(hadiths), hadiths[0].keys()",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679011b18819697e9273930d69c9f0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967904fe9081968f611610260327790e7fe4e6930b20cb",
+      "code": "import re, unicodedata, math\n\nHARAKAT = ''.join(chr(c) for c in range(0x0610, 0x061B+1)) + ''.join(chr(c) for c in range(0x064B, 0x065F+1)) + '\\u0670'\nTATWEEL = '\\u0640'\nPUNCTUATION = ''.join([\n    chr(c) for c in list(range(0x060C, 0x061B+1)) + [0x061F, 0x06D4, 0x066B, 0x066C]\n])\n# Additional punctuation ascii\nASCII_PUNCT = r\"\"\"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\"\"\"\n\ndef normalize_ar(s):\n    if s is None:\n        return ''\n    # unify forms\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا')\n    s = s.replace('ى','ي')  # unify alif maq to ya\n    s = s.replace('ؤ','و').replace('ئ','ي').replace('ء','')\n    s = s.replace('ٱ','ا')\n    # remove diacritics and tatweel\n    s = ''.join(ch for ch in s if ch not in HARAKAT and ch != TATWEEL)\n    # remove punctuation\n    s = ''.join(ch for ch in s if ch not in PUNCTUATION and ch not in ASCII_PUNCT)\n    # collapse whitespace\n    s = re.sub(r'\\s+', ' ', s).strip()\n    return s\n\ndef lcs_length(a, b):\n    # compute LCS length\n    n, m = len(a), len(b)\n    dp = [0]*(m+1)\n    for i in range(1, n+1):\n        prev = 0\n        for j in range(1, m+1):\n            tmp = dp[j]\n            if a[i-1] == b[j-1]:\n                dp[j] = prev + 1\n            else:\n                dp[j] = max(dp[j], dp[j-1])\n            prev = tmp\n    return dp[m]\n\ndef normalized_lcs_ratio(a, b):\n    if not a or not b:\n        return 0.0\n    lcs = lcs_length(a, b)\n    return lcs / max(len(a), len(b))\n\ndef token_f1(a, b):\n    A = a.split()\n    B = b.split()\n    if not A and not B:\n        return 1.0\n    if not A or not B:\n        return 0.0\n    # remove duplicates by counts\n    from collections import Counter\n    ca = Counter(A); cb = Counter(B)\n    common = sum(min(ca[t], cb[t]) for t in set(ca) & set(cb))\n    precision = common / sum(ca.values())\n    recall = common / sum(cb.values())\n    if precision+recall==0:\n        return 0.0\n    return 2*precision*recall/(precision+recall)\n\ndef robust_similarity(a, b):\n    na = normalize_ar(a)\n    nb = normalize_ar(b)\n    lcsr = normalized_lcs_ratio(na, nb)\n    tf1 = token_f1(na, nb)\n    return max(lcsr, tf1), {'nlcs': lcsr, 'tokenF1': tf1, 'na': na, 'nb': nb}\n\noriginal = \"لا تَنازَعوا، فَإِنَّ النَزاعَ يُؤَذِي المَرءَ\"\noriginal_norm = normalize_ar(original)\noriginal, original_norm",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896790c2ff481968f7d1c744e07053d0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896790ce4f88196b7183b42e56b98ed0e7fe4e6930b20cb",
+      "code": "def search_quran_by_normalized_substring(substr_norm):\n    hits = []\n    for i, rec in enumerate(quran):\n        t = rec['ayah_text']\n        if substr_norm in normalize_ar(t):\n            hits.append((i, rec))\n    return hits\n\nhits_q = search_quran_by_normalized_substring(\"تنازع\")\nlen(hits_q)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896790f7b9881969139142fa7a69cde0e7fe4e6930b20cb",
+      "code": "[(rec['surah_id'], rec['ayah_id'], rec['ayah_text']) for i, rec in hits_q]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679116c3c8196b0232aaffcf238190e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896791218bc8196961791b391a0519a0e7fe4e6930b20cb",
+      "code": "candidates = [rec for i, rec in hits_q]\ndef sim_with_original(text):\n    sim, detail = robust_similarity(original, text)\n    return sim, detail\n\nfor rec in candidates:\n    sim, detail = sim_with_original(rec['ayah_text'])\n    print(rec['surah_id'], rec['ayah_id'], sim, detail)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791433a481969e4fc47b6c04ba930e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967915996c819694b83e52855371a30e7fe4e6930b20cb",
+      "code": "def search_hadith_substring(substr_norm):\n    matches = []\n    for rec in hadiths:\n        for field in ('hadithTxt','Matn'):\n            t = rec.get(field)\n            if not t:\n                continue\n            if substr_norm in normalize_ar(t):\n                matches.append((rec['hadithID'], rec))\n                break\n    return matches\n\nhadith_hits = search_hadith_substring(\"لا تنازع\")\nlen(hadith_hits)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967921263481969ab49684fdb98f220e7fe4e6930b20cb",
+      "code": "hadith_hits[:1]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792321b4819681a8dac3a55744660e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679258bc08196a4beca86eea290b90e7fe4e6930b20cb",
+      "code": "rec = hadith_hits[0][1]\ntext = rec['Matn']\nsim, detail = robust_similarity(original, text)\nsim, detail",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967927522c81969955a07fc4195ada0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896792a72dc8196b6dda757b5b967a90e7fe4e6930b20cb",
+      "code": "# Search for \"لا تنازعوا\" exact normalized appears?\ndef find_hadiths_containing(phrase):\n    phrase_norm = normalize_ar(phrase)\n    res = []\n    for rec in hadiths:\n        for field in ('Matn','hadithTxt'):\n            t=rec.get(field) or ''\n            if phrase_norm in normalize_ar(t):\n                res.append(rec)\n                break\n    return res\n\nfind_hadiths = find_hadiths_containing(\"لا تنازعوا\")\nlen(find_hadiths)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967937217c8196b575128a961491e30e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967938c0dc819690f25dadc92115e30e7fe4e6930b20cb",
+      "code": "def search_hadith_by_root(root):\n    root_norm = normalize_ar(root)\n    matches=[]\n    for rec in hadiths:\n        matn = rec.get('Matn') or ''\n        if root_norm in normalize_ar(matn):\n            matches.append(rec)\n    return matches\n\nmatn_hits = search_hadith_by_root(\"تنازع\")\nlen(matn_hits)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896793e342c8196af31b4ce13dc81b90e7fe4e6930b20cb",
+      "code": "[(rec['hadithID'], rec['Matn'][:120]) for rec in matn_hits[:10]]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794053dc8196a886afacb9d4dfd60e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794129e08196aa870ff9d5ed98840e7fe4e6930b20cb",
+      "code": "def top_similar_texts_to_original_in_hadith(matn_hits, topn=10):\n    scores=[]\n    for rec in matn_hits:\n        txt = rec.get('Matn') or rec.get('hadithTxt') or ''\n        sim, detail = robust_similarity(original, txt)\n        scores.append((sim, rec['hadithID'], txt[:200], detail))\n    scores.sort(reverse=True, key=lambda x: x[0])\n    return scores[:topn]\n\ntop_hadith = top_similar_texts_to_original_in_hadith(matn_hits, topn=10)\ntop_hadith[:5]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967943f8848196b0028cb8c0e1d1400e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967945290c81968b0aca32fa1e4a5f0e7fe4e6930b20cb",
+      "code": "# Find hadith with hadithID 99996\nh = [rec for rec in hadiths if rec['hadithID']==99996]\nh[0]['Matn'][:600]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679476fb88196bccf4a245b5fe21d0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967948ade48196b64fe2f4078a34d50e7fe4e6930b20cb",
+      "code": "def search_matn_for(phrase):\n    pn = normalize_ar(phrase)\n    res=[]\n    for rec in hadiths:\n        m = rec.get('Matn') or ''\n        if pn in normalize_ar(m):\n            res.append(rec)\n    return res\n\nres = search_matn_for(\"لا تختلفوا\")\nlen(res)",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896794e5b708196af82028f7d76aebe0e7fe4e6930b20cb",
+      "code": "[(rec['hadithID'], rec['Matn'][:200]) for rec in res[:10]]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679503428819684a477ea3c6026520e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967960dab88196b265683d26a2b5a80e7fe4e6930b20cb",
+      "code": "def search_hadith_contains_all(words):\n    # words list of normalized tokens\n    words_norm = [normalize_ar(w) for w in words]\n    res=[]\n    for rec in hadiths:\n        m = rec.get('Matn') or ''\n        mn = normalize_ar(m)\n        if all(w in mn for w in words_norm):\n            res.append(rec)\n    return res\n\nsearch_hadith_contains_all([\"النزاع\"])[:3], len(search_hadith_contains_all([\"النزاع\"]))",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796a01c08196a47fcbc5c5f360220e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796a7c108196b3ba5198bbed9b1a0e7fe4e6930b20cb",
+      "code": "rec = search_hadith_contains_all([\"النزاع\"])[0]\nrobust_similarity(original, rec['Matn'])",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796f43508196961dd4d11249d9680e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967970fd8081968eb41c67f30a08c90e7fe4e6930b20cb",
+      "code": "find_hadiths_containing(\"لا تنازعوا الامر\")[:3]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896797c68148196bc62f412b53533340e7fe4e6930b20cb",
+      "code": "find_hadiths_containing(\"لا تنازعوا السلطان\")[:3]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967987f1488196a97fc809f1efb3d90e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679880b4c81969316647512a1ed680e7fe4e6930b20cb",
+      "code": "find_hadiths_containing(\"تتنازعوا\")[:5]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679934c6c8196aa83b5d58a8f0ae20e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679a1890c8196b428882d83da7dec0e7fe4e6930b20cb",
+      "code": "find_hadiths_containing(\"يؤذي المرء\")[:3], find_hadiths_containing(\"يوذي المر\")[:3]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679b70640819688b5e6004c630c2b0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679b785d88196a101c7d9f651356f0e7fe4e6930b20cb",
+      "code": "# general search for 'يؤذي'\nhits = search_hadith_by_root(\"يؤذي\")\nlen(hits), [(rec['hadithID'], rec['Matn'][:120]) for rec in hits[:3]]",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679bd5ec481969434ae2f4ba160350e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679c0810c8196bf701736ffa6cfb00e7fe4e6930b20cb",
+      "code": "# Retrieve ayah 8:46 text exactly\nrec_846 = [rec for rec in quran if rec['surah_id']==8 and rec['ayah_id']==46][0]\nrec_846",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679c2fff48196853b52b76e69220e0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679c51ef08196a24794aed93d993a0e7fe4e6930b20cb",
+      "code": "find_hadiths_containing(\"لا تنازعوا بالقران\")",
+      "container_id": "cntr_689678d4d528819098c293464f3ae7f80c2544f0db00c699",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679d0740c8196a9e0a1f295c827ba0e7fe4e6930b20cb",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679d1c70c8196a0c4b5e127007fb90e7fe4e6930b20cb",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 288753,
+    "input_tokens_details": {
+      "cached_tokens": 256432
+    },
+    "output_tokens": 7253,
+    "output_tokens_details": {
+      "reasoning_tokens": 7232
+    },
+    "total_tokens": 296006
+  },
+  "user": null,
+  "store": false
+}

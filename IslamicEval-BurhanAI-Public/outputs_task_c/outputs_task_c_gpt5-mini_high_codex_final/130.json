@@ -1,0 +1,174 @@
+{
+  "id": "resp_689708a10c9081969d547ab3bbd2b3d80288b9269c938e27",
+  "created_at": 1754728609.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a49e288196a20a89dfe88590f30288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708aa60cc8196b6fe5faeff31b8c90288b9269c938e27",
+      "code": "# Load the quranic_verses.json and six_hadith_books.json and inspect structure, then search for the given snippet.\r\nimport json, os, unicodedata, re, math\r\nqfile = '/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json'\r\nhfile = '/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json'\r\nprint(\"files exist:\", os.path.exists(qfile), os.path.exists(hfile))\r\nwith open(qfile, 'r', encoding='utf-8') as f:\r\n    qdata = json.load(f)\r\nwith open(hfile, 'r', encoding='utf-8') as f:\r\n    hdata = json.load(f)\r\n# Inspect entries counts and keys\r\nprint(\"qdata len:\", len(qdata))\r\nprint(\"qdata sample keys:\", list(qdata[0].keys()) if len(qdata)>0 else None)\r\nprint(\"hdata len:\", len(hdata))\r\nprint(\"hdata sample keys:\", list(hdata[0].keys()) if len(hdata)>0 else None)",
+      "container_id": "cntr_689708a290d8819082ac03d41ce5bdf806fccfe015f79147",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708adddd081969f09675f3f415d1b0288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b2d7188196ab254b7c08fd4ae50288b9269c938e27",
+      "code": "# Define normalization for Arabic strings\r\nimport re, unicodedata\r\n\r\narabic_diacritics = re.compile(\"\"\"[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06DC\\u06DF-\\u06E8\\u06EA-\\u06ED]\"\"\")\r\ntatweel = '\\u0640'  # ـ\r\ndef normalize_arabic(s):\r\n    if s is None:\r\n        return ''\r\n    s = str(s)\r\n    # normalize unicode\r\n    s = unicodedata.normalize('NFC', s)\r\n    # remove tashkeel/diacritics\r\n    s = arabic_diacritics.sub('', s)\r\n    # remove tatweel\r\n    s = s.replace(tatweel, '')\r\n    # unify hamza variations: map أ إ آ ء to ا ; also ى to ي? Not sure mapping but we'll map ى->ى or to ي?\r\n    # But instruction: unify hamza; we'll map all hamza forms to ا and hamza-on-ya to ئ? Hmm simpler: replace 'أ','إ','آ','ٱ' with 'ا' and 'ؤ' -> و, 'ئ' -> ي maybe\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا')\r\n    s = s.replace('ؤ','و').replace('ئ','ي')\r\n    # Remove punctuation and non-Arabic letters/numbers\r\n    # Keep Arabic letters and numbers and spaces\r\n    s = re.sub(r'[^\\u0600-\\u06FF0-9\\s]', ' ', s)\r\n    # collapse whitespace and lowercase? Arabic has no lowercase; just strip\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    return s\r\n\r\n# Test normalization:\r\ns1 = \"يحلون فيها من أساور من ذهب ويلبسون ثيابا خضرا من سندس وإستبرق متكئين فيها على الأرائك نعم الثواب وحسنت مرتفقا\"\r\nprint(normalize_arabic(s1)[:200])",
+      "container_id": "cntr_689708a290d8819082ac03d41ce5bdf806fccfe015f79147",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b81ae8819692d032d1d6b5520a0288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c19a48819689d131ede42617aa0288b9269c938e27",
+      "code": "from difflib import SequenceMatcher\r\nfull_span = \"يحلون فيها من أساور من ذهب ويلبسون ثيابا خضرا من سندس وإستبرق متكئين فيها على الأرائك نعم الثواب وحسنت مرتفقا\"\r\nsnippet = \"يحلون فيها...سنت مرتفقا\"\r\n# normalize\r\nn_full = normalize_arabic(full_span)\r\nn_snip = normalize_arabic(snippet)\r\nprint(\"normalized full:\", n_full)\r\nprint(\"normalized snippet:\", n_snip)\r\n\r\n# Precompute normalized ayah_texts for qdata\r\ncand_list = []\r\nfor entry in qdata:\r\n    text = entry.get('ayah_text','')\r\n    ntext = normalize_arabic(text)\r\n    # compute substring presence\r\n    contains_full = n_full in ntext\r\n    contains_snip = n_snip in ntext\r\n    # compute similarity ratios\r\n    seq_ratio_full = SequenceMatcher(None, n_full, ntext).ratio()\r\n    seq_ratio_snip = SequenceMatcher(None, n_snip, ntext).ratio()\r\n    # compute token overlap F1\r\n    tokens_full = set(n_full.split())\r\n    tokens_text = set(ntext.split())\r\n    common = tokens_full & tokens_text\r\n    prec = len(common)/len(tokens_text) if len(tokens_text)>0 else 0\r\n    rec = len(common)/len(tokens_full) if len(tokens_full)>0 else 0\r\n    f1 = (2*prec*rec/(prec+rec)) if (prec+rec)>0 else 0\r\n    if contains_full or contains_snip or seq_ratio_full>0.5 or f1>0.5:\r\n        cand_list.append((entry, ntext, contains_full, contains_snip, seq_ratio_full, seq_ratio_snip, f1))\r\nlen(cand_list)",
+      "container_id": "cntr_689708a290d8819082ac03d41ce5bdf806fccfe015f79147",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c83fcc8196a74e0924b055aa5b0288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c867888196b2f0d43479b1154f0288b9269c938e27",
+      "code": "cand_list[0][0]",
+      "container_id": "cntr_689708a290d8819082ac03d41ce5bdf806fccfe015f79147",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c9c64081969d3362a6a5c1f5d60288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708cabae08196b4bb6860535db1600288b9269c938e27",
+      "code": "entry, ntext, contains_full, contains_snip, seq_ratio_full, seq_ratio_snip, f1 = cand_list[0]\r\nprint(\"ntext:\", ntext)\r\nprint(\"contains_full:\", contains_full, \"contains_snip:\", contains_snip)\r\nprint(\"seq_ratio_full:\", seq_ratio_full)\r\nprint(\"seq_ratio_snip:\", seq_ratio_snip)\r\nprint(\"token_f1:\", f1)",
+      "container_id": "cntr_689708a290d8819082ac03d41ce5bdf806fccfe015f79147",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708cd29a081968a592596e10560ef0288b9269c938e27",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708e0d8e48196a93e9dc2aa09614f0288b9269c938e27",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"أُولَـٰئِكَ لَهُمْ جَنَّاتُ عَدْنٍ تَجْرِي مِنْ تَحْتِهِمُ الْأَنْهَارُ يُحَلَّوْنَ فِيهَا مِنْ أَسَاوِرَ مِنْ ذَهَبٍ وَيَلْبَسُونَ ثِيَابًا خُضْرًا مِنْ سُنْدُسٍ وَإِسْتَبْرَقٍ مُتَّكِئِينَ فِيهَا عَلَى الْأَرَائِكِ ۚ نِعْمَ الثَّوَابُ وَحَسُنَتْ مُرْتَفَقًا\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 23194,
+    "input_tokens_details": {
+      "cached_tokens": 22000
+    },
+    "output_tokens": 5303,
+    "output_tokens_details": {
+      "reasoning_tokens": 5120
+    },
+    "total_tokens": 28497
+  },
+  "user": null,
+  "store": false
+}

@@ -1,0 +1,189 @@
+{
+  "id": "resp_689678d308c88193ac1f7cc79b5173a6069176f696ee943e",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d720cc8193b1aca995f095c172069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678f5d5a0819398536cb66e01d991069176f696ee943e",
+      "code": "# Let's load the provided files and search.\r\nimport json, re, unicodedata, os, difflib, math, itertools, statistics, sys, collections, string\r\n\r\nquran_path = '/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json'\r\nhadith_path = '/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json'\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran_db = load_json(quran_path)\r\nhadith_db = load_json(hadith_path)\r\n\r\nlen(quran_db), len(hadith_db), type(quran_db[:1]), quran_db[0].keys()\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689678f90f0081938006746b8000655d069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689678fa2b808193a852d8913e7a3d02069176f696ee943e",
+      "code": "# Utilities for Arabic normalization\r\n\r\narabic_diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06DC\\u06DF-\\u06E8\\u06EA-\\u06ED]')\r\ntatweel = '\\u0640'\r\n\r\ndef normalize_ar(s):\r\n    if s is None:\r\n        return ''\r\n    # Remove diacritics\r\n    s = arabic_diacritics.sub('', s)\r\n    # Remove tatweel\r\n    s = s.replace(tatweel, '')\r\n    # Unify hamza forms\r\n    s = s.replace('أ','ا').replace('إ','ا').replace('آ','ا').replace('ى','ي').replace('ؤ','و').replace('ئ','ي').replace('ة','ه')\r\n    # punctuation and non-letters/digits spaces\r\n    s = re.sub(r'[^\\w\\s]', ' ', s, flags=re.UNICODE)\r\n    # Unicode normalization\r\n    s = unicodedata.normalize('NFKC', s)\r\n    # collapse spaces\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    # lowercase (though Arabic unaffected)\r\n    s = s.lower()\r\n    return s\r\n\r\n# LCS length\r\ndef lcs_len(a,b):\r\n    # dynamic programming optimized\r\n    n, m = len(a), len(b)\r\n    # If too long, compute approximate by SequenceMatcher\r\n    if n*m > 1_500_000:\r\n        # fallback approximate ratio times min length\r\n        ratio = difflib.SequenceMatcher(None, a, b).ratio()\r\n        return int(ratio * min(n, m))\r\n    dp = [0]*(m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        for j in range(1, m+1):\r\n            tmp = dp[j]\r\n            if a[i-1] == b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                dp[j] = max(dp[j], dp[j-1])\r\n            prev = tmp\r\n    return dp[m]\r\n\r\ndef lcs_ratio(a,b):\r\n    # normalized by average length?\r\n    # We'll use 2*lcs/(len(a)+len(b))\r\n    if not a and not b:\r\n        return 1.0\r\n    l = lcs_len(a,b)\r\n    return 2*l / (len(a) + len(b) + 1e-9)\r\n\r\ndef token_f1(a,b):\r\n    # after normalization, token F1\r\n    ta = a.split()\r\n    tb = b.split()\r\n    sa = collections.Counter(ta)\r\n    sb = collections.Counter(tb)\r\n    overlap = sum((sa & sb).values())\r\n    if overlap == 0:\r\n        return 0.0\r\n    prec = overlap / (sum(sb.values()) + 1e-9) # candidate tokens b ? Wait define: compare candidate vs query\r\n    rec  = overlap / (sum(sa.values()) + 1e-9)\r\n    if prec + rec == 0:\r\n        return 0.0\r\n    f1 = 2*prec*rec/(prec+rec)\r\n    return f1\r\n\r\n# Load normalized fields for verse texts\r\nfor v in quran_db[:3]:\r\n    pass\r\n\r\n# Create index of normalized ayah_text\r\nquran_norm = [(i, v['surah_id'], v['ayah_id'], v['surah_name'], v['ayah_text'], normalize_ar(v['ayah_text'])) for i,v in enumerate(quran_db)]\r\n\r\n# Function to search quran by substring tokens\r\ndef search_quran(query, topn=10):\r\n    qn = normalize_ar(query)\r\n    res = []\r\n    for i, sid, aid, sname, text, norm in quran_norm:\r\n        # compute lcs_ratio and token_f1\r\n        lr = lcs_ratio(qn, norm)\r\n        tf = token_f1(qn, norm)\r\n        # also check if query tokens subset\r\n        # Resist heavy compute by simple scoring\r\n        score = 0.6*lr + 0.4*tf\r\n        # Also check if qn substring of norm or vice versa boost\r\n        if qn and (qn in norm or norm in qn):\r\n            score += 0.2\r\n        res.append((score, lr, tf, sid, aid, sname, text, norm))\r\n    res.sort(reverse=True, key=lambda x: x[0])\r\n    return res[:topn]\r\n\r\norig_full = \"الذين إذا ذكر الله وجلت قلوبهم والصابرين على ما أصابهم والمتقين إلى الله يُرجون\"\r\nsnippet = \"الذين إذا ...لله يُرجون\" # but normalization expects actual text; We'll handle snippet search by partial tokens\r\n\r\n# For snippet with ellipses, we should strip non-Arabic letters; We'll just use \"الذين إذا لله يرجون\"? Not good.\r\n# Let's search using first 3-4 words of snippet\r\nhypotheses = [\r\n    orig_full,\r\n    \"الذين إذا ذكر الله وجلت قلوبهم\",\r\n    \"وجلت قلوبهم والصابرين على ما أصابهم\",\r\n    \"الذين إذا ذكر الله\",\r\n    \"إنما المؤمنون الذين إذا ذكر الله وجلت قلوبهم\",\r\n]\r\n\r\nfor q in hypotheses:\r\n    res = search_quran(q, topn=5)\r\n    print(\"Query:\", q)\r\n    for r in res:\r\n        score, lr, tf, sid, aid, sname, text, norm = r\r\n        print(f\"- score={score:.3f} lr={lr:.3f} tf={tf:.3f} S{sname}({sid}):{aid} | {text}\")\r\n    print()\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896791d2a2881939fdaf2f2fb5100af069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927b0a48193a8e041476955d4e5069176f696ee943e",
+      "code": "def tokenize_norm(s):\r\n    return normalize_ar(s).split()\r\n\r\ndef lcs_tokens(a_tokens, b_tokens):\r\n    n, m = len(a_tokens), len(b_tokens)\r\n    dp = [[0]*(m+1) for _ in range(n+1)]\r\n    for i in range(1,n+1):\r\n        for j in range(1,m+1):\r\n            if a_tokens[i-1] == b_tokens[j-1]:\r\n                dp[i][j] = dp[i-1][j-1] + 1\r\n            else:\r\n                dp[i][j] = max(dp[i-1][j], dp[i][j-1])\r\n    return dp[n][m]\r\n\r\nfull = orig_full\r\ncand = [r for r in search_quran(orig_full, topn=1)][0]\r\nsid, aid, ctext = cand[3], cand[4], cand[6]  # Wait cand tuple: (score, lr, tf, sid, aid, sname, text, norm)\r\nctext = cand[6]\r\nctext_norm = normalize_ar(ctext)\r\nfull_norm = normalize_ar(full)\r\nprint(full_norm)\r\nprint(ctext_norm)\r\nprint(\"char-lcs:\", lcs_ratio(full_norm, ctext_norm))\r\n\r\n# Token-level LCS ratio\r\na_tokens = tokenize_norm(full)\r\nb_tokens = tokenize_norm(ctext)\r\nlcs_tok = lcs_tokens(a_tokens, b_tokens)\r\nratio_tok = 2*lcs_tok/(len(a_tokens)+len(b_tokens))\r\nprint(\"tokens:\", a_tokens, len(a_tokens))\r\nprint(\"tokens:\", b_tokens, len(b_tokens))\r\nprint(\"token LCS:\", lcs_tok, \"ratio:\", ratio_tok)\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967936f8c08193bec41e5b3691ace1069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794126088193a13da00a73ee4e23069176f696ee943e",
+      "code": "import difflib\r\nfull_norm = normalize_ar(orig_full)\r\ncand_norm = ctext_norm\r\nsm_ratio = difflib.SequenceMatcher(None, full_norm, cand_norm).ratio()\r\nsm_q2t = difflib.SequenceMatcher(None, ctext_norm, full_norm).ratio()\r\nsm_ratio, sm_q2t\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896794330e0819395ca9967d4d18dac069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967946dfec8193b72caed2297b1cc4069176f696ee943e",
+      "code": "# Find verses with both \"الصابرين على ما أصابهم\" and ones with \"يرجون\"\r\nqnorm = [normalize_ar(v['ayah_text']) for v in quran_db]\r\nverses_with_phrase = [v for v in quran_db if 'الصَّابِرِينَ' in v['ayah_text'] or 'الصابرين' in v['ayah_text']]\r\n# Count the ones containing \"على ما أصابهم\"\r\nv_specific = [v for v in quran_db if 'عَلَىٰ مَا أَصَابَهُمْ' in v['ayah_text'] or 'على ما أصابهم' in normalize_ar(v['ayah_text'])]\r\nlen(verses_with_phrase), len(v_specific), v_specific[:3]\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967949fbcc819392ecd596b9433f8e069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896794f5314819394ff16bd5a07f132069176f696ee943e",
+      "code": "# Extract the exact text for surah 22:35\r\ncand = [v for v in quran_db if v['surah_id']==22 and v['ayah_id']==35][0]\r\nexact_text = cand['ayah_text']\r\nexact_text\n",
+      "container_id": "cntr_689678d48df08190b78839ff6cf10eae092104a05dcd9ae2",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679514d4c8193bf371740add537fa069176f696ee943e",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967989a27481939e2d96744d60178a069176f696ee943e",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"الَّذِينَ إِذَا ذُكِرَ اللَّهُ وَجِلَتْ قُلُوبُهُمْ وَالصَّابِرِينَ عَلَىٰ مَا أَصَابَهُمْ وَالْمُقِيمِي الصَّلَاةِ وَمِمَّا رَزَقْنَاهُمْ يُنْفِقُونَ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 47288,
+    "input_tokens_details": {
+      "cached_tokens": 43672
+    },
+    "output_tokens": 7976,
+    "output_tokens_details": {
+      "reasoning_tokens": 7872
+    },
+    "total_tokens": 55264
+  },
+  "user": null,
+  "store": false
+}

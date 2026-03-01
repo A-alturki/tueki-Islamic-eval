@@ -1,0 +1,287 @@
+{
+  "id": "resp_689678d31a808195a826332cb523103603ab6c7933b016b5",
+  "created_at": 1754691795.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689678d7753481959779288558fca45e03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967927e76081958b522ff03761e65803ab6c7933b016b5",
+      "code": "# Let's load the JSON files and inspect the structure.\r\nimport json, os, re, math, unicodedata, itertools\r\nfrom collections import defaultdict, Counter\r\n\r\nquran_path = \"/mnt/data/file-Kjf8kioBqNjsW3Z6BUAgeu-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-D3aKALkQAv6nYj9sKob7Ho-six_hadith_books.json\"\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran_db = load_json(quran_path)\r\nhadith_db = load_json(hadith_path)\r\n\r\ntype(quran_db), len(quran_db), list(quran_db[0].keys())[:10], len(hadith_db), list(hadith_db[0].keys())[:10]",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896792d6a288195b8f1a144332ea49303ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896793e92248195aab2f591005a391403ab6c7933b016b5",
+      "code": "import re\r\n\r\n# Arabic normalization helpers\r\nARABIC_DIACRITICS = re.compile(r\"[\\u0617-\\u061A\\u064B-\\u0652\\u0670\\u06D6-\\u06ED]\")\r\nTATWEEL = '\\u0640'\r\nPUNCTUATION_PATTERN = re.compile(r\"[^\\w\\s\\u0600-\\u06FF]\")  # remove Latin punctuation, keep Arabic letters and digits\r\n# We'll handle Arabic-specific punctuation as well:\r\nAR_PUNCT = re.compile(r\"[؟،؛٬٫ـ]+\" ) # includes tatweel? We'll remove tatweel separately.\r\n\r\n\r\ndef strip_tashkeel(s):\r\n    s = s.replace(TATWEEL, '')\r\n    s = ARABIC_DIACRITICS.sub('', s)\r\n    # Remove Arabic punctuation\r\n    s = AR_PUNCT.sub(' ', s)\r\n    # Remove Latin punctuation\r\n    s = PUNCTUATION_PATTERN.sub(' ', s)\r\n    return s\r\n\r\ndef normalize_ar(s):\r\n    s = strip_tashkeel(s)\r\n    # Normalize Alef variants and Hamza\r\n    s = s.replace('أ', 'ا').replace('إ','ا').replace('آ','ا').replace('ٱ','ا')\r\n    s = s.replace('ؤ','و').replace('ئ','ي').replace('ء','')  # unify hamza on carriers\r\n    s = s.replace('ى','ي')\r\n    s = s.replace('ة','ه')\r\n    s = s.replace('ﻻ','لا')\r\n    # collapse spaces\r\n    s = ' '.join(s.split())\r\n    return s\r\n\r\ndef lcs_length(a, b):\r\n    # DP LCS O(n*m) may be heavy but strings not too long\r\n    n, m = len(a), len(b)\r\n    dp = [0]*(m+1)\r\n    for i in range(1, n+1):\r\n        prev = 0\r\n        for j in range(1, m+1):\r\n            tmp = dp[j]\r\n            if a[i-1] == b[j-1]:\r\n                dp[j] = prev + 1\r\n            else:\r\n                dp[j] = max(dp[j], dp[j-1])\r\n            prev = tmp\r\n    return dp[m]\r\n\r\ndef lcs_ratio(a, b):\r\n    # compute normalized LCS ratio relative to length of shorter string\r\n    a_n = normalize_ar(a.lower())\r\n    b_n = normalize_ar(b.lower())\r\n    if not a_n or not b_n:\r\n        return 0.0\r\n    L = lcs_length(a_n, b_n)\r\n    shorter = min(len(a_n), len(b_n))\r\n    avg_len = 0.5*(len(a_n)+len(b_n))\r\n    # ratios\r\n    r_short = L / shorter\r\n    r_avg = L / avg_len\r\n    r_max = max(r_short, r_avg)\r\n    return r_max\r\n\r\ndef token_f1(a, b):\r\n    a_n = normalize_ar(a.lower())\r\n    b_n = normalize_ar(b.lower())\r\n    if not a_n or not b_n:\r\n        return 0.0\r\n    a_tokens = a_n.split()\r\n    b_tokens = b_n.split()\r\n    # Use multiset counts for tokens to reflect duplicates\r\n    ca = Counter(a_tokens)\r\n    cb = Counter(b_tokens)\r\n    # intersection size is sum of min counts for each token\r\n    inter = sum((ca & cb).values())\r\n    precision = inter / (sum(ca.values()) or 1)\r\n    recall = inter / (sum(cb.values()) or 1)\r\n    if precision+recall == 0:\r\n        return 0.0\r\n    f1 = 2*precision*recall / (precision+recall)\r\n    return f1\r\n\r\ndef combined_similarity(a, b):\r\n    # Weighted combination\r\n    return 0.5*lcs_ratio(a,b) + 0.5*token_f1(a,b)\r\n\r\nfull_span = \"وَلا يَأْتَلِفْكُمُ الشَيْطَانُ إِلّا أَنْ يُؤَجِّلَ مَنْ يَشَاءُ مِنْكُمْ فَاسْتَعِذُوا بِاللَّهِ إِنْ شَاءَ اللَّهُ يُجَزِلْ بِكُمْ\"\r\nsnippet = \"وَلا يَأْت...ِلْ بِكُمْ\"\r\n\r\n# Preprocess DB: create normalized text for each ayah\r\nfor v in quran_db:\r\n    v['ayah_text_norm'] = normalize_ar(v['ayah_text'])\r\n    v['ayah_text_no_diac'] = strip_tashkeel(v['ayah_text'])\r\n\r\n# Let's search for keywords\r\nkeywords = ['ولا ياتل', 'ياتل', 'فاستعذ بالله', 'الشيطان', 'منكم']\r\nmatches = defaultdict(list)\r\nfor i, v in enumerate(quran_db):\r\n    text_norm = v['ayah_text_norm']\r\n    for kw in keywords:\r\n        if kw in text_norm:\r\n            matches[kw].append((i, v))\r\n\r\n{kw: len(vals) for kw, vals in matches.items()}",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795096448195a023ca3c337fd0c603ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967950e8e481959a3932fd45bfe92b03ab6c7933b016b5",
+      "code": "yatlu_matches = matches['ولا ياتل']\r\nyatlu_matches[:3]",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967952cd9081958b6dba7a80bbc23803ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679533d90819596d2aca3eb7b4d8203ab6c7933b016b5",
+      "code": "candidate_text = yatlu_matches[0][1]['ayah_text']\r\ncandidate_text, combined_similarity(full_span, candidate_text), lcs_ratio(full_span, candidate_text), token_f1(full_span, candidate_text)",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679550954819597e111ea7c6bd90d03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795632b88195ae459ff064b8b18b03ab6c7933b016b5",
+      "code": "snippet_similarity = combined_similarity(snippet, candidate_text)\r\nlcs = lcs_ratio(snippet, candidate_text)\r\nf1 = token_f1(snippet, candidate_text)\r\nsnippet, snippet_similarity, lcs, f1",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795a687c819580d7bf0f88b88a8703ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896795b291481958fd94ba194a98d4e03ab6c7933b016b5",
+      "code": "normalize_ar(snippet)",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896795cff6081958afce2e2f008a17e03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967965da5c8195965a40d8a4f4152103ab6c7933b016b5",
+      "code": "# Find Surah 16:98 - search for 'فاستعذ بالله'\r\nfa_candidates = [v for v in quran_db if 'فاستعذ بالله' in v['ayah_text_norm']]\r\n[(v['surah_id'], v['ayah_id'], v['ayah_text'][:80]) for v in fa_candidates], len(fa_candidates)",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967967f0988195bd28ac79c250fffb03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689679682d808195bcfa41e8a323809903ab6c7933b016b5",
+      "code": "for v in fa_candidates:\r\n    sim = combined_similarity(full_span, v['ayah_text'])\r\n    print(v['surah_id'], v['ayah_id'], sim, lcs_ratio(full_span, v['ayah_text']), token_f1(full_span, v['ayah_text']))",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796a4a048195abd6a7173c19c12303ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896796ab6cc8195a0ceac9c04af85ba03ab6c7933b016b5",
+      "code": "# Search for \"فقاتلوا اولياء الشيطان ان كيد الشيطان كان ضعيفا\" verse 4:76\r\ncandidates_4_76 = [v for v in quran_db if v['surah_id']==4 and v['ayah_id']==76]\r\ncandidates_4_76",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896796dbdf4819598548ca4ebad7ad303ab6c7933b016b5",
+      "code": "cand = candidates_4_76[0]['ayah_text']\r\ncombined_similarity(full_span, cand), lcs_ratio(full_span, cand), token_f1(full_span, cand)",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896796fa0988195827b999fc99a73af03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797310d8819583729b234cb86ae603ab6c7933b016b5",
+      "code": "cand_combined = candidate_text + \" \" + fa_candidates[1]['ayah_text']  # 24:22 + 16:98\r\ncombined_similarity(full_span, cand_combined), lcs_ratio(full_span, cand_combined), token_f1(full_span, cand_combined)",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896797542b88195888270a48f0b54fc03ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896797a60a08195b0d6111b4156afa903ab6c7933b016b5",
+      "code": "# Search hadith for \"ولا يأتل\" forms (normalize)\r\ndef normalize_ar_keep_spaces(s):\r\n    return normalize_ar(s)\r\n\r\ntargets = ['ولا ياتل', 'لا ياتل', 'يأتلف']\r\n\r\nhadith_matches = []\r\nfor h in hadith_db:\r\n    for field in ('hadithTxt', 'Matn'):\r\n        if field in h and h[field]:\r\n            text = h[field]\r\n            norm = normalize_ar(text)\r\n            for kw in targets:\r\n                if kw in norm:\r\n                    hadith_matches.append((h['hadithID'], field, text[:120]))\r\n                    break\r\nlen(hadith_matches), hadith_matches[:3]",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679823bf48195988ae71f9258abe903ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896799ec2f08195b2eb79bbe19be0a103ab6c7933b016b5",
+      "code": "candidate_text",
+      "container_id": "cntr_689678d4dfd88190a785b96364136c3e0d66dba8467d3afa",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689679a07fb4819588d22314cc8c5ad403ab6c7933b016b5",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689679a2b1808195aad3ba9ba36553db03ab6c7933b016b5",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"وَلَا يَأْتَلِ أُولُو الْفَضْلِ مِنْكُمْ وَالسَّعَةِ أَنْ يُؤْتُوا أُولِي الْقُرْبَىٰ وَالْمَسَاكِينَ وَالْمُهَاجِرِينَ فِي سَبِيلِ اللَّهِ ۖ وَلْيَعْفُوا وَلْيَصْفَحُوا ۗ أَلَا تُحِبُّونَ أَنْ يَغْفِرَ اللَّهُ لَكُمْ ۗ وَاللَّهُ غَفُورٌ رَحِيمٌ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-Kjf8kioBqNjsW3Z6BUAgeu",
+          "file-D3aKALkQAv6nYj9sKob7Ho"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 142571,
+    "input_tokens_details": {
+      "cached_tokens": 126640
+    },
+    "output_tokens": 10085,
+    "output_tokens_details": {
+      "reasoning_tokens": 9920
+    },
+    "total_tokens": 152656
+  },
+  "user": null,
+  "store": false
+}

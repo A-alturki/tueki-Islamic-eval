@@ -1,0 +1,191 @@
+{
+  "id": "resp_6896726e80208197bf01604b97caf3240c0641dc8df39f93",
+  "created_at": 1754690158.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967272fc688197a24d2678c3a7bff20c0641dc8df39f93",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672738c808197937c5bbeb4018a310c0641dc8df39f93",
+      "code": "import json, re, unicodedata, itertools, textwrap, os, sys, math, difflib, collections, pandas as pd\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran = load_json(quran_path)\r\nhadith = load_json(hadith_path)\r\n\r\nlen(quran), len(hadith)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672798c988197ad35bbf16f98f9d60c0641dc8df39f93",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967279b9888197aa700741af1a91190c0641dc8df39f93",
+      "code": "import re, unicodedata\r\n\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return \"\"\r\n    # remove tashkeel\r\n    tashkeel = re.compile(r'[\\u0617-\\u061A\\u064B-\\u0652\\u0657-\\u065F\\u0670\\u06D6-\\u06ED]')\r\n    text = tashkeel.sub('', text)\r\n    # remove tatweel and punctuation\r\n    text = re.sub(r'[\\u0640\\u061F\\u060C\\u061B!\"\\'\\(\\)\\[\\]\\{\\}\\-–—…,\\.،؛:؟»«ـ]', ' ', text)\r\n    # unify hamza forms\r\n    text = (text.replace('أ','ا').replace('إ','ا').replace('آ','ا')\r\n                 .replace('ؤ','و').replace('ئ','ي').replace('ة','ه'))\r\n    # collapse spaces\r\n    text = re.sub(r'\\s+', ' ', text).strip()\r\n    return text\r\n\r\ntarget_full = \"خسف بأصحاب الفيل، ومسخ الطير بأهل بدر، ومسخ القردة والخنازير من المشركين\"\r\nnorm_target = normalize_ar(target_full)\r\nnorm_target",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727e3f888197807243be377bfd390c0641dc8df39f93",
+      "code": "# Search hadith texts for matches or high similarity\r\ndef get_matn_text(rec):\r\n    for k in ['hadithTxt','Matn','matn','HadithText','hadith_text']:\r\n        if k in rec and rec[k]:\r\n            return rec[k]\r\n    return None\r\n\r\ncandidates = []\r\nfor i,rec in enumerate(hadith):\r\n    txt = get_matn_text(rec)\r\n    if not txt: \r\n        continue\r\n    n = normalize_ar(txt)\r\n    if all(tok in n for tok in norm_target.split()[:5]):\r\n        # quick filter\r\n        pass\r\n    # compute similarity\r\n    ratio = difflib.SequenceMatcher(None, n, norm_target).ratio()\r\n    if 'اصحاب الفيل' in n or 'القرده' in n or 'الخنازير' in n:\r\n        candidates.append((ratio, i, txt))\r\n\r\n# sort by ratio\r\ncandidates_sorted = sorted(candidates, reverse=True)[:50]\r\n[(r,i) for r,i,_ in candidates_sorted[:10]]",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729f61e0819790ef30bd5aaff7410c0641dc8df39f93",
+      "code": "for r,i,txt in candidates_sorted[:10]:\r\n    print(\"Idx\", i, \"ratio\", r)\r\n    print(txt)\r\n    print(\"-\"*80)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a167088197bff3cb02fd57adf60c0641dc8df39f93",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a2dddc81979a654dfa11b223340c0641dc8df39f93",
+      "code": "# search for records containing both terms \"خسف\" and \"مسخ\" in normalized text\r\nhits = []\r\nfor i,rec in enumerate(hadith):\r\n    txt = rec.get('hadithTxt') or rec.get('Matn')\r\n    if not txt: \r\n        continue\r\n    n = normalize_ar(txt)\r\n    if 'خسف' in n and 'مسخ' in n:\r\n        hits.append((i, txt))\r\nlen(hits)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672a5da588197a24c21e9b39bee0d0c0641dc8df39f93",
+      "code": "for i,txt in hits[:10]:\r\n    print(\"Idx\", i)\r\n    print(txt)\r\n    print(\"-\"*80)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a80a9c819792e0b5ae5a42d8b10c0641dc8df39f93",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672aaca348197bb97118dd6e47e560c0641dc8df39f93",
+      "code": "# find hadith containing exact phrase segments\r\nphrases = ['يجعل منهم القردة والخنازير','القردة والخنازير','يجعل منهم القرده والخنازير']\r\nhits2 = []\r\nfor i,rec in enumerate(hadith):\r\n    txt = rec.get('hadithTxt') or rec.get('Matn')\r\n    if not txt: \r\n        continue\r\n    for ph in phrases:\r\n        if ph in txt:\r\n            hits2.append((i, txt))\r\n            break\r\nlen(hits2)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672ad61b481979d49b3e33d3b76890c0641dc8df39f93",
+      "code": "for i,txt in hits2:\r\n    print(\"Idx\", i)\r\n    print(txt)\r\n    print(\"-\"*80)",
+      "container_id": "cntr_689672701b148190b95ede69df84eca709552641fe232d08",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672af575c81979c571331f2516c010c0641dc8df39f93",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672b1d76c8197929aebc0533448390c0641dc8df39f93",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 32538,
+    "input_tokens_details": {
+      "cached_tokens": 23400
+    },
+    "output_tokens": 1483,
+    "output_tokens_details": {
+      "reasoning_tokens": 448
+    },
+    "total_tokens": 34021
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

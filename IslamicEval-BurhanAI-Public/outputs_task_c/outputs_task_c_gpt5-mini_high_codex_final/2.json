@@ -1,0 +1,204 @@
+{
+  "id": "resp_689708a0e8848197a760cb121d1fa883075f3c3e5f1ecb88",
+  "created_at": 1754728608.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-mini-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689708a4ec088197bdb860e346ca0b25075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708ac8e688197aeeb503736b88e08075f3c3e5f1ecb88",
+      "code": "# Let's load the quranic_verses.json and six_hadith_books.json files from /mnt/data\r\nimport json, os, re, unicodedata, math, difflib, sys, itertools\r\nqpath = \"/mnt/data/file-HHumqWkCbpLvx5yFcuNaEH-quranic_verses.json\"\r\nhpath = \"/mnt/data/file-GTpsjEG93EG6BAuDqWqgAJ-six_hadith_books.json\"\r\n\r\nwith open(qpath, \"r\", encoding=\"utf-8\") as f:\r\n    qdata = json.load(f)\r\nwith open(hpath, \"r\", encoding=\"utf-8\") as f:\r\n    hdata = json.load(f)\r\n\r\nlen(qdata), len(hdata)[:5] if isinstance(hdata, list) else \"hdata not list\"",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708af49f8819784e46fe004d3a506075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708af84ec8197b9d2df2b8095ffba075f3c3e5f1ecb88",
+      "code": "type(qdata), type(hdata)",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b13a248197ade0da293d5b1112075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b15d0c8197817036fea6c5ee74075f3c3e5f1ecb88",
+      "code": "len(qdata), len(hdata)",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b2b4808197a1b681db285d8ef4075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708b2e5b08197b802ff7b547a5b87075f3c3e5f1ecb88",
+      "code": "qdata[:3]",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708b447ec81979461b7f6473e914a075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708bd6574819797163b37a88b8278075f3c3e5f1ecb88",
+      "code": "# Let's implement normalization and similarity metrics, then search qdata and hdata for best matches for the full substring and the provided snippet.\r\nimport re, unicodedata\r\nfrom functools import lru_cache\r\n\r\n# Provided full and snippet\r\nfull_substring = \"إن الذين تولوا منكم يوم التقى الجمعان إنما استدرجهم الشيطان ببعض ما اكتسبوا ولقد عفا الله عنهم إن الله غفور رحيم\"\r\nsnippet = \"إن الذين ت... غفور رحيم\"\r\n\r\n# Normalization function\r\narabic_punct = r'''!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~«»،؛؟…ـ।ــ“”’‚—–'''  # include some arabic punctuation\r\n# We'll also remove Arabic tatweel 'ـ' and diacritics\r\n\r\ndef normalize_arabic(s):\r\n    if not isinstance(s, str):\r\n        s = str(s)\r\n    # Unicode normalize\r\n    s = unicodedata.normalize('NFKD', s)\r\n    # remove diacritic marks (category Mn)\r\n    s = ''.join(ch for ch in s if unicodedata.category(ch) != 'Mn')\r\n    # remove tatweel\r\n    s = s.replace('ـ', '')\r\n    # unify alef forms\r\n    s = re.sub('[آأإٱ]', 'ا', s)\r\n    # unify hamza on waw/yea? Not necessary.\r\n    # normalize alef maksura ى -> ي\r\n    s = s.replace('ى', 'ي')\r\n    # remove punctuation and digits and non arabic letters/space\r\n    # keep arabic letters (0600-06FF) and spaces, maybe Arabic Presentation Forms too\r\n    s = re.sub('[%s]' % re.escape(arabic_punct), ' ', s)\r\n    # remove Latin digits and Arabic-Indic digits\r\n    s = re.sub('[0-9٠-٩،۰-۹]', ' ', s)\r\n    # remove extra non-Arabic characters\r\n    # keep Arabic letters and spaces\r\n    s = ''.join(ch for ch in s if ('\\u0600' <= ch <= '\\u06FF') or ch == ' ')\r\n    # collapse multiple spaces\r\n    s = re.sub(r'\\s+', ' ', s).strip()\r\n    # lowercasing not needed\r\n    return s\r\n\r\n# LCS function for characters\r\ndef lcs_length(a, b):\r\n    # dynamic programming for length\r\n    n, m = len(a), len(b)\r\n    if n == 0 or m == 0:\r\n        return 0\r\n    # to save time use difflib.SequenceMatcher? But implement DP optimized with two rows\r\n    prev = [0] * (m+1)\r\n    for i in range(1, n+1):\r\n        cur = [0] * (m+1)\r\n        ai = a[i-1]\r\n        for j in range(1, m+1):\r\n            if ai == b[j-1]:\r\n                cur[j] = prev[j-1] + 1\r\n            else:\r\n                cur[j] = prev[j] if prev[j] >= cur[j-1] else cur[j-1]\r\n        prev = cur\r\n    return prev[m]\r\n\r\ndef token_f1(a, b):\r\n    # tokens separated by space\r\n    ta = a.split()\r\n    tb = b.split()\r\n    if len(ta) == 0 or len(tb) == 0:\r\n        return 0.0\r\n    # Count overlap in multiset fashion\r\n    from collections import Counter\r\n    ca = Counter(ta)\r\n    cb = Counter(tb)\r\n    common = sum(min(ca[t], cb.get(t, 0)) for t in ca)\r\n    precision = common / sum(ca.values())\r\n    recall = common / sum(cb.values())\r\n    if precision + recall == 0:\r\n        return 0.0\r\n    return 2*precision*recall / (precision + recall)\r\n\r\n# normalize query strings\r\nfull_norm = normalize_arabic(full_substring)\r\nsnippet_norm = normalize_arabic(snippet)\r\nfull_norm, snippet_norm",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708c779988197b7e769f33b746800075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708c8aae48197ac064f418328e1d4075f3c3e5f1ecb88",
+      "code": "# Precompute normalized ayah_text for qdata\r\nq_norms = []\r\nfor entry in qdata:\r\n    txt = entry.get('ayah_text','')\r\n    norm = normalize_arabic(txt)\r\n    q_norms.append(norm)\r\n\r\ndef find_best_matches(query_text_norm, top_n=10):\r\n    results = []\r\n    qlen = len(query_text_norm)\r\n    for i, entry in enumerate(qdata):\r\n        cand = q_norms[i]\r\n        # compute lcs ratio relative to max length of the two\r\n        lcs_len = lcs_length(query_text_norm, cand)\r\n        denom = max(len(query_text_norm), len(cand)) if max(len(query_text_norm), len(cand)) > 0 else 1\r\n        lcs_ratio = lcs_len / denom\r\n        f1 = token_f1(query_text_norm, cand)\r\n        score = max(lcs_ratio, f1)\r\n        results.append((score, lcs_ratio, f1, i, entry))\r\n    results.sort(key=lambda x: x[0], reverse=True)\r\n    return results[:top_n]\r\n\r\nbest_full = find_best_matches(full_norm, top_n=10)\r\nbest_snip = find_best_matches(snippet_norm, top_n=10)\r\n\r\nbest_full[:5], best_snip[:5]",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708d1e1ac8197aaf16abd37c6e08a075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689708e27d9481978121311a8363c126075f3c3e5f1ecb88",
+      "code": "candidate = best_full[0][4]['ayah_text']\r\ncandidate, repr(candidate)",
+      "container_id": "cntr_689708a258308190b1d1a0be1e712141095e0dff723059b1",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689708e3f7dc8197878131a7ec9a2253075f3c3e5f1ecb88",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689708e603ac8197b5a9025c9525eeb6075f3c3e5f1ecb88",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"إِنَّ الَّذِينَ تَوَلَّوْا مِنْكُمْ يَوْمَ الْتَقَى الْجَمْعَانِ إِنَّمَا اسْتَزَلَّهُمُ الشَّيْطَانُ بِبَعْضِ مَا كَسَبُوا ۖ وَلَقَدْ عَفَا اللَّهُ عَنْهُمْ ۗ إِنَّ اللَّهَ غَفُورٌ حَلِيمٌ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-HHumqWkCbpLvx5yFcuNaEH",
+          "file-GTpsjEG93EG6BAuDqWqgAJ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 33230,
+    "input_tokens_details": {
+      "cached_tokens": 28568
+    },
+    "output_tokens": 5179,
+    "output_tokens_details": {
+      "reasoning_tokens": 5056
+    },
+    "total_tokens": 38409
+  },
+  "user": null,
+  "store": false
+}

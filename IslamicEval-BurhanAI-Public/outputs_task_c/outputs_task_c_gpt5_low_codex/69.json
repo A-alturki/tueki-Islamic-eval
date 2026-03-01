@@ -1,0 +1,215 @@
+{
+  "id": "resp_6896726dbe0881959c74488e0f9b7d0a0612a4e4f7c94a64",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_689672724e148195a5651e87a6cfbc370612a4e4f7c94a64",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967272f6f88195a481dd09b230f9040612a4e4f7c94a64",
+      "code": "# Load the provided JSON files and search for the given snippet in the hadith databases\r\nimport json, re, unicodedata, itertools, math, sys, os, textwrap\r\n\r\nquran_path = \"/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json\"\r\nhadith_path = \"/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json\"\r\n\r\nwith open(hadith_path, \"r\", encoding=\"utf-8\") as f:\r\n    hadith_db = json.load(f)\r\n\r\nwith open(quran_path, \"r\", encoding=\"utf-8\") as f:\r\n    quran_db = json.load(f)\r\n\r\nlen(hadith_db), len(quran_db)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967276063481959e5b4edceb3eb9400612a4e4f7c94a64",
+      "code": "# Define normalization helpers\r\nimport re, unicodedata\r\n\r\nAR_DIAC = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u0670\\u06D6-\\u06ED]')\r\nTATWEEL = \"\\u0640\"\r\ndef normalize_ar(text):\r\n    if text is None:\r\n        return \"\"\r\n    text = text.replace(TATWEEL, \"\")\r\n    text = AR_DIAC.sub(\"\", text)\r\n    # unify hamza forms\r\n    text = re.sub(\"[إأآا]\", \"ا\", text)\r\n    text = re.sub(\"ى\", \"ي\", text)\r\n    text = re.sub(\"ؤ\", \"و\", text)\r\n    text = re.sub(\"ئ\", \"ي\", text)\r\n    text = re.sub(\"[^\\u0600-\\u06FF0-9\\s]\", \" \", text)\r\n    text = re.sub(\"\\s+\", \" \", text).strip()\r\n    return text\r\n\r\ntarget_full = \"إِنَّ الصَّوْتَ يُقَوِّمُ بِالصَّوْتِ\"\r\ntarget_snip = \"إِنَّ الصّ...ِالصَّوْتِ\"\r\nnorm_target = normalize_ar(target_full)\r\nnorm_target",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896727b25b88195837732cf7c8f6abe0612a4e4f7c94a64",
+      "code": "# Search in hadith matn fields for near matches\r\nfields = [\"hadithTxt\", \"Matn\"]\r\ncandidates = []\r\nfor i, rec in enumerate(hadith_db):\r\n    for field in fields:\r\n        txt = rec.get(field) or \"\"\r\n        n = normalize_ar(txt)\r\n        if not n:\r\n            continue\r\n        if norm_target in n:\r\n            candidates.append((i, field, txt))\r\n            break\r\n\r\nlen(candidates)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672804cd48195981c3c7f7abf621e0612a4e4f7c94a64",
+      "code": "# Broaden search: look for occurrences of key words \"الصوت يقوم\" etc.\r\nkeywords = [\"الصوت يقوم بالصوت\", \"يقوم بالصوت\", \"الصوت يقوم\", \"يقوم الصوت\", \"ان الصوت يقوم\"]\r\nhits = []\r\nfor i, rec in enumerate(hadith_db):\r\n    for field in fields:\r\n        txt = rec.get(field) or \"\"\r\n        n = normalize_ar(txt)\r\n        if any(k in n for k in keywords):\r\n            hits.append((i, field, txt))\r\n            break\r\nlen(hits)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967285c7bc81958af4c6a2fda436db0612a4e4f7c94a64",
+      "code": "# Try searching for the verb \"يقوم\" near \"الصوت\" within a window\r\ndef window_hit(ntext):\r\n    toks = ntext.split()\r\n    for idx, tok in enumerate(toks):\r\n        if tok == \"الصوت\":\r\n            window = \" \".join(toks[max(0, idx-5): idx+6])\r\n            if \"يقوم\" in window or \"يقو\" in window:\r\n                return True\r\n    return False\r\n\r\nwin_hits = []\r\nfor i, rec in enumerate(hadith_db):\r\n    for field in fields:\r\n        txt = rec.get(field) or \"\"\r\n        n = normalize_ar(txt)\r\n        if \"الصوت\" in n and (\"يقوم\" in n or \"يقو\" in n):\r\n            if window_hit(n):\r\n                win_hits.append((i, field, txt))\r\n                break\r\n\r\nlen(win_hits)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728e06008195bb01ce93217cab3d0612a4e4f7c94a64",
+      "code": "# Inspect the found hit\r\nwin_hits[0][2][:800]",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728fb1208195ab26be16468fc3cf0612a4e4f7c94a64",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967294a42c81958205b1628b1ee1690612a4e4f7c94a64",
+      "code": "# Collect hadiths containing the word \"الصوت\"\r\nres = []\r\nfor i, rec in enumerate(hadith_db):\r\n    for field in [\"hadithTxt\", \"Matn\"]:\r\n        txt = rec.get(field) or \"\"\r\n        if \"الصوت\" in txt:\r\n            res.append(txt)\r\n            break\r\nlen(res)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967296a4288195997b26ea62663baf0612a4e4f7c94a64",
+      "code": "# Show a few snippets with \"الصوت\" to see typical contexts\r\nfor t in res[:15]:\r\n    print(\"-\"*60)\r\n    print(t[:500])",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729874d88195adf0aabc4e8874960612a4e4f7c94a64",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729a10ac8195b689c86395517c1b0612a4e4f7c94a64",
+      "code": "# Search hadiths for \"ان الصوت\" normalized\r\nhits2 = []\r\nfor i, rec in enumerate(hadith_db):\r\n    for field in [\"hadithTxt\",\"Matn\"]:\r\n        txt = rec.get(field) or \"\"\r\n        n = normalize_ar(txt)\r\n        if \"ان الصوت\" in n:\r\n            hits2.append((i, field, txt))\r\n            break\r\nlen(hits2)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672a039248195bc812cfa3f0ea5ef0612a4e4f7c94a64",
+      "code": "for _,_,t in hits2:\r\n    print(t[:500],\"\\n\"+\"=\"*60)",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a1e5e481958b7466d9e2e87e6f0612a4e4f7c94a64",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a2ea608195819a08e472e6402b0612a4e4f7c94a64",
+      "code": "# Quick search in Quran verses for the phrase normalized \"ان الصوت يقوم بالصوت\" or similar\nnorm_t = norm_target\nq_hits = []\nfor rec in quran_db:\n    txt = rec.get(\"ayah_text\") or \"\"\n    if norm_t in normalize_ar(txt):\n        q_hits.append(txt)\nlen(q_hits), q_hits[:3]",
+      "container_id": "cntr_6896726f367081909085a148a0ecfa0505c6f28cddc2bcd0",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a50c148195aeb2fcc78338a98f0612a4e4f7c94a64",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672a5dccc8195ac772977182867ec0612a4e4f7c94a64",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 45287,
+    "input_tokens_details": {
+      "cached_tokens": 36368
+    },
+    "output_tokens": 1575,
+    "output_tokens_details": {
+      "reasoning_tokens": 320
+    },
+    "total_tokens": 46862
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

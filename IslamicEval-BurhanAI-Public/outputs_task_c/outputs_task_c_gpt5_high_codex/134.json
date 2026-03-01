@@ -1,0 +1,265 @@
+{
+  "id": "resp_68967534246881949330c38cd0025cc7001399909b34fa63",
+  "created_at": 1754690868.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_68967538ce4c81949a42ad68a3a7bf34001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896754f70bc819497923ce574cc564b001399909b34fa63",
+      "code": "import json, re, os, textwrap, math, itertools, difflib, unicodedata, sys, statistics\npath = \"/mnt/data/file-Q1ZkZ7hNQqPEcQ1vsVE9Pf-six_hadith_books.json\"\nwith open(path, 'r', encoding='utf-8') as f:\n    six = json.load(f)\nlen(six), type(six)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967553275c8194844e5a2629f61ec6001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675535120819494de74c5c2b21fb7001399909b34fa63",
+      "code": "six[0].keys(), six[0]",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_68967554e3188194b0f2332946155763001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967555459c81948f8e9dc8de7d5c21001399909b34fa63",
+      "code": "def normalize(s):\n    # remove diacritics and non-letters, unify hamza/ya/ta marbuta?\n    if s is None:\n        return \"\"\n    # remove tashkeel\n    s2 = ''.join(ch for ch in s if unicodedata.category(ch) != 'Mn')\n    # unify hamza forms? For simplicity, map different alef forms to bare alif\n    s2 = s2.replace('إ', 'ا').replace('أ', 'ا').replace('آ', 'ا').replace('ٱ','ا')\n    s2 = s2.replace('ى','ي').replace('ة','ه')\n    s2 = re.sub(r'[^\\u0600-\\u06FF\\s]', ' ', s2)\n    s2 = re.sub(r'\\s+', ' ', s2).strip()\n    return s2\n\nmatches = []\nfor obj in six:\n    text = (obj.get('hadithTxt') or '') + ' ' + (obj.get('Matn') or '')\n    if 'ما أذن الله' in text or 'ما أذِن' in text or 'ما أذِنَ' in text or 'ما أذن' in text:\n        # record\n        matches.append(obj)\nlen(matches)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896755942a881948426794f9fe2d363001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967559985881949fc9da901a9a1491001399909b34fa63",
+      "code": "res = []\nfor obj in six:\n    text = (obj.get('hadithTxt') or '') + ' ' + (obj.get('Matn') or '')\n    ntext = normalize(text)\n    if 'ما اذن الله' in ntext:\n        res.append(obj)\nlen(res)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967561da788194a3b12b7ffc1ce85b001399909b34fa63",
+      "code": "for obj in res[:5]:\n    print(obj['hadithID'], obj.get('title')[:80])\n    txt = (obj.get('Matn') or obj.get('hadithTxt') or '')\n    # find the segment around the phrase\n    idx = normalize(txt).find('ما اذن الله')\n    print(txt[max(0, idx-100): idx+200])\n    print('---\\n')",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675642ebc8194a39215d5e7040cda001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675683e2c8194b7c9b87577326bd5001399909b34fa63",
+      "code": "orig = \"ما أذن الله لشيء ما أذن لنبي في الترنم بالقرآن\"\ndef nrm(s):\n    return normalize(s)\ndef lcs_ratio(a, b):\n    # compute length of LCS divided by average length\n    A=list(a)\n    B=list(b)\n    # dynamic programming\n    na, nb = len(A), len(B)\n    dp = [[0]*(nb+1) for _ in range(na+1)]\n    for i in range(1, na+1):\n        ai=A[i-1]\n        for j in range(1, nb+1):\n            if ai==B[j-1]:\n                dp[i][j]=dp[i-1][j-1]+1\n            else:\n                dp[i][j]=dp[i-1][j] if dp[i-1][j]>=dp[i][j-1] else dp[i][j-1]\n    lcs=dp[na][nb]\n    return lcs / ((na+nb)/2.0)\n\ncands = []\nfor obj in res:\n    txt = (obj.get('Matn') or obj.get('hadithTxt') or '')\n    cand = re.search(r'مَا أَذِن[^.\\n\\r]*', txt)  # until punctuation or newline\n    ctext = cand.group(0) if cand else txt\n    cands.append((obj['hadithID'], obj['title'], ctext.strip()))\n    \norig_n = nrm(orig)\nscores=[]\nfor hid, title, c in cands:\n    cn = nrm(c)\n    score = lcs_ratio(orig_n, cn)\n    scores.append((score, hid, c))\nsorted(scores, reverse=True)[:10]",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896756d60048194b1a9bee86c953b58001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757174d08194ae8873108ea2a837001399909b34fa63",
+      "code": "qpath = \"/mnt/data/file-FMu3bAgEAQtmEQQC8jx6tp-quranic_verses.json\"\nwith open(qpath, 'r', encoding='utf-8') as f:\n    qdb = json.load(f)\ntype(qdb), len(qdb), list(qdb[0].keys())",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967574d94881948493b4dbe18668a7001399909b34fa63",
+      "code": "# search for the phrase in quran too\ndef search_quran(phrase):\n    nph = normalize(phrase)\n    matches=[]\n    for obj in qdb:\n        if normalize(obj['ayah_text']).find(nph) != -1:\n            matches.append(obj)\n    return matches\n\nsearch_quran(\"ما أذن الله\")[:3]",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675771c008194b344ef4aea5aa74d001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689675787244819497d49a2e1dccb479001399909b34fa63",
+      "code": "target_id = 13713\ntarget_text = None\ntarget_title = None\nfor obj in six:\n    if obj['hadithID'] == target_id:\n        target_text = (obj.get('Matn') or obj.get('hadithTxt') or '').strip()\n        target_title = obj.get('title')\ntarget_title, target_text",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757a94148194b61a6dfdf96e2c3e001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896757b9df8819482ac78cc041a2884001399909b34fa63",
+      "code": "alts=[]\nfor obj in six:\n    text = (obj.get('hadithTxt') or '') + ' ' + (obj.get('Matn') or '')\n    if 'الترنم' in text or 'يترنم' in text:\n        alts.append((obj['hadithID'], obj.get('title'), text))\nlen(alts)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896757dd8d0819490c542bf3b9845af001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967586e87481948a9a34bcd1b45571001399909b34fa63",
+      "code": "repr(target_text), len(target_text)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689675886c6c819492b6285694437fa9001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_68967588b91c81948a76384d78002915001399909b34fa63",
+      "code": "tar = None\nfor obj in six:\n    if obj['hadithID']==7773:\n        tar=(obj.get('Matn') or obj.get('hadithTxt') or '').strip()\ntar, len(tar), repr(tar)",
+      "container_id": "cntr_68967535fdc4819085b9de571566741a04c7282206e598f9",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896758ab77881949d9a87e2f1ddd916001399909b34fa63",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_68967592e2e48194a1cc23ab2ac484f2001399909b34fa63",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"مَا أَذِنَ اللهُ لِشَيْءٍ مَا أَذِنَ لِنَبِيٍّ يَتَغَنَّى بِالْقُرْآنِ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-FMu3bAgEAQtmEQQC8jx6tp",
+          "file-Q1ZkZ7hNQqPEcQ1vsVE9Pf"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "high",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 89693,
+    "input_tokens_details": {
+      "cached_tokens": 66448
+    },
+    "output_tokens": 4352,
+    "output_tokens_details": {
+      "reasoning_tokens": 4288
+    },
+    "total_tokens": 94045
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

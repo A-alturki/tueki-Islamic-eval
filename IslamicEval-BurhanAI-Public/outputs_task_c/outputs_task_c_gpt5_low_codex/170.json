@@ -1,0 +1,206 @@
+{
+  "id": "resp_6896726dbec48190848e53fcef47385001c99a3d605e9091",
+  "created_at": 1754690157.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": null,
+  "metadata": {},
+  "model": "gpt-5-2025-08-07",
+  "object": "response",
+  "output": [
+    {
+      "id": "rs_6896727234088190af99433b36e4456101c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896727a284481909606045c3e95bdc801c99a3d605e9091",
+      "code": "import json, re, unicodedata\r\n\r\ndef load_json(path):\r\n    with open(path, 'r', encoding='utf-8') as f:\r\n        return json.load(f)\r\n\r\nquran = load_json('/mnt/data/file-RhatJL6W5hpishQfBLfQ2a-quranic_verses.json')\r\nhadith = load_json('/mnt/data/file-GKgoPWB6fR896BnuZfjrBZ-six_hadith_books.json')\r\n\r\ndef normalize(ar):\r\n    # remove tashkeel, tatweel, punctuation; normalize hamza forms\r\n    if ar is None:\r\n        return ''\r\n    # Remove diacritics\r\n    diacritics = re.compile(r'[\\u0610-\\u061A\\u064B-\\u065F\\u06D6-\\u06ED]')\r\n    ar = diacritics.sub('', ar)\r\n    # Tatweel\r\n    ar = ar.replace('ـ', '')\r\n    # Normalize different alef/hamza forms\r\n    ar = re.sub('[إأٱآا]', 'ا', ar)\r\n    ar = ar.replace('ؤ', 'و').replace('ئ', 'ي').replace('ة', 'ه')\r\n    # punctuation and non-letters\r\n    ar = re.sub(r'[^\\u0621-\\u063A\\u0641-\\u064A0-9\\s]', ' ', ar)\r\n    # collapse spaces\r\n    ar = re.sub(r'\\s+', ' ', ar).strip()\r\n    return ar\r\n\r\nsnippet = \"وَلَوْلاَ أَنَّ اللَهَ عَزَّ وَجَلَّ أَمَرَ بِالنِسَاءِ لَمَسَحْنَ بِالأَذى\"\r\nnorm_snippet = normalize(snippet)\r\nnorm_snippet\n",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_68967283d0188190b1bc96de8377e7a701c99a3d605e9091",
+      "code": "# Search hadith texts for high-overlap candidates\r\ndef search_hadith(norm_query, topn=20):\r\n    results = []\r\n    for rec in hadith:\r\n        text = rec.get('hadithTxt') or rec.get('Matn') or ''\r\n        norm = normalize(text)\r\n        if not norm:\r\n            continue\r\n        if all(tok in norm for tok in norm_query.split()[:3]):  # basic presence\r\n            # compute simple similarity as overlap of tokens\r\n            q_tokens = set(norm_query.split())\r\n            t_tokens = set(norm.split())\r\n            overlap = len(q_tokens & t_tokens) / max(1,len(q_tokens))\r\n            if 'النساء' in norm or 'النس' in norm:\r\n                overlap += 0.05\r\n            results.append((overlap, text, rec))\r\n        else:\r\n            # try substring of some key phrase\r\n            if 'امر بالنساء' in norm and 'بالاذى' in norm:\r\n                results.append((0.6, text, rec))\r\n    results.sort(reverse=True, key=lambda x: x[0])\r\n    return results[:topn]\r\n\r\ncands = search_hadith(norm_snippet, topn=50)\r\nlen(cands), [r[0] for r in cands[:10]]\n",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896728b130c81908b97530b24d61b3c01c99a3d605e9091",
+      "code": "# Show top candidates' texts\nfor score, text, rec in cands[:10]:\n    print(score, text[:400], '\\n---\\n')",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896728d293c81908a5799e09badb83301c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896728ddbc4819094db4f85ab4f493c01c99a3d605e9091",
+      "code": "def filter_contains(subs):\r\n    res = []\r\n    for rec in hadith:\r\n        text = rec.get('hadithTxt') or rec.get('Matn') or ''\r\n        norm = normalize(text)\r\n        ok = True\r\n        for s in subs:\r\n            if s not in norm:\r\n                ok = False\r\n                break\r\n        if ok:\r\n            res.append(text)\r\n    return res\r\n\r\nfilter_contains(['بالاذى'])[:5], len(filter_contains(['بالاذى']))\n",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_6896729661c88190ab572a0ff914015801c99a3d605e9091",
+      "code": "filter_contains(['امر','بالنساء'])[:10], len(filter_contains(['امر','بالنساء']))",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_6896729c885c81909318c3c869763a0801c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_6896729d1b68819097b4791bebabf1d201c99a3d605e9091",
+      "code": "filter_contains(['الاذى'])[:10], len(filter_contains(['الاذى']))",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672a3687881908dbd4fb862ba1a3801c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672a5f8f481909d90bf00da8406f901c99a3d605e9091",
+      "code": "filter_contains(['لولا','لاؤمرتهم','بالسواك'])[:5], len(filter_contains(['لولا','لاؤمرتهم','بالسواك']))",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "ci_689672ac80e081909823d16b74e84f7a01c99a3d605e9091",
+      "code": "# Try forms with spaces: \"لامرتهم\"\r\nfilter_contains(['لولا','لامرتهم','بالسواك'])[:10], len(filter_contains(['لولا','لامرتهم','بالسواك']))",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b333d88190a7f1be591bf873c601c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "ci_689672b504c88190af2ee3111051541b01c99a3d605e9091",
+      "code": "def search_quran_contains(subs):\r\n    res = []\r\n    for rec in quran:\r\n        text = rec.get('ayah_text','')\r\n        norm = normalize(text)\r\n        ok = all(s in norm for s in subs)\r\n        if ok:\r\n            res.append(text)\r\n    return res\r\n\r\nsearch_quran_contains(['بالاذى'])[:5], search_quran_contains(['امر','بالنساء'])[:5], search_quran_contains(['ولولا','امر'])[:5]",
+      "container_id": "cntr_6896726f88748190a73cf35d655db21b0ba50eb2d0b894da",
+      "outputs": null,
+      "status": "completed",
+      "type": "code_interpreter_call"
+    },
+    {
+      "id": "rs_689672b7bf7081909e3d4f06ee55a31c01c99a3d605e9091",
+      "summary": [],
+      "type": "reasoning",
+      "encrypted_content": null,
+      "status": null
+    },
+    {
+      "id": "msg_689672b86618819086af78db69fcd35601c99a3d605e9091",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"correction\":\"خطأ\"}",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "container": {
+        "type": "auto",
+        "file_ids": [
+          "file-RhatJL6W5hpishQfBLfQ2a",
+          "file-GKgoPWB6fR896BnuZfjrBZ"
+        ]
+      },
+      "type": "code_interpreter"
+    }
+  ],
+  "top_p": 1.0,
+  "background": false,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "reasoning": {
+    "effort": "low",
+    "generate_summary": null,
+    "summary": null
+  },
+  "service_tier": "default",
+  "status": "completed",
+  "text": {
+    "format": {
+      "name": "task_1c_correction",
+      "schema_": {
+        "type": "object",
+        "properties": {
+          "correction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "correction"
+        ],
+        "additionalProperties": false
+      },
+      "type": "json_schema",
+      "description": null,
+      "strict": true
+    },
+    "verbosity": "high"
+  },
+  "top_logprobs": 0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 62662,
+    "input_tokens_details": {
+      "cached_tokens": 47424
+    },
+    "output_tokens": 1768,
+    "output_tokens_details": {
+      "reasoning_tokens": 640
+    },
+    "total_tokens": 64430
+  },
+  "user": null,
+  "prompt_cache_key": null,
+  "safety_identifier": null,
+  "store": false
+}

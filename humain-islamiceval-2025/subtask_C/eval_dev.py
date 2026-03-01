@@ -8,9 +8,10 @@ from matcher import QuranHadithSpanMatcher
 from span_corrector import SpanCorrector
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DEV_TSV  = "../datasets/dev_SubtaskC.tsv"
-DEV_XML  = "../datasets/dev_SubtaskC.xml"
-USE_RERANKER   = False   # set True to use BGE (slower but better)
+DEV_TSV  = "datasets/dev_SubtaskC.tsv"
+DEV_XML  = "datasets/dev_SubtaskC.xml"
+
+USE_RERANKER   = True   # set True to use BGE (slower but better)
 QURAN_THRESH   = 0.80
 HADITH_THRESH  = 0.70
 # ─────────────────────────────────────────────────────────────────────────────
